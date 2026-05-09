@@ -311,6 +311,30 @@ function QuestionModal({ sector, level, questions, tier4Topics, onComplete, pale
           {sector.name} · Tier {level + 1} · {tierLabels[level]}
         </div>
 
+        {/* sector intro — show only on the first question of the tier so it
+            sets the frame without repeating across each step. */}
+        {idx === 0 && sector.bigGoal && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{
+              fontSize: 13, lineHeight: 1.45, color: palette.text + 'b3',
+              fontStyle: 'italic', textWrap: 'pretty', marginBottom: 6,
+            }}>
+              {sector.bigGoal}
+            </div>
+            {sector.resourceLink && (
+              <a href={sector.resourceLink.url} target="_blank" rel="noreferrer" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
+                color: '#5BA84A', textDecoration: 'none',
+                borderBottom: '1px solid #5BA84A55',
+                paddingBottom: 1,
+              }}>
+                {sector.resourceLink.label} ↗
+              </a>
+            )}
+          </div>
+        )}
+
         {/* progress dots */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
           {Array.from({ length: total }).map((_, i) => (
