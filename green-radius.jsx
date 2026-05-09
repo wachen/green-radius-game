@@ -155,7 +155,7 @@ function Wheel({ sectors, levelStates, rotation, spinning, onSpin, canSpin, vari
                   <path
                     d={arcPath(cx, cy, ringRadii[li], ringOuter[li], a0, a1)}
                     fill="url(#greenShimmer)"
-                    fill-opacity="0.3"
+                    fillOpacity="0.3"
                   />
                 )}
               </g>
@@ -446,7 +446,6 @@ function ResultToast({ kind, sector, level, palette, onClose }) {
 
   const isGreen = kind === 'green';
   const isFail = kind === 'failed';
-  const isLockedOut = kind === 'locked-out';
 
   return (
     <div style={{
@@ -467,7 +466,6 @@ function ResultToast({ kind, sector, level, palette, onClose }) {
         <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.25, textWrap: 'pretty' }}>
           {isGreen && '✓ Level cleared — turning green'}
           {isFail && 'Sector closed — keep what you earned'}
-          {isLockedOut && 'Already complete — re-spinning'}
         </div>
       </div>
     </div>
