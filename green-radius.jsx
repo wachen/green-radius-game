@@ -872,6 +872,13 @@ function Intro({ onStart, onBack, palette }) {
         }}
       >Begin →</button>
 
+      <div style={{
+        fontSize: 10, letterSpacing: '0.15em',
+        color: palette.text + '66', marginTop: 24, fontWeight: 600,
+      }}>
+        6 SECTORS · 4 LEVELS
+      </div>
+
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
         style={{
           fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
