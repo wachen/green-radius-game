@@ -665,6 +665,16 @@ function ModePicker({ onPick, palette }) {
       }}>
         <span style={{ whiteSpace: 'nowrap' }}>What's Your</span> <span style={{ whiteSpace: 'nowrap' }}>Green Radius?</span>
       </h1>
+
+      <div style={{
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        gap: 14, margin: '18px 0 22px',
+      }} aria-hidden="true">
+        {window.SECTORS.map(s => (
+          <SectorIcon key={s.id} kind={s.icon} size={26} color={palette.accent}/>
+        ))}
+      </div>
+
       <div style={{
         fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc',
         marginBottom: 32, textWrap: 'pretty',
