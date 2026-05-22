@@ -43,17 +43,17 @@ function SectorIcon({ kind, size = 28, color = '#fff' }) {
   const p = { fill: 'none', stroke: color, strokeWidth: sw, strokeLinecap: 'round', strokeLinejoin: 'round' };
   switch (kind) {
     case 'water':
-      return <svg width={s} height={s} viewBox="0 0 24 24"><path {...p} d="M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg>;
+      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg>;
     case 'waste':
-      return <svg width={s} height={s} viewBox="0 0 24 24"><path {...p} d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6"/></svg>;
+      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6"/></svg>;
     case 'power':
-      return <svg width={s} height={s} viewBox="0 0 24 24"><path {...p} d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>;
+      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>;
     case 'transport':
-      return <svg width={s} height={s} viewBox="0 0 24 24"><path {...p} d="M4 16V8a2 2 0 0 1 2-2h8l4 5v5M4 16h16M4 16v2a1 1 0 0 0 1 1h2M20 16v2a1 1 0 0 1-1 1h-2M14 6v5h4"/><circle {...p} cx="8" cy="18" r="1.5"/><circle {...p} cx="17" cy="18" r="1.5"/></svg>;
+      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M4 16V8a2 2 0 0 1 2-2h8l4 5v5M4 16h16M4 16v2a1 1 0 0 0 1 1h2M20 16v2a1 1 0 0 1-1 1h-2M14 6v5h4"/><circle {...p} cx="8" cy="18" r="1.5"/><circle {...p} cx="17" cy="18" r="1.5"/></svg>;
     case 'food':
-      return <svg width={s} height={s} viewBox="0 0 24 24"><path {...p} d="M12 21c5-5 8-9 8-13a8 8 0 0 0-16 0c0 4 3 8 8 13zM12 3v18M8 7c1 1.5 1 3 0 5M16 7c-1 1.5-1 3 0 5"/></svg>;
+      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M12 21c5-5 8-9 8-13a8 8 0 0 0-16 0c0 4 3 8 8 13zM12 3v18M8 7c1 1.5 1 3 0 5M16 7c-1 1.5-1 3 0 5"/></svg>;
     case 'shelter':
-      return <svg width={s} height={s} viewBox="0 0 24 24"><path {...p} d="M3 20 12 5l9 15M7 20v-5h10v5"/></svg>;
+      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M3 20 12 5l9 15M7 20v-5h10v5"/></svg>;
     default: return null;
   }
 }
@@ -657,7 +657,7 @@ function ModePicker({ onPick, palette }) {
     textAlign: 'center', fontFamily: 'inherit',
   };
   return (
-    <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+    <div style={{ padding: '20px 24px 28px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
       <h1 style={{
         fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
         textWrap: 'balance', color: palette.heading,
@@ -668,7 +668,7 @@ function ModePicker({ onPick, palette }) {
 
       <div style={{
         display: 'flex', justifyContent: 'center', alignItems: 'center',
-        gap: 14, margin: '18px 0 22px',
+        gap: 14, margin: '12px 0 16px',
       }} aria-hidden="true">
         {window.SECTORS.map(s => (
           <SectorIcon key={s.id} kind={s.icon} size={26} color={palette.accent}/>
