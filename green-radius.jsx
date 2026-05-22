@@ -680,7 +680,7 @@ function ModePicker({ onPick, palette }) {
         fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc',
         marginBottom: 32, textWrap: 'pretty',
       }}>
-        Map your camp's footprint across the six sustainability sectors. Pick any way to play — you only need to choose one.
+        Map your camp's footprint across the six sustainability sectors. Pick any way to play. You only need to choose one.
       </div>
 
       <button
