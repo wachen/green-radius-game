@@ -12,6 +12,7 @@ const STORAGE_VERSION = 2;
 
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloring Wheel - Matrix -- v 26 FINAL .pdf');
+const HOW_TO_PLAY_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- How-to-Play - Board Game - Matrix - Detail -- v 26 FINAL .pdf');
 
 function loadSaved(sectors) {
   try {
@@ -744,7 +745,7 @@ function ModePicker({ onPick, palette }) {
         </div>
       </button>
 
-      <div style={{ marginTop: 4, marginBottom: 8 }}>
+      <div style={{ marginTop: 4, marginBottom: 14 }}>
         <a
           href={BOARD_GAME_PDF_URL}
           download
@@ -756,6 +757,20 @@ function ModePicker({ onPick, palette }) {
             textDecorationColor: palette.text + '44',
           }}
         >Board Game PDF Download ↓</a>
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <a
+          href={HOW_TO_PLAY_PDF_URL}
+          download
+          style={{
+            color: palette.text + '99', fontSize: 11, fontWeight: 600,
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+            textDecoration: 'underline',
+            textUnderlineOffset: '3px',
+            textDecorationColor: palette.text + '44',
+          }}
+        >How to Play PDF Download ↓</a>
       </div>
 
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
