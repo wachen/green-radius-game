@@ -680,7 +680,7 @@ function ModePicker({ onPick, palette }) {
         fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc',
         marginBottom: 32, textWrap: 'pretty',
       }}>
-        Map your camp's footprint across the six sustainability sectors. Pick any way to play.
+        Map your camp's footprint across the six sustainability sectors. Pick any way to play. You only need to choose one.
       </div>
 
       <button
@@ -716,7 +716,7 @@ function ModePicker({ onPick, palette }) {
 
       <button
         onClick={() => onPick('form')}
-        aria-label="Play the game via application form"
+        aria-label="Fill the application form"
         style={{
           ...tileBase,
           background: palette.card, color: palette.text,
@@ -735,13 +735,13 @@ function ModePicker({ onPick, palette }) {
           <rect x="19" y="48" width="7" height="7" rx="1.5"/>
         </svg>
         <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
-          Play the Game
+          Fill the Form
         </div>
         <div style={{
           fontSize: 10, fontWeight: 700, letterSpacing: '0.2em',
           textTransform: 'uppercase', opacity: 0.75,
         }}>
-          Application Form · Quick
+          Application · Quick
         </div>
       </button>
 
@@ -787,52 +787,111 @@ function ModePicker({ onPick, palette }) {
   );
 }
 
-// ─── form-coming-soon stub ───────────────────────────────────────────────────
-function FormComingSoon({ onBack, palette }) {
+// ─── linear application form ─────────────────────────────────────────────────
+// Renders all 60 board-game questions as a single scrollable yes/no form.
+// Submit maps answers back to the same levelStates shape the wheel game uses,
+// so the existing 'done' phase + ShareCard work without modification.
+//
+// Scoring rule (matches the wheel's all-yes-per-level convention):
+//   T1 (1 q):     all yes  → green, else failed (if any answered)
+//   T2 (2 qs):    all yes  → green, else failed
+//   T3 (3 qs):    all yes  → green, else failed
+//   T4 (N picks): ≥ 4 yes  → green, else failed   (wheel picks 4; form
+//                                                  shows all topics — same
+//                                                  threshold by count.)
+// A level with zero answered items stays 'locked'.
+function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, palette }) {
+  function computeLevelStates() {
+    const result = {};
+    sectors.forEach(sector => {
+      const states = ['locked', 'locked', 'locked', 'locked'];
+      sector.levels.forEach((qs, li) => {
+        const items = li === 3 ? (sector.tier4Topics || []) : qs;
+        if (items.length === 0) return;
+        const itemAnswers = items.map(it => answers[it.id]);
+        const answered = itemAnswers.filter(a => a === 'yes' || a === 'no');
+        if (answered.length === 0) return;
+        const yeses = itemAnswers.filter(a => a === 'yes').length;
+        if (li === 3) {
+          states[li] = yeses >= 4 ? 'green' : 'failed';
+        } else {
+          states[li] = yeses === items.length ? 'green' : 'failed';
+        }
+      });
+      result[sector.id] = states;
+    });
+    return result;
+  }
+
+  function handleSubmit() {
+    const levelStates = computeLevelStates();
+    const sectorCursor = {};
+    const sectorClosed = {};
+    sectors.forEach(s => {
+      sectorCursor[s.id] = 4;
+      sectorClosed[s.id] = true;
+    });
+    onSubmit({ levelStates, sectorCursor, sectorClosed });
+  }
+
+  const totalQuestions = sectors.reduce((acc, s) => {
+    const fixed = s.levels.slice(0, 3).reduce((c, qs) => c + qs.length, 0);
+    return acc + fixed + (s.tier4Topics || []).length;
+  }, 0);
+  const totalAnswered = Object.values(answers).filter(a => a === 'yes' || a === 'no').length;
+
   return (
-    <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+    <div style={{ padding: '20px 24px 28px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+      <div style={{ textAlign: 'left', marginBottom: 12 }}>
+        <button
+          onClick={onBack}
+          aria-label="Back to mode picker"
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: palette.text + '99', fontSize: 12, fontWeight: 700,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            padding: '4px 0', fontFamily: 'inherit',
+          }}
+        >← Back</button>
+      </div>
+
       <h1 style={{
-        fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 24px',
-        textWrap: 'balance', color: palette.heading,
-        letterSpacing: '-0.02em',
+        fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
+        textWrap: 'balance', color: palette.heading, letterSpacing: '-0.02em',
       }}>
         <span style={{ whiteSpace: 'nowrap' }}>What's Your</span> <span style={{ whiteSpace: 'nowrap' }}>Green Radius?</span>
       </h1>
-
-      <svg viewBox="0 0 60 60" width="64" height="64" fill="none"
-        stroke={palette.text} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
-        aria-hidden="true" style={{ margin: '8px auto 0', display: 'block' }}>
-        <line x1="14" y1="6" x2="46" y2="6"/>
-        <line x1="14" y1="54" x2="46" y2="54"/>
-        <path d="M16 6 L44 6 L44 18 L30 30 L44 42 L44 54 L16 54 L16 42 L30 30 L16 18 Z"/>
-        <line x1="22" y1="48" x2="38" y2="48" strokeWidth="5"/>
-      </svg>
-
       <div style={{
-        fontSize: 22, fontWeight: 900, letterSpacing: '-0.01em',
-        color: palette.heading, margin: '20px 0 8px',
+        fontSize: 14, lineHeight: 1.5, color: palette.text + 'cc',
+        marginBottom: 8, textWrap: 'pretty',
       }}>
-        Form mode is coming soon
+        Answer yes/no for your camp. Submit when ready.
+      </div>
+      <div style={{
+        fontSize: 10, letterSpacing: '0.15em',
+        color: palette.text + '66', marginBottom: 20, fontWeight: 600,
+      }}>
+        {totalAnswered} / {totalQuestions} ANSWERED
       </div>
 
-      <div style={{
-        fontSize: 14, lineHeight: 1.5, color: palette.text + 'aa',
-        maxWidth: 280, margin: '0 auto 28px',
-      }}>
-        Sixty yes/no sustainability questions in one linear form. No wheel, just speed.
-      </div>
+      {sectors.map(sector => (
+        <FormSectorBlock
+          key={sector.id} sector={sector}
+          answers={answers} setAnswer={setAnswer} palette={palette}
+        />
+      ))}
 
       <button
-        onClick={onBack}
-        aria-label="Back to mode picker"
+        onClick={handleSubmit}
         style={{
           width: '100%', padding: '16px', borderRadius: 14,
-          border: `1.5px solid ${palette.text}22`, background: 'transparent',
-          color: palette.text, fontSize: 14, fontWeight: 800,
-          letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer',
-          fontFamily: 'inherit',
+          border: 'none', background: palette.accent, color: '#fff',
+          fontSize: 14, fontWeight: 800, letterSpacing: '0.15em',
+          textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit',
+          boxShadow: `0 4px 0 ${palette.accentDark}`,
+          marginTop: 12,
         }}
-      >← Back to mode picker</button>
+      >Submit →</button>
 
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
         style={{
@@ -844,6 +903,102 @@ function FormComingSoon({ onBack, palette }) {
         CREATED BY THE<br/>
         GREEN THEME CAMP COMMUNITY
       </a>
+    </div>
+  );
+}
+
+function FormSectorBlock({ sector, answers, setAnswer, palette }) {
+  const fixedQs = [].concat(...sector.levels.slice(0, 3));
+  const t4 = sector.tier4Topics || [];
+  return (
+    <section style={{
+      margin: '20px 0', padding: '18px 16px',
+      background: palette.card, borderRadius: 16, textAlign: 'left',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+        <SectorIcon kind={sector.icon} size={28} color={palette.accent}/>
+        <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0, letterSpacing: '-0.01em', color: palette.heading }}>
+          {sector.name}
+        </h2>
+      </div>
+      <div style={{
+        fontSize: 11, lineHeight: 1.4, color: palette.text + '99',
+        marginBottom: 14,
+      }}>
+        {sector.bigGoal}
+      </div>
+
+      {fixedQs.map(q => (
+        <YesNoRow
+          key={q.id} qid={q.id}
+          text={q.prompt}
+          answer={answers[q.id]} setAnswer={setAnswer} palette={palette}
+        />
+      ))}
+
+      {t4.length > 0 && (
+        <>
+          <div style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
+            textTransform: 'uppercase', color: palette.text + '88',
+            marginTop: 14, marginBottom: 4,
+          }}>
+            Tier 4 · Mark any 4+ for completion
+          </div>
+          {t4.map(t => (
+            <YesNoRow
+              key={t.id} qid={t.id}
+              text={t.title} subtext={t.description}
+              answer={answers[t.id]} setAnswer={setAnswer} palette={palette}
+            />
+          ))}
+        </>
+      )}
+    </section>
+  );
+}
+
+function YesNoRow({ qid, text, subtext, answer, setAnswer, palette }) {
+  const btnBase = {
+    border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
+    letterSpacing: '0.12em', textTransform: 'uppercase',
+    padding: '8px 14px', borderRadius: 8, fontFamily: 'inherit',
+    minWidth: 56,
+  };
+  return (
+    <div style={{
+      padding: '12px 0',
+      borderTop: `1px solid ${palette.text}11`,
+    }}>
+      <div style={{ fontSize: 13, lineHeight: 1.4, color: palette.text, marginBottom: subtext ? 4 : 8 }}>
+        {text}
+      </div>
+      {subtext && (
+        <div style={{ fontSize: 11, lineHeight: 1.4, color: palette.text + '88', marginBottom: 8 }}>
+          {subtext}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={() => setAnswer(qid, 'yes')}
+          aria-pressed={answer === 'yes'}
+          style={{
+            ...btnBase,
+            background: answer === 'yes' ? palette.accent : palette.text + '11',
+            color: answer === 'yes' ? '#fff' : palette.text,
+            boxShadow: answer === 'yes' ? `0 2px 0 ${palette.accentDark}` : 'none',
+          }}
+        >Yes</button>
+        <button
+          onClick={() => setAnswer(qid, 'no')}
+          aria-pressed={answer === 'no'}
+          style={{
+            ...btnBase,
+            background: answer === 'no' ? palette.text : palette.text + '11',
+            color: answer === 'no' ? '#fff' : palette.text,
+          }}
+        >No</button>
+      </div>
     </div>
   );
 }
@@ -947,7 +1102,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // Pull any saved game once on mount. If null, fall through to defaults.
   const saved = useMemo(() => loadSaved(sectors), [sectors]);
 
-  const [phase, setPhase] = useState(saved?.phase || 'pick-mode'); // pick-mode | intro | playing | done | form-coming-soon
+  const [phase, setPhase] = useState(saved?.phase || 'pick-mode'); // pick-mode | intro | playing | done | form
   const [camp, setCamp] = useState(saved?.camp || { campName: '', leadName: '', email: '' });
 
   // levelStates[sectorId] = ['locked'|'open'|'green'|'failed', x4]
@@ -965,6 +1120,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     if (saved?.sectorClosed) return saved.sectorClosed;
     const o = {}; sectors.forEach(s => o[s.id] = false); return o;
   });
+  const [formAnswers, setFormAnswers] = useState(saved?.formAnswers || {});
 
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -991,10 +1147,21 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORAGE_VERSION,
-        phase, camp, levelStates, sectorCursor, sectorClosed,
+        phase, camp, levelStates, sectorCursor, sectorClosed, formAnswers,
       }));
     } catch {}
-  }, [phase, camp, levelStates, sectorCursor, sectorClosed]);
+  }, [phase, camp, levelStates, sectorCursor, sectorClosed, formAnswers]);
+
+  function setFormAnswer(qid, value) {
+    setFormAnswers(prev => ({ ...prev, [qid]: value }));
+  }
+
+  function submitForm({ levelStates: ls, sectorCursor: sc, sectorClosed: scl }) {
+    setLevelStates(ls);
+    setSectorCursor(sc);
+    setSectorClosed(scl);
+    setPhase('done');
+  }
 
   // pick a random sector that still has work
   function pickSector() {
@@ -1078,14 +1245,23 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   if (phase === 'pick-mode') {
     return (
       <ModePicker
-        onPick={(mode) => setPhase(mode === 'board' ? 'intro' : 'form-coming-soon')}
+        onPick={(mode) => setPhase(mode === 'board' ? 'intro' : 'form')}
         palette={palette}
       />
     );
   }
 
-  if (phase === 'form-coming-soon') {
-    return <FormComingSoon onBack={() => setPhase('pick-mode')} palette={palette}/>;
+  if (phase === 'form') {
+    return (
+      <LinearForm
+        sectors={sectors}
+        answers={formAnswers}
+        setAnswer={setFormAnswer}
+        onSubmit={submitForm}
+        onBack={() => setPhase('pick-mode')}
+        palette={palette}
+      />
+    );
   }
 
   if (phase === 'intro') {
@@ -1113,7 +1289,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
               boxShadow: `0 3px 0 ${palette.accentDark}` }}>
             Share
           </button>
-          <button onClick={() => { setLevelStates(initState); setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; }); setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; }); setPhase('pick-mode'); }}
+          <button onClick={() => { setLevelStates(initState); setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; }); setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; }); setFormAnswers({}); setPhase('pick-mode'); }}
             style={{ flex: 1, padding: '14px 0', borderRadius: 12,
               border: `1.5px solid ${palette.text}22`, background: 'transparent',
               color: palette.text, fontSize: 13, fontWeight: 800,
