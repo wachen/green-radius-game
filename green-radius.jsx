@@ -680,7 +680,7 @@ function ModePicker({ onPick, palette }) {
         fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc',
         marginBottom: 32, textWrap: 'pretty',
       }}>
-        Map your camp's footprint across the six sustainability sectors. Pick any way to play.
+        Map your camp's footprint across the six sustainability sectors. Pick any way to play — you only need to choose one.
       </div>
 
       <button
@@ -716,7 +716,7 @@ function ModePicker({ onPick, palette }) {
 
       <button
         onClick={() => onPick('form')}
-        aria-label="Play the game via application form"
+        aria-label="Fill the application form"
         style={{
           ...tileBase,
           background: palette.card, color: palette.text,
@@ -735,13 +735,13 @@ function ModePicker({ onPick, palette }) {
           <rect x="19" y="48" width="7" height="7" rx="1.5"/>
         </svg>
         <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
-          Play the Game
+          Fill the Form
         </div>
         <div style={{
           fontSize: 10, fontWeight: 700, letterSpacing: '0.2em',
           textTransform: 'uppercase', opacity: 0.75,
         }}>
-          Application Form · Quick
+          Application · Quick
         </div>
       </button>
 
