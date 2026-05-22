@@ -10,6 +10,9 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 const STORAGE_KEY = 'green-radius-game/v1';
 const STORAGE_VERSION = 2;
 
+const HEADER_LINK_URL = 'https://www.greenthemecampcommunity.org/';
+const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloing Wheel - Matrix -- v 26 FINAL .pdf');
+
 function loadSaved(sectors) {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -655,19 +658,19 @@ function ModePicker({ onPick, palette }) {
   };
   return (
     <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-      <div style={{
-        fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-        color: palette.accent, marginBottom: 12, lineHeight: 1.5,
-      }}>
-        GREEN THEME CAMP COMMUNITY<br/>
-        PRESENTS
-      </div>
+      <a href={HEADER_LINK_URL} target="_blank" rel="noopener noreferrer"
+        style={{
+          fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
+          color: palette.accent, marginBottom: 12,
+          textDecoration: 'none', display: 'block',
+        }}
+      >GREEN THEME CAMP COMMUNITY</a>
       <h1 style={{
         fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
         textWrap: 'balance', color: palette.heading,
         letterSpacing: '-0.02em',
       }}>
-        <span style={{ whiteSpace: 'nowrap' }}>Green Radius</span> Game
+        <span style={{ whiteSpace: 'nowrap' }}>What's Your</span> <span style={{ whiteSpace: 'nowrap' }}>Green Radius?</span>
       </h1>
       <div style={{
         fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc',
@@ -738,9 +741,23 @@ function ModePicker({ onPick, palette }) {
         </div>
       </button>
 
+      <div style={{ marginTop: 4, marginBottom: 8 }}>
+        <a
+          href={BOARD_GAME_PDF_URL}
+          download
+          style={{
+            color: palette.text + '99', fontSize: 11, fontWeight: 600,
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+            textDecoration: 'underline',
+            textUnderlineOffset: '3px',
+            textDecorationColor: palette.text + '44',
+          }}
+        >Board Game PDF Download ↓</a>
+      </div>
+
       <div style={{
         fontSize: 10, letterSpacing: '0.15em',
-        color: palette.text + '66', marginTop: 24, fontWeight: 600,
+        color: palette.text + '66', marginTop: 16, fontWeight: 600,
       }}>
         6 SECTORS · 4 LEVELS · 10 QUESTIONS
       </div>
@@ -752,19 +769,19 @@ function ModePicker({ onPick, palette }) {
 function FormComingSoon({ onBack, palette }) {
   return (
     <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-      <div style={{
-        fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-        color: palette.accent, marginBottom: 12, lineHeight: 1.5,
-      }}>
-        GREEN THEME CAMP COMMUNITY<br/>
-        PRESENTS
-      </div>
+      <a href={HEADER_LINK_URL} target="_blank" rel="noopener noreferrer"
+        style={{
+          fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
+          color: palette.accent, marginBottom: 12,
+          textDecoration: 'none', display: 'block',
+        }}
+      >GREEN THEME CAMP COMMUNITY</a>
       <h1 style={{
         fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 24px',
         textWrap: 'balance', color: palette.heading,
         letterSpacing: '-0.02em',
       }}>
-        <span style={{ whiteSpace: 'nowrap' }}>Green Radius</span> Game
+        <span style={{ whiteSpace: 'nowrap' }}>What's Your</span> <span style={{ whiteSpace: 'nowrap' }}>Green Radius?</span>
       </h1>
 
       <svg viewBox="0 0 60 60" width="64" height="64" fill="none"
@@ -825,19 +842,19 @@ function Intro({ onStart, onBack, palette }) {
           }}
         >← Back</button>
       </div>
-      <div style={{
-        fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-        color: palette.accent, marginBottom: 12, lineHeight: 1.5,
-      }}>
-        GREEN THEME CAMP COMMUNITY<br/>
-        PRESENTS
-      </div>
+      <a href={HEADER_LINK_URL} target="_blank" rel="noopener noreferrer"
+        style={{
+          fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
+          color: palette.accent, marginBottom: 12,
+          textDecoration: 'none', display: 'block',
+        }}
+      >GREEN THEME CAMP COMMUNITY</a>
       <h1 style={{
         fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
         textWrap: 'balance', color: palette.heading,
         letterSpacing: '-0.02em',
       }}>
-        <span style={{ whiteSpace: 'nowrap' }}>Green Radius</span> Game
+        <span style={{ whiteSpace: 'nowrap' }}>What's Your</span> <span style={{ whiteSpace: 'nowrap' }}>Green Radius?</span>
       </h1>
       <div style={{ fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc', marginBottom: 32, textWrap: 'pretty' }}>
         Spin the wheel. Answer honestly.
