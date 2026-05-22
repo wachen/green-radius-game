@@ -8,7 +8,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 // Bump STORAGE_VERSION when the saved shape changes so old saves are discarded
 // instead of trying to merge them in.
 const STORAGE_KEY = 'green-radius-game/v1';
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2;
 
 function loadSaved(sectors) {
   try {
@@ -657,20 +657,23 @@ function ModePicker({ onPick, palette }) {
     <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
       <div style={{
         fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-        color: palette.accent, marginBottom: 12,
-      }}>GREEN THEME CAMP COMMUNITY</div>
+        color: palette.accent, marginBottom: 12, lineHeight: 1.5,
+      }}>
+        GREEN THEME CAMP COMMUNITY<br/>
+        PRESENTS
+      </div>
       <h1 style={{
         fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
         textWrap: 'balance', color: palette.heading,
         letterSpacing: '-0.02em',
       }}>
-        Green<br/>Radius
+        <span style={{ whiteSpace: 'nowrap' }}>Green Radius</span> Game
       </h1>
       <div style={{
         fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc',
         marginBottom: 32, textWrap: 'pretty',
       }}>
-        Find your camp's footprint across six sustainability sectors. Pick a way to play.
+        Map your camp's footprint across the six sustainability sectors. Pick any way to play.
       </div>
 
       <button
@@ -751,14 +754,17 @@ function FormComingSoon({ onBack, palette }) {
     <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
       <div style={{
         fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-        color: palette.accent, marginBottom: 12,
-      }}>GREEN THEME CAMP COMMUNITY</div>
+        color: palette.accent, marginBottom: 12, lineHeight: 1.5,
+      }}>
+        GREEN THEME CAMP COMMUNITY<br/>
+        PRESENTS
+      </div>
       <h1 style={{
         fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 24px',
         textWrap: 'balance', color: palette.heading,
         letterSpacing: '-0.02em',
       }}>
-        Green<br/>Radius
+        <span style={{ whiteSpace: 'nowrap' }}>Green Radius</span> Game
       </h1>
 
       <svg viewBox="0 0 60 60" width="64" height="64" fill="none"
@@ -800,36 +806,51 @@ function FormComingSoon({ onBack, palette }) {
 }
 
 // ─── intro / camp setup ───────────────────────────────────────────────────────
-function Intro({ onStart, palette }) {
+function Intro({ onStart, onBack, palette }) {
   const [campName, setCampName] = useState('');
   const [leadName, setLeadName] = useState('');
-  const [year, setYear] = useState('2026');
+  const [email, setEmail] = useState('');
 
   return (
     <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+      <div style={{ textAlign: 'left', marginBottom: 16 }}>
+        <button
+          onClick={onBack}
+          aria-label="Back to mode picker"
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: palette.text + '99', fontSize: 12, fontWeight: 700,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            padding: '4px 0', fontFamily: 'inherit',
+          }}
+        >← Back</button>
+      </div>
       <div style={{
         fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-        color: palette.accent, marginBottom: 12,
-      }}>GREEN THEME CAMP COMMUNITY</div>
+        color: palette.accent, marginBottom: 12, lineHeight: 1.5,
+      }}>
+        GREEN THEME CAMP COMMUNITY<br/>
+        PRESENTS
+      </div>
       <h1 style={{
         fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
         textWrap: 'balance', color: palette.heading,
         letterSpacing: '-0.02em',
       }}>
-        Green<br/>Radius
+        <span style={{ whiteSpace: 'nowrap' }}>Green Radius</span> Game
       </h1>
       <div style={{ fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc', marginBottom: 32, textWrap: 'pretty' }}>
         Spin the wheel. Answer honestly.
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28, textAlign: 'left' }}>
-        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="e.g. Hotel California" palette={palette}/>
-        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="e.g. Ash Rivera" palette={palette}/>
-        <Field label="Year" value={year} onChange={setYear} placeholder="2026" palette={palette}/>
+        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="e.g. Burners Without Orders" palette={palette}/>
+        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="e.g. Wild Wet" palette={palette}/>
+        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette}/>
       </div>
 
       <button
-        onClick={() => campName.trim() && onStart({ campName: campName.trim(), leadName: leadName.trim(), year })}
+        onClick={() => campName.trim() && onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim() })}
         disabled={!campName.trim()}
         style={{
           width: '100%', padding: '16px', borderRadius: 14,
@@ -877,7 +898,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const saved = useMemo(() => loadSaved(sectors), [sectors]);
 
   const [phase, setPhase] = useState(saved?.phase || 'pick-mode'); // pick-mode | intro | playing | done | form-coming-soon
-  const [camp, setCamp] = useState(saved?.camp || { campName: '', leadName: '', year: '2026' });
+  const [camp, setCamp] = useState(saved?.camp || { campName: '', leadName: '', email: '' });
 
   // levelStates[sectorId] = ['locked'|'open'|'green'|'failed', x4]
   const initState = useMemo(() => {
@@ -1018,7 +1039,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   }
 
   if (phase === 'intro') {
-    return <Intro onStart={startGame} palette={palette}/>;
+    return <Intro onStart={startGame} onBack={() => setPhase('pick-mode')} palette={palette}/>;
   }
 
   if (phase === 'done') {
@@ -1032,7 +1053,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           {camp.campName}
         </h2>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <ShareCard sectors={sectors} levelStates={levelStates} campName={camp.campName} leadName={camp.leadName} year={camp.year} palette={palette}/>
+          <ShareCard sectors={sectors} levelStates={levelStates} campName={camp.campName} leadName={camp.leadName} year={new Date().getFullYear()} palette={palette}/>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={() => alert('Share link copied (mock)')}
@@ -1064,7 +1085,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 9, letterSpacing: '0.25em', fontWeight: 700, color: palette.text + '99' }}>
-            GREEN RADIUS · {camp.year}
+            GREEN RADIUS · {new Date().getFullYear()}
           </div>
           <div style={{ fontSize: 18, fontWeight: 800, color: palette.heading, lineHeight: 1.1, marginTop: 2, textWrap: 'balance' }}>
             {camp.campName}
