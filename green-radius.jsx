@@ -646,6 +646,105 @@ function ShareCard({ sectors, levelStates, campName, leadName, year, palette }) 
   );
 }
 
+// ─── mode picker ─────────────────────────────────────────────────────────────
+function ModePicker({ onPick, palette }) {
+  const tileBase = {
+    display: 'block', width: '100%', border: 'none', cursor: 'pointer',
+    padding: '22px 16px', borderRadius: 18, marginBottom: 12,
+    textAlign: 'center', fontFamily: 'inherit',
+  };
+  return (
+    <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+      <div style={{
+        fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
+        color: palette.accent, marginBottom: 12,
+      }}>GREEN THEME CAMP COMMUNITY</div>
+      <h1 style={{
+        fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
+        textWrap: 'balance', color: palette.heading,
+        letterSpacing: '-0.02em',
+      }}>
+        Green<br/>Radius
+      </h1>
+      <div style={{
+        fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc',
+        marginBottom: 32, textWrap: 'pretty',
+      }}>
+        Find your camp's footprint across six sustainability sectors. Pick a way to play.
+      </div>
+
+      <button
+        onClick={() => onPick('board')}
+        aria-label="Play the game in board game mode"
+        style={{
+          ...tileBase,
+          background: palette.accent, color: '#fff',
+          boxShadow: `0 5px 0 ${palette.accentDark}`,
+        }}
+      >
+        <svg viewBox="0 0 60 60" width="56" height="56" fill="none"
+          stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"
+          aria-hidden="true" style={{ display: 'block', margin: '0 auto 10px' }}>
+          <circle cx="30" cy="30" r="22"/>
+          <line x1="30" y1="8" x2="30" y2="52"/>
+          <line x1="8" y1="30" x2="52" y2="30"/>
+          <line x1="14.5" y1="14.5" x2="45.5" y2="45.5"/>
+          <line x1="14.5" y1="45.5" x2="45.5" y2="14.5"/>
+          <circle cx="30" cy="30" r="5" fill="currentColor" stroke="none"/>
+          <polygon points="30,3 24,12 36,12" fill="currentColor" stroke="none"/>
+        </svg>
+        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
+          Play the Game
+        </div>
+        <div style={{
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.2em',
+          textTransform: 'uppercase', opacity: 0.75,
+        }}>
+          Board Game · Fun
+        </div>
+      </button>
+
+      <button
+        onClick={() => onPick('form')}
+        aria-label="Play the game in form-based mode"
+        style={{
+          ...tileBase,
+          background: palette.card, color: palette.text,
+          boxShadow: '0 5px 0 #d8d2c2',
+        }}
+      >
+        <svg viewBox="0 0 60 60" width="56" height="56" fill="none"
+          stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"
+          aria-hidden="true" style={{ display: 'block', margin: '0 auto 10px' }}>
+          <rect x="14" y="12" width="32" height="42" rx="3"/>
+          <rect x="22" y="6" width="16" height="10" rx="2" fill="currentColor" stroke="none"/>
+          <rect x="19" y="24" width="7" height="7" rx="1.5" fill="currentColor" stroke="none"/>
+          <line x1="30" y1="28" x2="42" y2="28"/>
+          <rect x="19" y="36" width="7" height="7" rx="1.5" fill="currentColor" stroke="none"/>
+          <line x1="30" y1="40" x2="42" y2="40"/>
+          <rect x="19" y="48" width="7" height="7" rx="1.5"/>
+        </svg>
+        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
+          Play the Game
+        </div>
+        <div style={{
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.2em',
+          textTransform: 'uppercase', opacity: 0.75,
+        }}>
+          Form-based · Quick
+        </div>
+      </button>
+
+      <div style={{
+        fontSize: 10, letterSpacing: '0.15em',
+        color: palette.text + '66', marginTop: 24, fontWeight: 600,
+      }}>
+        6 SECTORS · 4 LEVELS · 10 QUESTIONS
+      </div>
+    </div>
+  );
+}
+
 // ─── form-coming-soon stub ───────────────────────────────────────────────────
 function FormComingSoon({ onBack, palette }) {
   return (
@@ -777,7 +876,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // Pull any saved game once on mount. If null, fall through to defaults.
   const saved = useMemo(() => loadSaved(sectors), [sectors]);
 
-  const [phase, setPhase] = useState(saved?.phase || 'intro'); // intro | playing | done
+  const [phase, setPhase] = useState(saved?.phase || 'pick-mode'); // pick-mode | intro | playing | done | form-coming-soon
   const [camp, setCamp] = useState(saved?.camp || { campName: '', leadName: '', year: '2026' });
 
   // levelStates[sectorId] = ['locked'|'open'|'green'|'failed', x4]
@@ -814,7 +913,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // nothing in flight, so clear the slot — that way "New Camp" wipes the
   // save (it transitions phase back to 'intro').
   useEffect(() => {
-    if (phase === 'intro') {
+    if (phase === 'intro' || phase === 'pick-mode') {
       clearSaved();
       return;
     }
@@ -904,6 +1003,19 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     });
     return out;
   }, [levelStates, sectorCursor, sectorClosed, sectors]);
+
+  if (phase === 'pick-mode') {
+    return (
+      <ModePicker
+        onPick={(mode) => setPhase(mode === 'board' ? 'intro' : 'form-coming-soon')}
+        palette={palette}
+      />
+    );
+  }
+
+  if (phase === 'form-coming-soon') {
+    return <FormComingSoon onBack={() => setPhase('pick-mode')} palette={palette}/>;
+  }
 
   if (phase === 'intro') {
     return <Intro onStart={startGame} palette={palette}/>;
