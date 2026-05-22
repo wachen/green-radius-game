@@ -10,7 +10,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 const STORAGE_KEY = 'green-radius-game/v1';
 const STORAGE_VERSION = 2;
 
-const HEADER_LINK_URL = 'https://www.greenthemecampcommunity.org/';
+const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloing Wheel - Matrix -- v 26 FINAL .pdf');
 
 function loadSaved(sectors) {
@@ -658,13 +658,6 @@ function ModePicker({ onPick, palette }) {
   };
   return (
     <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-      <a href={HEADER_LINK_URL} target="_blank" rel="noopener noreferrer"
-        style={{
-          fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-          color: palette.accent, marginBottom: 12,
-          textDecoration: 'none', display: 'block',
-        }}
-      >GREEN THEME CAMP COMMUNITY</a>
       <h1 style={{
         fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
         textWrap: 'balance', color: palette.heading,
@@ -761,6 +754,17 @@ function ModePicker({ onPick, palette }) {
       }}>
         6 SECTORS · 4 LEVELS · 10 QUESTIONS
       </div>
+
+      <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
+        style={{
+          fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
+          color: palette.accent, marginTop: 32, lineHeight: 1.5,
+          textDecoration: 'none', display: 'block',
+        }}
+      >
+        CREATED BY THE<br/>
+        GREEN THEME CAMP COMMUNITY
+      </a>
     </div>
   );
 }
@@ -769,13 +773,6 @@ function ModePicker({ onPick, palette }) {
 function FormComingSoon({ onBack, palette }) {
   return (
     <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-      <a href={HEADER_LINK_URL} target="_blank" rel="noopener noreferrer"
-        style={{
-          fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-          color: palette.accent, marginBottom: 12,
-          textDecoration: 'none', display: 'block',
-        }}
-      >GREEN THEME CAMP COMMUNITY</a>
       <h1 style={{
         fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 24px',
         textWrap: 'balance', color: palette.heading,
@@ -818,6 +815,17 @@ function FormComingSoon({ onBack, palette }) {
           fontFamily: 'inherit',
         }}
       >← Back to mode picker</button>
+
+      <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
+        style={{
+          fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
+          color: palette.accent, marginTop: 32, lineHeight: 1.5,
+          textDecoration: 'none', display: 'block',
+        }}
+      >
+        CREATED BY THE<br/>
+        GREEN THEME CAMP COMMUNITY
+      </a>
     </div>
   );
 }
@@ -842,13 +850,6 @@ function Intro({ onStart, onBack, palette }) {
           }}
         >← Back</button>
       </div>
-      <a href={HEADER_LINK_URL} target="_blank" rel="noopener noreferrer"
-        style={{
-          fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-          color: palette.accent, marginBottom: 12,
-          textDecoration: 'none', display: 'block',
-        }}
-      >GREEN THEME CAMP COMMUNITY</a>
       <h1 style={{
         fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
         textWrap: 'balance', color: palette.heading,
@@ -881,6 +882,17 @@ function Intro({ onStart, onBack, palette }) {
       <div style={{ fontSize: 10, letterSpacing: '0.15em', color: palette.text + '66', marginTop: 24, fontWeight: 600 }}>
         24 LEVELS · 60 QUESTIONS · 6 SECTORS
       </div>
+
+      <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
+        style={{
+          fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
+          color: palette.accent, marginTop: 32, lineHeight: 1.5,
+          textDecoration: 'none', display: 'block',
+        }}
+      >
+        CREATED BY THE<br/>
+        GREEN THEME CAMP COMMUNITY
+      </a>
     </div>
   );
 }
