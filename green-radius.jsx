@@ -3,6 +3,37 @@
 
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
+// ─── persistence ──────────────────────────────────────────────────────────────
+// Saves the in-progress game so a refresh resumes where you left off.
+// Bump STORAGE_VERSION when the saved shape changes so old saves are discarded
+// instead of trying to merge them in.
+const STORAGE_KEY = 'green-radius-game/v1';
+const STORAGE_VERSION = 1;
+
+function loadSaved(sectors) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (data.version !== STORAGE_VERSION) return null;
+    // Schema sanity: every current sector id must be present and well-typed
+    // in the saved arrays. If sectors changed, drop the save instead of
+    // mixing shapes — better to start fresh than glitch.
+    const ok = sectors.every(s =>
+      Array.isArray(data.levelStates?.[s.id]) &&
+      typeof data.sectorCursor?.[s.id] === 'number' &&
+      typeof data.sectorClosed?.[s.id] === 'boolean'
+    );
+    return ok ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearSaved() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+}
+
 // ─── icons ────────────────────────────────────────────────────────────────────
 function SectorIcon({ kind, size = 28, color = '#fff' }) {
   const s = size, sw = 1.8;
@@ -688,8 +719,12 @@ function Field({ label, value, onChange, placeholder, palette }) {
 // ─── main game ────────────────────────────────────────────────────────────────
 function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }) {
   const sectors = window.SECTORS;
-  const [phase, setPhase] = useState('intro'); // intro | playing | done
-  const [camp, setCamp] = useState({ campName: '', leadName: '', year: '2026' });
+
+  // Pull any saved game once on mount. If null, fall through to defaults.
+  const saved = useMemo(() => loadSaved(sectors), [sectors]);
+
+  const [phase, setPhase] = useState(saved?.phase || 'intro'); // intro | playing | done
+  const [camp, setCamp] = useState(saved?.camp || { campName: '', leadName: '', year: '2026' });
 
   // levelStates[sectorId] = ['locked'|'open'|'green'|'failed', x4]
   const initState = useMemo(() => {
@@ -697,11 +732,13 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     sectors.forEach(s => o[s.id] = ['locked','locked','locked','locked']);
     return o;
   }, [sectors]);
-  const [levelStates, setLevelStates] = useState(initState);
+  const [levelStates, setLevelStates] = useState(saved?.levelStates || initState);
   const [sectorCursor, setSectorCursor] = useState(() => {
+    if (saved?.sectorCursor) return saved.sectorCursor;
     const o = {}; sectors.forEach(s => o[s.id] = 0); return o; // next level index
   });
   const [sectorClosed, setSectorClosed] = useState(() => {
+    if (saved?.sectorClosed) return saved.sectorClosed;
     const o = {}; sectors.forEach(s => o[s.id] = false); return o;
   });
 
@@ -718,6 +755,22 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setTimeout(() => setPhase('done'), 800);
     }
   }, [phase, allDone]);
+
+  // Persist on every meaningful state change. On the intro screen there's
+  // nothing in flight, so clear the slot — that way "New Camp" wipes the
+  // save (it transitions phase back to 'intro').
+  useEffect(() => {
+    if (phase === 'intro') {
+      clearSaved();
+      return;
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        version: STORAGE_VERSION,
+        phase, camp, levelStates, sectorCursor, sectorClosed,
+      }));
+    } catch {}
+  }, [phase, camp, levelStates, sectorCursor, sectorClosed]);
 
   // pick a random sector that still has work
   function pickSector() {
