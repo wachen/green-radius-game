@@ -14,3 +14,10 @@ node_modules/
 
 # Local design handoff bundle — large and not needed at runtime
 _design/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
