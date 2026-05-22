@@ -745,7 +745,10 @@ function ModePicker({ onPick, palette }) {
         </div>
       </button>
 
-      <div style={{ marginTop: 4, marginBottom: 14 }}>
+      <div style={{
+        marginTop: 4, marginBottom: 8,
+        display: 'flex', justifyContent: 'center', gap: 18,
+      }}>
         <a
           href={BOARD_GAME_PDF_URL}
           download
@@ -757,9 +760,6 @@ function ModePicker({ onPick, palette }) {
             textDecorationColor: palette.text + '44',
           }}
         >Board Game PDF Download ↓</a>
-      </div>
-
-      <div style={{ marginBottom: 8 }}>
         <a
           href={HOW_TO_PLAY_PDF_URL}
           download
@@ -770,7 +770,7 @@ function ModePicker({ onPick, palette }) {
             textUnderlineOffset: '3px',
             textDecorationColor: palette.text + '44',
           }}
-        >How to Play PDF Download ↓</a>
+        >How to Play ↓</a>
       </div>
 
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
