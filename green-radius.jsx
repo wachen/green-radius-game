@@ -819,7 +819,7 @@ function Intro({ onStart, palette }) {
         Green<br/>Radius
       </h1>
       <div style={{ fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc', marginBottom: 32, textWrap: 'pretty' }}>
-        Spin the wheel. Answer honestly. Discover your camp's unique footprint across six sustainability sectors.
+        Spin the wheel. Answer honestly.
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28, textAlign: 'left' }}>
@@ -1042,7 +1042,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
               boxShadow: `0 3px 0 ${palette.accentDark}` }}>
             Share
           </button>
-          <button onClick={() => { setLevelStates(initState); setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; }); setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; }); setPhase('intro'); }}
+          <button onClick={() => { setLevelStates(initState); setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; }); setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; }); setPhase('pick-mode'); }}
             style={{ flex: 1, padding: '14px 0', borderRadius: 12,
               border: `1.5px solid ${palette.text}22`, background: 'transparent',
               color: palette.text, fontSize: 13, fontWeight: 800,
