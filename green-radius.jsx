@@ -10,7 +10,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 const STORAGE_KEY = 'green-radius-game/v1';
 const STORAGE_VERSION = 2;
 
-const COMMUNITY_LINK_URL = 'https://greenthemecampcommunity.org/';
+const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloring Wheel - Matrix -- v 26 FINAL .pdf');
 
 function loadSaved(sectors) {
