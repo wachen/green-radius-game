@@ -646,6 +646,60 @@ function ShareCard({ sectors, levelStates, campName, leadName, year, palette }) 
   );
 }
 
+// ─── form-coming-soon stub ───────────────────────────────────────────────────
+function FormComingSoon({ onBack, palette }) {
+  return (
+    <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+      <div style={{
+        fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
+        color: palette.accent, marginBottom: 12,
+      }}>GREEN THEME CAMP COMMUNITY</div>
+      <h1 style={{
+        fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 24px',
+        textWrap: 'balance', color: palette.heading,
+        letterSpacing: '-0.02em',
+      }}>
+        Green<br/>Radius
+      </h1>
+
+      <svg viewBox="0 0 60 60" width="64" height="64" fill="none"
+        stroke={palette.text} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+        aria-hidden="true" style={{ margin: '8px auto 0', display: 'block' }}>
+        <line x1="14" y1="6" x2="46" y2="6"/>
+        <line x1="14" y1="54" x2="46" y2="54"/>
+        <path d="M16 6 L44 6 L44 18 L30 30 L44 42 L44 54 L16 54 L16 42 L30 30 L16 18 Z"/>
+        <line x1="22" y1="48" x2="38" y2="48" strokeWidth="5"/>
+      </svg>
+
+      <div style={{
+        fontSize: 22, fontWeight: 900, letterSpacing: '-0.01em',
+        color: palette.heading, margin: '20px 0 8px',
+      }}>
+        Form mode is coming soon
+      </div>
+
+      <div style={{
+        fontSize: 14, lineHeight: 1.5, color: palette.text + 'aa',
+        maxWidth: 280, margin: '0 auto 28px',
+      }}>
+        Sixty yes/no sustainability questions in one linear form. No wheel, just speed.
+      </div>
+
+      <button
+        onClick={onBack}
+        aria-label="Back to mode picker"
+        style={{
+          width: '100%', padding: '16px', borderRadius: 14,
+          border: `1.5px solid ${palette.text}22`, background: 'transparent',
+          color: palette.text, fontSize: 14, fontWeight: 800,
+          letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >← Back to mode picker</button>
+    </div>
+  );
+}
+
 // ─── intro / camp setup ───────────────────────────────────────────────────────
 function Intro({ onStart, palette }) {
   const [campName, setCampName] = useState('');
