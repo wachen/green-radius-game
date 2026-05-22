@@ -10,8 +10,8 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 const STORAGE_KEY = 'green-radius-game/v1';
 const STORAGE_VERSION = 2;
 
-const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
-const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloing Wheel - Matrix -- v 26 FINAL .pdf');
+const COMMUNITY_LINK_URL = 'https://greenthemecampcommunity.org/';
+const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloring Wheel - Matrix -- v 26 FINAL .pdf');
 
 function loadSaved(sectors) {
   try {
@@ -705,7 +705,7 @@ function ModePicker({ onPick, palette }) {
 
       <button
         onClick={() => onPick('form')}
-        aria-label="Play the game in form-based mode"
+        aria-label="Play the game via application form"
         style={{
           ...tileBase,
           background: palette.card, color: palette.text,
@@ -730,7 +730,7 @@ function ModePicker({ onPick, palette }) {
           fontSize: 10, fontWeight: 700, letterSpacing: '0.2em',
           textTransform: 'uppercase', opacity: 0.75,
         }}>
-          Form-based · Quick
+          Application Form · Quick
         </div>
       </button>
 
@@ -878,10 +878,6 @@ function Intro({ onStart, onBack, palette }) {
           boxShadow: campName.trim() ? `0 4px 0 ${palette.accentDark}` : 'none',
         }}
       >Begin →</button>
-
-      <div style={{ fontSize: 10, letterSpacing: '0.15em', color: palette.text + '66', marginTop: 24, fontWeight: 600 }}>
-        24 LEVELS · 60 QUESTIONS · 6 SECTORS
-      </div>
 
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
         style={{
