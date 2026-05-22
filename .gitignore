@@ -21,3 +21,6 @@ _design/
 !.dev.vars.example
 .env*
 !.env.example
+
+# Superpowers brainstorming sessions
+.superpowers/
