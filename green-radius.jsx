@@ -800,7 +800,7 @@ function ModePicker({ onPick, palette }) {
 //                                                  shows all topics — same
 //                                                  threshold by count.)
 // A level with zero answered items stays 'locked'.
-function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, palette }) {
+function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, palette }) {
   function computeLevelStates() {
     const result = {};
     sectors.forEach(sector => {
@@ -892,6 +892,24 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, palette }) 
           marginTop: 12,
         }}
       >Submit →</button>
+
+      <button
+        type="button"
+        onClick={() => {
+          if (totalAnswered === 0) return;
+          if (!confirm('Clear all answers?')) return;
+          onClear();
+        }}
+        disabled={totalAnswered === 0}
+        style={{
+          background: 'transparent', border: 'none',
+          cursor: totalAnswered === 0 ? 'default' : 'pointer',
+          color: palette.text + (totalAnswered === 0 ? '33' : '66'),
+          fontSize: 11, fontWeight: 600, letterSpacing: '0.18em',
+          textTransform: 'uppercase', padding: '10px 8px 4px',
+          fontFamily: 'inherit',
+        }}
+      >Clear Form ✕</button>
 
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
         style={{
@@ -1259,6 +1277,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         setAnswer={setFormAnswer}
         onSubmit={submitForm}
         onBack={() => setPhase('pick-mode')}
+        onClear={() => setFormAnswers({})}
         palette={palette}
       />
     );
@@ -1383,6 +1402,30 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           ? 'Tap Spin to begin. The wheel chooses a sector — answer all questions Yes to turn that level green.'
           : allDone ? 'All sectors complete — see your radius.'
           : `${sectors.filter(s => !sectorClosed[s.id]).length} sectors still open · spin again`}
+      </div>
+
+      <div style={{ textAlign: 'center', marginTop: 8 }}>
+        <button
+          type="button"
+          onClick={() => {
+            if (totalAttempted === 0) return;
+            if (!confirm('Reset progress and start over?')) return;
+            setLevelStates(initState);
+            setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; });
+            setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; });
+            setFormAnswers({});
+            setPhase('pick-mode');
+          }}
+          disabled={totalAttempted === 0}
+          style={{
+            background: 'transparent', border: 'none',
+            cursor: totalAttempted === 0 ? 'default' : 'pointer',
+            color: palette.text + (totalAttempted === 0 ? '33' : '66'),
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.2em',
+            textTransform: 'uppercase', padding: '6px 8px',
+            fontFamily: 'inherit',
+          }}
+        >Reset Game ↺</button>
       </div>
 
       {activeQuestion && (
