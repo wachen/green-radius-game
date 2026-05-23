@@ -87,6 +87,8 @@ function Wheel({ sectors, levelStates, rotation, spinning, onSpin, canSpin, vari
   const sweep = 360 / N;
 
   const dim = variant === 'dimensional';
+  const reduceMotion = typeof window !== 'undefined' &&
+    window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Cell colors per state — neutral/sandy ramp; green is reserved for completion.
   // Outer rings are progressively lighter so the wheel still has visual rhythm,
@@ -119,7 +121,9 @@ function Wheel({ sectors, levelStates, rotation, spinning, onSpin, canSpin, vari
         style={{
           display: 'block',
           transform: `rotate(${rotation}deg)`,
-          transition: spinning ? 'transform 4.2s cubic-bezier(0.17, 0.67, 0.16, 0.99)' : 'none',
+          transition: spinning
+            ? (reduceMotion ? 'transform 0.4s ease-out' : 'transform 4.2s cubic-bezier(0.17, 0.67, 0.16, 0.99)')
+            : 'none',
           filter: dim ? 'drop-shadow(0 12px 28px rgba(40,20,10,0.35))' : 'drop-shadow(0 4px 12px rgba(40,20,10,0.18))',
         }}
       >
@@ -336,8 +340,8 @@ function QuestionModal({ sector, level, questions, tier4Topics, onComplete, pale
                 width: '100%', padding: '14px 14px', borderRadius: 12,
                 border: `1.5px solid ${palette.text}22`,
                 background: '#fff', color: palette.text,
-                fontSize: 15, fontFamily: 'inherit', outline: 'none',
-                appearance: 'none',
+                fontSize: 16, fontFamily: 'inherit',
+                appearance: 'none', WebkitAppearance: 'none',
                 backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23666' d='M0 0h12L6 8z'/></svg>")`,
                 backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'right 14px center',
@@ -720,7 +724,7 @@ function ModePicker({ onPick, palette }) {
         style={{
           ...tileBase,
           background: palette.card, color: palette.text,
-          boxShadow: '0 5px 0 #d8d2c2',
+          boxShadow: `0 5px 0 ${palette.text}1f`,
         }}
       >
         <svg viewBox="0 0 60 60" width="56" height="56" fill="none"
@@ -748,6 +752,7 @@ function ModePicker({ onPick, palette }) {
       <div style={{
         marginTop: 4, marginBottom: 8,
         display: 'flex', justifyContent: 'center', gap: 18,
+        flexWrap: 'wrap', rowGap: 8,
       }}>
         <a
           href={BOARD_GAME_PDF_URL}
@@ -883,18 +888,26 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
 
       <button
         onClick={handleSubmit}
+        disabled={totalAnswered === 0}
+        aria-label="Submit form answers"
         style={{
           width: '100%', padding: '16px', borderRadius: 14,
-          border: 'none', background: palette.accent, color: '#fff',
+          border: 'none',
+          background: totalAnswered === 0 ? palette.text + '33' : palette.accent,
+          color: '#fff',
           fontSize: 14, fontWeight: 800, letterSpacing: '0.15em',
-          textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit',
-          boxShadow: `0 4px 0 ${palette.accentDark}`,
+          textTransform: 'uppercase',
+          cursor: totalAnswered === 0 ? 'default' : 'pointer',
+          fontFamily: 'inherit',
+          boxShadow: totalAnswered === 0 ? 'none' : `0 4px 0 ${palette.accentDark}`,
           marginTop: 12,
+          minHeight: 52,
         }}
       >Submit →</button>
 
       <button
         type="button"
+        aria-label="Clear all form answers"
         onClick={() => {
           if (totalAnswered === 0) return;
           if (!confirm('Clear all answers?')) return;
@@ -906,7 +919,8 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
           cursor: totalAnswered === 0 ? 'default' : 'pointer',
           color: palette.text + (totalAnswered === 0 ? '33' : '66'),
           fontSize: 11, fontWeight: 600, letterSpacing: '0.18em',
-          textTransform: 'uppercase', padding: '10px 8px 4px',
+          textTransform: 'uppercase', padding: '14px 12px',
+          minHeight: 44,
           fontFamily: 'inherit',
         }}
       >Clear Form ✕</button>
@@ -1028,8 +1042,8 @@ function Intro({ onStart, onBack, palette, description }) {
   const [email, setEmail] = useState('');
 
   return (
-    <div style={{ padding: '40px 24px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-      <div style={{ textAlign: 'left', marginBottom: 16 }}>
+    <div style={{ padding: '20px 24px 28px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+      <div style={{ textAlign: 'left', marginBottom: 12 }}>
         <button
           onClick={onBack}
           aria-label="Back to mode picker"
@@ -1063,10 +1077,13 @@ function Intro({ onStart, onBack, palette, description }) {
         disabled={!campName.trim()}
         style={{
           width: '100%', padding: '16px', borderRadius: 14,
-          border: 'none', background: campName.trim() ? palette.accent : '#aaa', color: '#fff',
+          border: 'none',
+          background: campName.trim() ? palette.accent : palette.text + '33',
+          color: '#fff',
           fontSize: 14, fontWeight: 800, letterSpacing: '0.15em',
           textTransform: 'uppercase', cursor: campName.trim() ? 'pointer' : 'default',
           boxShadow: campName.trim() ? `0 4px 0 ${palette.accentDark}` : 'none',
+          minHeight: 52,
         }}
       >Start →</button>
 
@@ -1105,7 +1122,7 @@ function Field({ label, value, onChange, placeholder, palette }) {
           width: '100%', padding: '12px 14px', borderRadius: 10,
           border: `1.5px solid ${palette.text}22`,
           background: palette.card, color: palette.text,
-          fontSize: 15, outline: 'none',
+          fontSize: 16,
           fontFamily: 'inherit',
         }}
       />
@@ -1204,12 +1221,14 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setSpinning(true);
     setRotation(newRotation);
 
+    const reduceMotion = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     setTimeout(() => {
       setSpinning(false);
       const lvl = sectorCursor[target.id];
       const questions = target.levels[lvl];
       setActiveQuestion({ sector: target, level: lvl, questions });
-    }, 4300);
+    }, reduceMotion ? 500 : 4300);
   }, [sectors, sectorCursor, sectorClosed, rotation]);
 
   function handleAnswers(allYes, answers) {
@@ -1427,9 +1446,10 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           : `${sectors.filter(s => !sectorClosed[s.id]).length} sectors still open · spin again`}
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: 8 }}>
+      <div style={{ textAlign: 'center', marginTop: 4 }}>
         <button
           type="button"
+          aria-label="Reset game progress"
           onClick={() => {
             if (totalAttempted === 0) return;
             if (!confirm('Reset progress and start over?')) return;
@@ -1445,7 +1465,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             cursor: totalAttempted === 0 ? 'default' : 'pointer',
             color: palette.text + (totalAttempted === 0 ? '33' : '66'),
             fontSize: 10, fontWeight: 700, letterSpacing: '0.2em',
-            textTransform: 'uppercase', padding: '6px 8px',
+            textTransform: 'uppercase', padding: '14px 12px',
+            minHeight: 44,
             fontFamily: 'inherit',
           }}
         >Reset Game ↺</button>

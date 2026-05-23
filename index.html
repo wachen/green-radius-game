@@ -26,10 +26,22 @@
   }
   * { box-sizing: border-box; }
   button { font-family: inherit; }
-  input { font-family: inherit; }
+  input, select { font-family: inherit; }
+  input:focus-visible, select:focus-visible {
+    outline: 2px solid #7AB85C;
+    outline-offset: 1px;
+  }
+  button:focus-visible {
+    outline: 2px solid #7AB85C;
+    outline-offset: 2px;
+  }
 
   @keyframes qm-fade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes qm-up   { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes qm-fade { from { opacity: 1; } to { opacity: 1; } }
+    @keyframes qm-up   { from { opacity: 1; transform: none; } to { opacity: 1; transform: none; } }
+  }
 
   /* Responsive shell: full-bleed on mobile, phone-shaped frame on larger screens. */
   .grg-shell {
@@ -47,6 +59,7 @@
     background: #ede9e0;
     position: relative;
     overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
   }
   @media (min-width: 600px) {
     .grg-shell {
