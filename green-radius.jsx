@@ -865,7 +865,7 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
         fontSize: 14, lineHeight: 1.5, color: palette.text + 'cc',
         marginBottom: 8, textWrap: 'pretty',
       }}>
-        Answer yes/no for your camp. Submit when ready.
+        Answer yes/no for your camp. Progress is autosaved.
       </div>
       <div style={{
         fontSize: 10, letterSpacing: '0.15em',
@@ -1022,7 +1022,7 @@ function YesNoRow({ qid, text, subtext, answer, setAnswer, palette }) {
 }
 
 // ─── intro / camp setup ───────────────────────────────────────────────────────
-function Intro({ onStart, onBack, palette }) {
+function Intro({ onStart, onBack, palette, description }) {
   const [campName, setCampName] = useState('');
   const [leadName, setLeadName] = useState('');
   const [email, setEmail] = useState('');
@@ -1049,12 +1049,12 @@ function Intro({ onStart, onBack, palette }) {
         <span style={{ whiteSpace: 'nowrap' }}>What's Your</span> <span style={{ whiteSpace: 'nowrap' }}>Green Radius?</span>
       </h1>
       <div style={{ fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc', marginBottom: 32, textWrap: 'pretty' }}>
-        Spin the wheel. Answer honestly.
+        {description}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28, textAlign: 'left' }}>
-        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="e.g. Burners Without Orders" palette={palette}/>
-        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="e.g. Wild Wet" palette={palette}/>
+        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Burners Without Orders" palette={palette}/>
+        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Wild N Wet" palette={palette}/>
         <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette}/>
       </div>
 
@@ -1068,13 +1068,13 @@ function Intro({ onStart, onBack, palette }) {
           textTransform: 'uppercase', cursor: campName.trim() ? 'pointer' : 'default',
           boxShadow: campName.trim() ? `0 4px 0 ${palette.accentDark}` : 'none',
         }}
-      >Begin →</button>
+      >Start →</button>
 
       <div style={{
         fontSize: 10, letterSpacing: '0.15em',
         color: palette.text + '66', marginTop: 24, fontWeight: 600,
       }}>
-        6 SECTORS · 4 LEVELS
+        6 SECTORS · 4 LEVELS · UP TO 60 QUESTIONS
       </div>
 
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
@@ -1120,7 +1120,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // Pull any saved game once on mount. If null, fall through to defaults.
   const saved = useMemo(() => loadSaved(sectors), [sectors]);
 
-  const [phase, setPhase] = useState(saved?.phase || 'pick-mode'); // pick-mode | intro | playing | done | form
+  const [phase, setPhase] = useState(saved?.phase || 'pick-mode'); // pick-mode | intro | playing | done | form-intro | form
   const [camp, setCamp] = useState(saved?.camp || { campName: '', leadName: '', email: '' });
 
   // levelStates[sectorId] = ['locked'|'open'|'green'|'failed', x4]
@@ -1158,7 +1158,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // nothing in flight, so clear the slot — that way "New Camp" wipes the
   // save (it transitions phase back to 'intro').
   useEffect(() => {
-    if (phase === 'intro' || phase === 'pick-mode') {
+    if (phase === 'intro' || phase === 'form-intro' || phase === 'pick-mode') {
       clearSaved();
       return;
     }
@@ -1247,6 +1247,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     }
   }
 
+  function startForm(info) {
+    setCamp(info);
+    setPhase('form');
+  }
+
   // For wheel display: pretend cursor levels are "open" (current focus tinted brighter)
   const displayStates = useMemo(() => {
     const out = {};
@@ -1263,8 +1268,19 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   if (phase === 'pick-mode') {
     return (
       <ModePicker
-        onPick={(mode) => setPhase(mode === 'board' ? 'intro' : 'form')}
+        onPick={(mode) => setPhase(mode === 'board' ? 'intro' : 'form-intro')}
         palette={palette}
+      />
+    );
+  }
+
+  if (phase === 'form-intro') {
+    return (
+      <Intro
+        onStart={startForm}
+        onBack={() => setPhase('pick-mode')}
+        palette={palette}
+        description="Answer to your best ability. Progress is autosaved unless you reset."
       />
     );
   }
@@ -1284,7 +1300,14 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   }
 
   if (phase === 'intro') {
-    return <Intro onStart={startGame} onBack={() => setPhase('pick-mode')} palette={palette}/>;
+    return (
+      <Intro
+        onStart={startGame}
+        onBack={() => setPhase('pick-mode')}
+        palette={palette}
+        description="Spin the wheel and answer to your best ability. Progress is autosaved unless you reset."
+      />
+    );
   }
 
   if (phase === 'done') {
