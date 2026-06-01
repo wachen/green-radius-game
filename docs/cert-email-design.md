@@ -16,7 +16,7 @@ Supersedes the earlier rough draft. Origin: Marc's feedback doc ("store results 
 |---|---|
 | Sheet write | Apps Script web app (`doPost` → `appendRow`). No GCP / service account. |
 | Email payload | A **link** to a hosted result page (reuses the on-screen `ShareCard`), not an attachment. |
-| Send-from | `results@greenradi.us` via Resend (final address chosen at Resend setup); SPF/DKIM/DMARC on greenradi.us. |
+| Send-from | From `noreply@greenradi.us`, Reply-To `greenthemecamps@burningman.org` (GTCC team alias) — via Resend; SPF/DKIM/DMARC on greenradi.us (only the From domain needs verification). |
 | Capture model | **Approach A** — explicit action on the done screen. |
 | Result page URL | **`/result/`** (singular). Rationale below. |
 | Build constraints | Client stays no-build (Babel-in-browser); the Worker is the only new server code. Structured process (feature-dev + code-review). Manual verification (no test toolchain). |

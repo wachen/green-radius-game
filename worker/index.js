@@ -58,10 +58,11 @@ async function sendEmail(env, to, campName, resultUrl) {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Green Radius <results@greenradi.us>',
+      from: 'Green Radius <noreply@greenradi.us>',
+      reply_to: 'greenthemecamps@burningman.org',
       to: [to],
       subject: `Your Green Radius — ${campName}`,
-      html: `<p>Thanks for playing the Green Radius Game!</p><p><a href="${href}">View &amp; share your Green Radius →</a></p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
+      html: `<p>Thanks for playing the Green Radius Game!</p><p><a href="${href}">View &amp; share your Green Radius →</a></p><p style="color:#888;font-size:12px">Questions? Just reply to this email — it reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
     }),
   });
   return r.ok;

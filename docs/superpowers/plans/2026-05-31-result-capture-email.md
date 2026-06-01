@@ -92,7 +92,7 @@ Expected: `{"ok":true}` and a new row in the sheet.
 - [ ] **Step 1:** Create a Resend account. Add domain `greenradi.us` (or subdomain `send.greenradi.us`).
 - [ ] **Step 2:** Resend shows SPF (TXT), DKIM (CNAME/TXT), and DMARC records. Add them in Cloudflare DNS for greenradi.us. Wait for Resend to mark the domain **Verified**.
 - [ ] **Step 3:** Create an API key (sending scope) → this becomes `RESEND_API_KEY`.
-- [ ] **Step 4:** Confirm the From address you want (default in this plan: `results@greenradi.us`). If different, update `worker/index.js` Task 6.
+- [ ] **Step 4:** Confirm the email identity: From = `noreply@greenradi.us`, Reply-To = `greenthemecamps@burningman.org` (GTCC team alias — replies reach the team even though the visible sender is no-reply). Only the From domain (greenradi.us) needs Resend verification; the reply-to can be any address. If different, update `worker/index.js` Task 6.
 
 ---
 
@@ -309,10 +309,11 @@ async function sendEmail(env, to, campName, resultUrl) {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Green Radius <results@greenradi.us>',
+      from: 'Green Radius <noreply@greenradi.us>',
+      reply_to: 'greenthemecamps@burningman.org',
       to: [to],
       subject: `Your Green Radius — ${campName}`,
-      html: `<p>Thanks for playing the Green Radius Game!</p><p><a href="${resultUrl}">View &amp; share your Green Radius →</a></p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
+      html: `<p>Thanks for playing the Green Radius Game!</p><p><a href="${resultUrl}">View &amp; share your Green Radius →</a></p><p style="color:#888;font-size:12px">Questions? Just reply to this email — it reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
     }),
   });
   return r.ok;
