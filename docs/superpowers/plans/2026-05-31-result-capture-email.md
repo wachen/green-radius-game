@@ -95,7 +95,7 @@ Expected: `{"ok":true}` and a new row appended to the **2026 Results** tab (the 
 - [ ] **Step 1:** Create a Resend account. Add domain `greenradi.us` (or subdomain `send.greenradi.us`).
 - [ ] **Step 2:** Resend shows SPF (TXT), DKIM (CNAME/TXT), and DMARC records. Add them in Cloudflare DNS for greenradi.us. Wait for Resend to mark the domain **Verified**.
 - [ ] **Step 3:** Create an API key (sending scope) → this becomes `RESEND_API_KEY`.
-- [ ] **Step 4:** Confirm the email identity: From = `noreply@greenradi.us`, Reply-To = `greenthemecamps@burningman.org` (GTCC team alias — replies reach the team even though the visible sender is no-reply). Only the From domain (greenradi.us) needs Resend verification; the reply-to can be any address. If different, update `worker/index.js` Task 6.
+- [ ] **Step 4:** Confirm the email identity: From = `hello@greenradi.us`, Reply-To = `greenthemecamps@burningman.org` (GTCC alias). Set up **Cloudflare Email Routing** so `hello@greenradi.us` forwards to `greenthemecamps@burningman.org` (enable Email Routing on greenradi.us → add + verify the destination → create the `hello@` → alias route). This makes replies reach the team in *every* client — honored Reply-To goes direct, ignored Reply-To falls back to `hello@` → forwarded. Only the From domain (greenradi.us) needs Resend verification. If different, update `worker/index.js` Task 6.
 
 ---
 
@@ -312,7 +312,7 @@ async function sendEmail(env, to, campName, resultUrl) {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Green Radius <noreply@greenradi.us>',
+      from: 'Green Radius <hello@greenradi.us>',
       reply_to: 'greenthemecamps@burningman.org',
       to: [to],
       subject: `Your Green Radius — ${campName}`,
