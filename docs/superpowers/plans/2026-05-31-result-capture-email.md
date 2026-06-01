@@ -36,23 +36,26 @@ Expected: `## result-capture-email...origin/main` (or no upstream yet — fine; 
 
 **Files:** none in repo (owner-side setup)
 
-- [ ] **Step 1:** Create a Google Sheet named e.g. "Green Radius Completions". Add a tab named `Completions` with this header row:
+- [ ] **Step 1:** In your **existing master spreadsheet**, add a **new tab** named `2026 Results` (don't reuse an existing tab; the per-year name keeps it clear when the data was captured). Put this header in row 1 — or skip it and let the Step 2 script create the tab + header automatically on first write:
 
 `Timestamp | Camp | Lead | Email | Year | Food | Water | Waste | Transport | Shelter | Power | Total | Source | Result URL`
 
-- [ ] **Step 2:** Extensions → Apps Script. Replace `Code.gs` with:
+- [ ] **Step 2:** From the master spreadsheet, open **Extensions → Apps Script** (opening it from the sheet binds the script to it, so `getActiveSpreadsheet()` resolves). If the project is empty, paste this into `Code.gs`; if it already has code, add a **new** file (e.g. `GreenRadius.gs`) and paste it there. ⚠️ A script project can have only one `doPost(e)` — if the master's script already has one, merge this logic into it rather than adding a second.
 
 ```javascript
-// Deploy as Web App: Execute as = Me, Who has access = Anyone.
+// Bind to the master spreadsheet: open via Extensions → Apps Script FROM that sheet (not a standalone
+// project) so getActiveSpreadsheet() resolves. Deploy as Web App: Execute as = Me, Who has access = Anyone.
 var SHARED_SECRET = 'CHOOSE_A_LONG_RANDOM_STRING'; // must match the Worker secret
-var SHEET_NAME = 'Completions';
+var SHEET_NAME = '2026 Results';                   // per-year data tab; bump for next year's event
+var HEADER = ['Timestamp','Camp','Lead','Email','Year','Food','Water','Waste','Transport','Shelter','Power','Total','Source','Result URL'];
 
 function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (body.secret !== SHARED_SECRET) return json_({ ok: false, error: 'forbidden' });
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
+    var sheet = ss.getSheetByName(SHEET_NAME);
+    if (!sheet) { sheet = ss.insertSheet(SHEET_NAME); sheet.appendRow(HEADER); } // auto-create tab + header
     var s = body.greens || {};
     var ids = ['food','water','waste','transport','shelter','power'];
     var total = ids.reduce(function (a, id) { return a + (s[id] | 0); }, 0);
@@ -79,7 +82,7 @@ function json_(o) {
 curl -sS -L -X POST '<EXEC_URL>' -H 'Content-Type: application/json' \
   -d '{"secret":"CHOOSE_A_LONG_RANDOM_STRING","campName":"Test","email":"a@b.co","year":2026,"greens":{"food":4,"water":2,"waste":0,"transport":3,"shelter":1,"power":4},"source":"board","resultUrl":"https://greenradi.us/result/#x"}'
 ```
-Expected: `{"ok":true}` and a new row in the sheet.
+Expected: `{"ok":true}` and a new row appended to the **2026 Results** tab (the script creates that tab with its header if it's missing). Note: this endpoint only ever appends to that one tab — it never reads or returns other tabs, so the rest of the master spreadsheet isn't exposed.
 
 - [ ] **Step 5:** Hand off to the Worker step: the `/exec` URL → `SHEETS_WEBAPP_URL`, the secret → `SHEETS_SHARED_SECRET`.
 

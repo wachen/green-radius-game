@@ -14,7 +14,7 @@ Supersedes the earlier rough draft. Origin: Marc's feedback doc ("store results 
 
 | Choice | Decision |
 |---|---|
-| Sheet write | Apps Script web app (`doPost` → `appendRow`). No GCP / service account. |
+| Sheet write | Apps Script web app (`doPost` → `appendRow`) bound to the existing master spreadsheet, appending to a **per-year tab** (`2026 Results`). No GCP / service account. |
 | Email payload | A **link** to a hosted result page (reuses the on-screen `ShareCard`), not an attachment. |
 | Send-from | From `noreply@greenradi.us`, Reply-To `greenthemecamps@burningman.org` (GTCC team alias) — via Resend; SPF/DKIM/DMARC on greenradi.us (only the From domain needs verification). |
 | Capture model | **Approach A** — explicit action on the done screen. |
@@ -76,7 +76,7 @@ Admin dashboard · PNG/PDF attachment · upsert/dedup · entry editing · auth.
 
 ## Build order
 
-1. **You:** create the Sheet + Apps Script web app → send the `/exec` URL + a shared secret.
+1. **You:** in the existing master spreadsheet, add a `2026 Results` tab + a bound Apps Script web app → send the `/exec` URL + a shared secret.
 2. **You:** create the Resend account + add `greenradi.us` → I give you the exact DNS records.
 3. **Me:** `result-state.js` + `/result/` page → 4. Worker + secrets wiring → 5. Start-screen consent notice + client CTA/required-email/share → 6. drop `vercel.json`.
 7. Manual verify on a preview → **one PR** to wachen → `/deploy-verify`.
