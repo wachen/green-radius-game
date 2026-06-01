@@ -17,7 +17,9 @@
 <div id="root" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#D8CBB6;padding:24px"></div>
 
 <script type="text/babel" data-presets="react">
-const { ShareCard } = window;
+// ShareCard is defined in green-radius.jsx (another text/babel script). Babel-standalone runs all
+// text/babel scripts in a shared scope, so reference it by bare name — it is NOT a window property
+// (this mirrors how index.html mounts the game via a bare <GreenRadiusGame/>).
 const data = window.ResultState.decode(window.location.hash);
 const root = ReactDOM.createRoot(document.getElementById('root'));
 if (!data) {
