@@ -20,7 +20,7 @@ async function handleComplete(request, env) {
   try { body = JSON.parse(raw); } catch { return json({ error: 'bad_json' }, 400); }
 
   if (body.website) return json({ sheet: 'skipped', email: 'skipped' }); // honeypot -> bot
-  if (!body.campName || !body.email || body.consentContact !== true) return json({ error: 'missing_fields' }, 400);
+  if (!body.campName || !body.email) return json({ error: 'missing_fields' }, 400);
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email)) return json({ error: 'bad_email' }, 400);
 
   const greens = {};
@@ -30,7 +30,7 @@ async function handleComplete(request, env) {
     secret: env.SHEETS_SHARED_SECRET,
     campName: body.campName, leadName: body.leadName || '', email: body.email,
     year: Math.max(2000, Math.min(2100, body.year | 0)), greens, source: body.source === 'form' ? 'form' : 'board',
-    consentContact: true, resultUrl,
+    resultUrl,
   };
 
   const [sheetRes, emailRes] = await Promise.allSettled([

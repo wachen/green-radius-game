@@ -1088,6 +1088,13 @@ function Intro({ onStart, onBack, palette, description }) {
       >Start →</button>
 
       <div style={{
+        fontSize: 11, lineHeight: 1.45, color: palette.text + '99',
+        marginTop: 16, textWrap: 'pretty',
+      }}>
+        By starting, you agree the Green Theme Camp Community may email your Green Radius and contact you about Green Theme Camp efforts.
+      </div>
+
+      <div style={{
         fontSize: 10, letterSpacing: '0.15em',
         color: palette.text + '66', marginTop: 24, fontWeight: 600,
       }}>
@@ -1158,7 +1165,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const [formAnswers, setFormAnswers] = useState(saved?.formAnswers || {});
   const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
   const [doneEmail, setDoneEmail] = useState(saved?.camp?.email || camp.email || '');
-  const [doneConsent, setDoneConsent] = useState(false);
   const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
   const [copied, setCopied] = useState(false);
 
@@ -1341,7 +1347,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     const resultUrl = window.location.origin + '/result/#' +
       window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, greens });
     const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((doneEmail || '').trim());
-    const canSubmit = emailOk && doneConsent && submitState === 'idle' && !submittedAt;
+    const canSubmit = emailOk && submitState === 'idle' && !submittedAt;
 
     async function handleSubmit() {
       setSubmitState('sending');
@@ -1351,7 +1357,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           body: JSON.stringify({
             campName: camp.campName, leadName: camp.leadName, email: doneEmail.trim(),
             year, greens, source: Object.keys(formAnswers).length ? 'form' : 'board',
-            consentContact: true, resultUrl,
+            resultUrl,
           }),
         });
         const j = await res.json();
@@ -1382,10 +1388,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         ) : (
           <div style={{ textAlign: 'left', marginBottom: 16 }}>
             <Field label="Email address (required)" value={doneEmail} onChange={setDoneEmail} placeholder="you@your.camp" palette={palette}/>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, color: palette.text, marginTop: 10, cursor: 'pointer' }}>
-              <input type="checkbox" checked={doneConsent} onChange={e => setDoneConsent(e.target.checked)} style={{ marginTop: 3 }}/>
-              <span>Email me my Green Radius and save our results so the Green Theme Camp Community can see our progress and get in touch.</span>
-            </label>
             {submitState === 'error' && <div style={{ color: '#b4463a', fontSize: 12, marginTop: 8 }}>Couldn't save just now — your share link below still works.</div>}
           </div>
         )}
@@ -1408,7 +1410,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           </button>
         </div>
 
-        <button onClick={() => { setLevelStates(initState); setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; }); setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; }); setFormAnswers({}); setSubmittedAt(null); setSubmitState('idle'); setDoneEmail(''); setDoneConsent(false); setPhase('pick-mode'); }}
+        <button onClick={() => { setLevelStates(initState); setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; }); setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; }); setFormAnswers({}); setSubmittedAt(null); setSubmitState('idle'); setDoneEmail(''); setPhase('pick-mode'); }}
           style={{ marginTop: 16, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
           New Camp
         </button>

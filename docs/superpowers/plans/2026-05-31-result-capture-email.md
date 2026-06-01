@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** On game completion, let a camp submit (required email + consent) to append their results to a Google Sheet and email themselves a shareable Green Radius result link.
+**Goal:** On game completion, let a camp submit (required email) to append their results to a Google Sheet and email themselves a shareable Green Radius result link. Consent to be contacted is implicit — granted when the player clicks **Start** (to play the game or fill the form) and disclosed on the Start screen; no consent checkbox or column.
 
 **Architecture:** Approach A (explicit action on the done screen). A new Cloudflare Worker handles `POST /api/complete` (Apps Script sheet append + Resend email) and forwards everything else to static assets. A new stateless `/result/` page renders the existing `ShareCard` from URL-hash-encoded state. The no-build client (`green-radius.jsx`) gains a done-screen CTA + real share button.
 
@@ -38,7 +38,7 @@ Expected: `## result-capture-email...origin/main` (or no upstream yet — fine; 
 
 - [ ] **Step 1:** Create a Google Sheet named e.g. "Green Radius Completions". Add a tab named `Completions` with this header row:
 
-`Timestamp | Camp | Lead | Email | Year | Food | Water | Waste | Transport | Shelter | Power | Total | Source | Consent | Result URL`
+`Timestamp | Camp | Lead | Email | Year | Food | Water | Waste | Transport | Shelter | Power | Total | Source | Result URL`
 
 - [ ] **Step 2:** Extensions → Apps Script. Replace `Code.gs` with:
 
@@ -59,7 +59,7 @@ function doPost(e) {
     sheet.appendRow([
       new Date(), body.campName || '', body.leadName || '', body.email || '', body.year || '',
       s.food|0, s.water|0, s.waste|0, s.transport|0, s.shelter|0, s.power|0,
-      total, body.source || '', body.consentContact ? 'YES' : 'NO', body.resultUrl || ''
+      total, body.source || '', body.resultUrl || ''
     ]);
     return json_({ ok: true });
   } catch (err) {
@@ -77,7 +77,7 @@ function json_(o) {
 
 ```bash
 curl -sS -L -X POST '<EXEC_URL>' -H 'Content-Type: application/json' \
-  -d '{"secret":"CHOOSE_A_LONG_RANDOM_STRING","campName":"Test","email":"a@b.co","year":2026,"greens":{"food":4,"water":2,"waste":0,"transport":3,"shelter":1,"power":4},"source":"board","consentContact":true,"resultUrl":"https://greenradi.us/result/#x"}'
+  -d '{"secret":"CHOOSE_A_LONG_RANDOM_STRING","campName":"Test","email":"a@b.co","year":2026,"greens":{"food":4,"water":2,"waste":0,"transport":3,"shelter":1,"power":4},"source":"board","resultUrl":"https://greenradi.us/result/#x"}'
 ```
 Expected: `{"ok":true}` and a new row in the sheet.
 
@@ -273,7 +273,7 @@ async function handleComplete(request, env) {
   try { body = JSON.parse(raw); } catch { return json({ error: 'bad_json' }, 400); }
 
   if (body.website) return json({ sheet: 'skipped', email: 'skipped' }); // honeypot → bot
-  if (!body.campName || !body.email || body.consentContact !== true) return json({ error: 'missing_fields' }, 400);
+  if (!body.campName || !body.email) return json({ error: 'missing_fields' }, 400);
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email)) return json({ error: 'bad_email' }, 400);
 
   const greens = {};
@@ -282,7 +282,7 @@ async function handleComplete(request, env) {
     secret: env.SHEETS_SHARED_SECRET,
     campName: body.campName, leadName: body.leadName || '', email: body.email,
     year: body.year | 0, greens, source: body.source === 'form' ? 'form' : 'board',
-    consentContact: true, resultUrl: body.resultUrl || '',
+    resultUrl: body.resultUrl || '',
   };
 
   const [sheetRes, emailRes] = await Promise.allSettled([
@@ -337,7 +337,7 @@ npx wrangler secret put RESEND_API_KEY
 npx wrangler dev &      # serves assets + worker at http://localhost:8787
 sleep 4
 curl -sS -X POST http://localhost:8787/api/complete -H 'Content-Type: application/json' \
-  -d '{"campName":"Test","leadName":"Ada","email":"you@your.camp","year":2026,"greens":{"food":4,"water":2,"waste":0,"transport":3,"shelter":1,"power":4},"source":"board","consentContact":true,"resultUrl":"https://greenradi.us/result/#x"}'
+  -d '{"campName":"Test","leadName":"Ada","email":"you@your.camp","year":2026,"greens":{"food":4,"water":2,"waste":0,"transport":3,"shelter":1,"power":4},"source":"board","resultUrl":"https://greenradi.us/result/#x"}'
 ```
 Expected: `{"sheet":"ok","email":"sent"}` (after secrets are set + domain verified), a new sheet row, and an email received. Before secrets: `{"sheet":"err","email":"err"}` is the expected degraded response.
 
@@ -349,7 +349,7 @@ git add worker/index.js && git commit -m "Add Worker POST /api/complete: sheet a
 
 ---
 
-### Task 7: Client — done-screen CTA, required email + consent, real Share
+### Task 7: Client — Start-screen consent notice, done-screen CTA + required email, real Share
 
 **Files:**
 - Modify: `index.html` (add `result-state.js` script tag before `green-radius.jsx`)
@@ -383,7 +383,7 @@ const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
 ```
 Add `submittedAt` to that effect's dependency array (`:1188`).
 
-- [ ] **Step 5:** Replace the done block (`green-radius.jsx:1332-1362`) with the version below. It computes greens, builds the result URL, and adds the CTA (required email + consent), the submit handler (guarded by `submittedAt`), and a real Share button. Match the existing button styling already used in this block (`palette.accent`, `boxShadow: 0 3px 0 ${palette.accentDark}`).
+- [ ] **Step 5:** Replace the done block (`green-radius.jsx:1332-1362`) with the version below. It computes greens, builds the result URL, and adds the CTA (required email), the submit handler (guarded by `submittedAt`), and a real Share button. Match the existing button styling already used in this block (`palette.accent`, `boxShadow: 0 3px 0 ${palette.accentDark}`).
 
 ```jsx
   if (phase === 'done') {
@@ -393,7 +393,7 @@ Add `submittedAt` to that effect's dependency array (`:1188`).
     const resultUrl = window.location.origin + '/result/#' +
       window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, greens });
     const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((doneEmail || '').trim());
-    const canSubmit = emailOk && doneConsent && submitState === 'idle' && !submittedAt;
+    const canSubmit = emailOk && submitState === 'idle' && !submittedAt;
 
     async function handleSubmit() {
       setSubmitState('sending');
@@ -403,7 +403,7 @@ Add `submittedAt` to that effect's dependency array (`:1188`).
           body: JSON.stringify({
             campName: camp.campName, leadName: camp.leadName, email: doneEmail.trim(),
             year, greens, source: Object.keys(formAnswers).length ? 'form' : 'board',
-            consentContact: true, resultUrl,
+            resultUrl,
           }),
         });
         const j = await res.json();
@@ -434,10 +434,6 @@ Add `submittedAt` to that effect's dependency array (`:1188`).
         ) : (
           <div style={{ textAlign: 'left', marginBottom: 16 }}>
             <Field label="Email address (required)" value={doneEmail} onChange={setDoneEmail} placeholder="you@your.camp" palette={palette}/>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, color: palette.text, marginTop: 10, cursor: 'pointer' }}>
-              <input type="checkbox" checked={doneConsent} onChange={e => setDoneConsent(e.target.checked)} style={{ marginTop: 3 }}/>
-              <span>Email me my Green Radius and save our results so the Green Theme Camp Community can see our progress and get in touch.</span>
-            </label>
             {submitState === 'error' && <div style={{ color: '#b4463a', fontSize: 12, marginTop: 8 }}>Couldn't save just now — your share link below still works.</div>}
           </div>
         )}
@@ -473,7 +469,6 @@ Add `submittedAt` to that effect's dependency array (`:1188`).
 
 ```javascript
 const [doneEmail, setDoneEmail] = useState(saved?.camp?.email || camp.email || '');
-const [doneConsent, setDoneConsent] = useState(false);
 const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
 const [copied, setCopied] = useState(false);
 ```
@@ -483,12 +478,12 @@ const [copied, setCopied] = useState(false);
 ```bash
 python3 -m http.server 8000   # game UI only; /api won't run here — use wrangler dev for the POST
 ```
-Open `http://localhost:8000`. Verify: (a) board path → finish all sectors → done screen shows email+consent; (b) form path → submit → done screen; (c) Email button stays disabled until a valid email AND consent are present; (d) "Share link" copies the URL and opening it renders `/result/`; (e) refresh on the done screen after a successful send shows the "✓ Sent" state (submittedAt persisted); (f) New Camp clears it. For the live POST, repeat under `npx wrangler dev` (localhost:8787).
+Open `http://localhost:8000`. Verify: (a) the **Start** screen (both board and form) shows the implicit-consent line beneath the Start button; (b) board path → finish all sectors → done screen shows the email field (no checkbox); (c) form path → submit → done screen; (d) Email button stays disabled until a valid email is present; (e) "Share link" copies the URL and opening it renders `/result/`; (f) refresh on the done screen after a successful send shows the "✓ Sent" state (submittedAt persisted); (g) New Camp clears it. For the live POST, repeat under `npx wrangler dev` (localhost:8787).
 
 - [ ] **Step 8:** Commit.
 
 ```bash
-git add index.html green-radius.jsx && git commit -m "Done screen: required email + consent capture, real share link"
+git add index.html green-radius.jsx && git commit -m "Done screen: required email capture + real share link; implicit consent disclosed on Start screen"
 ```
 
 ---
@@ -531,6 +526,6 @@ gh pr create --repo wachen/green-radius-game --base main --head result-capture-e
 
 ## Self-Review
 
-- **Spec coverage:** Worker + /api/complete (T6) · Apps Script append-only (T1) · /result/ page reusing ShareCard (T4) · result-state encode/decode (T3) · required email + consent + submit guard + real share (T7) · wrangler + secrets (T5/T6) · vercel decommission (T8) · manual verification throughout · one-branch-one-PR (T0/T9). All spec sections map to a task.
-- **Type/name consistency:** `ResultState.encode/decode/greensToLevelStates` used consistently across T3/T4/T7; payload field names (`campName, leadName, email, year, greens{6}, source, consentContact, resultUrl`) match across client (T7), Worker (T6), and Apps Script (T1); `SHEETS_WEBAPP_URL / SHEETS_SHARED_SECRET / RESEND_API_KEY` consistent T6/T1/T2.
+- **Spec coverage:** Worker + /api/complete (T6) · Apps Script append-only (T1) · /result/ page reusing ShareCard (T4) · result-state encode/decode (T3) · required email + submit guard + real share + Start-screen implicit consent (T7) · wrangler + secrets (T5/T6) · vercel decommission (T8) · manual verification throughout · one-branch-one-PR (T0/T9). All spec sections map to a task.
+- **Type/name consistency:** `ResultState.encode/decode/greensToLevelStates` used consistently across T3/T4/T7; payload field names (`campName, leadName, email, year, greens{6}, source, resultUrl`) match across client (T7), Worker (T6), and Apps Script (T1); `SHEETS_WEBAPP_URL / SHEETS_SHARED_SECRET / RESEND_API_KEY` consistent T6/T1/T2.
 - **Gotchas honored:** STORAGE_VERSION bump (T7 Step 2); submittedAt dedupe survives refresh-on-done (T7); displayStates never sent; greens-as-contiguous-prefix assumption documented in T3.
