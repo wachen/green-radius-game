@@ -1408,7 +1408,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           </button>
         </div>
 
-        <button onClick={() => { setLevelStates(initState); setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; }); setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; }); setFormAnswers({}); setSubmittedAt(null); setSubmitState('idle'); setPhase('pick-mode'); }}
+        <button onClick={() => { setLevelStates(initState); setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; }); setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; }); setFormAnswers({}); setSubmittedAt(null); setSubmitState('idle'); setDoneEmail(''); setDoneConsent(false); setPhase('pick-mode'); }}
           style={{ marginTop: 16, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
           New Camp
         </button>
