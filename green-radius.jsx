@@ -8,7 +8,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 // Bump STORAGE_VERSION when the saved shape changes so old saves are discarded
 // instead of trying to merge them in.
 const STORAGE_KEY = 'green-radius-game/v1';
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloring Wheel - Matrix -- v 26 FINAL .pdf');
@@ -1088,6 +1088,13 @@ function Intro({ onStart, onBack, palette, description }) {
       >Start →</button>
 
       <div style={{
+        fontSize: 11, lineHeight: 1.45, color: palette.text + '99',
+        marginTop: 16, textWrap: 'pretty',
+      }}>
+        By starting, you agree the Green Theme Camp Community may email your Green Radius and contact you about Green Theme Camp efforts.
+      </div>
+
+      <div style={{
         fontSize: 10, letterSpacing: '0.15em',
         color: palette.text + '66', marginTop: 24, fontWeight: 600,
       }}>
@@ -1156,6 +1163,10 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     const o = {}; sectors.forEach(s => o[s.id] = false); return o;
   });
   const [formAnswers, setFormAnswers] = useState(saved?.formAnswers || {});
+  const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
+  const [doneEmail, setDoneEmail] = useState(saved?.camp?.email || camp.email || '');
+  const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
+  const [copied, setCopied] = useState(false);
 
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -1182,10 +1193,10 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORAGE_VERSION,
-        phase, camp, levelStates, sectorCursor, sectorClosed, formAnswers,
+        phase, camp, levelStates, sectorCursor, sectorClosed, formAnswers, submittedAt,
       }));
     } catch {}
-  }, [phase, camp, levelStates, sectorCursor, sectorClosed, formAnswers]);
+  }, [phase, camp, levelStates, sectorCursor, sectorClosed, formAnswers, submittedAt]);
 
   function setFormAnswer(qid, value) {
     setFormAnswers(prev => ({ ...prev, [qid]: value }));
@@ -1330,34 +1341,79 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   }
 
   if (phase === 'done') {
+    const greens = {};
+    sectors.forEach(s => { greens[s.id] = levelStates[s.id].filter(x => x === 'green').length; });
+    const year = new Date().getFullYear();
+    const resultUrl = window.location.origin + '/result/#' +
+      window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, greens });
+    const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((doneEmail || '').trim());
+    const canSubmit = emailOk && submitState === 'idle' && !submittedAt;
+
+    async function handleSubmit() {
+      setSubmitState('sending');
+      try {
+        const res = await fetch('/api/complete', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campName: camp.campName, leadName: camp.leadName, email: doneEmail.trim(),
+            year, greens, source: Object.keys(formAnswers).length ? 'form' : 'board',
+            resultUrl,
+          }),
+        });
+        const j = await res.json();
+        if (j.sheet === 'ok' || j.email === 'sent') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); }
+        else setSubmitState('error');
+      } catch { setSubmitState('error'); }
+    }
+
+    async function handleShare() {
+      try {
+        if (navigator.share) await navigator.share({ title: 'Our Green Radius', url: resultUrl });
+        else { await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+      } catch {}
+    }
+
     return (
       <div style={{ padding: '32px 20px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.3em', fontWeight: 700, color: palette.accent, marginBottom: 8 }}>
-          YOUR GREEN RADIUS
-        </div>
+        <div style={{ fontSize: 11, letterSpacing: '0.3em', fontWeight: 700, color: palette.accent, marginBottom: 8 }}>YOUR GREEN RADIUS</div>
         <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 24px', color: palette.heading, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <RadiusLogomark sectors={sectors} levelStates={levelStates} size={32}/>
-          {camp.campName}
+          <RadiusLogomark sectors={sectors} levelStates={levelStates} size={32}/>{camp.campName}
         </h2>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <ShareCard sectors={sectors} levelStates={levelStates} campName={camp.campName} leadName={camp.leadName} year={new Date().getFullYear()} palette={palette}/>
+          <ShareCard sectors={sectors} levelStates={levelStates} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette}/>
         </div>
+
+        {submittedAt || submitState === 'done' ? (
+          <div style={{ marginBottom: 16, color: palette.text, fontSize: 14 }}>✓ Sent — check {doneEmail} for your Green Radius.</div>
+        ) : (
+          <div style={{ textAlign: 'left', marginBottom: 16 }}>
+            <Field label="Email address (required)" value={doneEmail} onChange={setDoneEmail} placeholder="you@your.camp" palette={palette}/>
+            {submitState === 'error' && <div style={{ color: '#b4463a', fontSize: 12, marginTop: 8 }}>Couldn't save just now — your share link below still works.</div>}
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={() => alert('Share link copied (mock)')}
-            style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
-              background: palette.accent, color: '#fff', fontSize: 13, fontWeight: 800,
-              letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
-              boxShadow: `0 3px 0 ${palette.accentDark}` }}>
-            Share
-          </button>
-          <button onClick={() => { setLevelStates(initState); setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; }); setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; }); setFormAnswers({}); setPhase('pick-mode'); }}
-            style={{ flex: 1, padding: '14px 0', borderRadius: 12,
-              border: `1.5px solid ${palette.text}22`, background: 'transparent',
-              color: palette.text, fontSize: 13, fontWeight: 800,
+          {!(submittedAt || submitState === 'done') && (
+            <button onClick={handleSubmit} disabled={!canSubmit}
+              style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
+                background: canSubmit ? palette.accent : `${palette.text}33`, color: '#fff', fontSize: 13, fontWeight: 800,
+                letterSpacing: '0.12em', textTransform: 'uppercase', cursor: canSubmit ? 'pointer' : 'not-allowed',
+                boxShadow: canSubmit ? `0 3px 0 ${palette.accentDark}` : 'none' }}>
+              {submitState === 'sending' ? 'Sending…' : '✉ Email my Green Radius'}
+            </button>
+          )}
+          <button onClick={handleShare}
+            style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: `1.5px solid ${palette.text}22`,
+              background: 'transparent', color: palette.text, fontSize: 13, fontWeight: 800,
               letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
-            New Camp
+            {copied ? 'Link copied!' : '🔗 Share link'}
           </button>
         </div>
+
+        <button onClick={() => { setLevelStates(initState); setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; }); setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; }); setFormAnswers({}); setSubmittedAt(null); setSubmitState('idle'); setDoneEmail(''); setPhase('pick-mode'); }}
+          style={{ marginTop: 16, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
+          New Camp
+        </button>
       </div>
     );
   }

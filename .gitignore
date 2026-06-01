@@ -24,3 +24,6 @@ _design/
 
 # Superpowers brainstorming sessions
 .superpowers/
+
+# Claude Code local agent settings/state
+.claude/
