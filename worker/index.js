@@ -11,7 +11,8 @@ export default {
 
 async function handleComplete(request, env) {
   const origin = request.headers.get('Origin') || '';
-  if (origin && origin !== ALLOWED_ORIGIN && !origin.startsWith('http://localhost')) return json({ error: 'forbidden' }, 403);
+  const isLocalhost = /^http:\/\/localhost(:\d+)?$/.test(origin);
+  if (origin && origin !== ALLOWED_ORIGIN && !isLocalhost) return json({ error: 'forbidden' }, 403);
 
   const raw = await request.text();
   if (raw.length > 4096) return json({ error: 'too_large' }, 413);
@@ -24,16 +25,17 @@ async function handleComplete(request, env) {
 
   const greens = {};
   for (const id of SECTOR_IDS) greens[id] = Math.max(0, Math.min(4, (body.greens && body.greens[id]) | 0));
+  const resultUrl = safeResultUrl(body.resultUrl);
   const row = {
     secret: env.SHEETS_SHARED_SECRET,
     campName: body.campName, leadName: body.leadName || '', email: body.email,
-    year: body.year | 0, greens, source: body.source === 'form' ? 'form' : 'board',
-    consentContact: true, resultUrl: body.resultUrl || '',
+    year: Math.max(2000, Math.min(2100, body.year | 0)), greens, source: body.source === 'form' ? 'form' : 'board',
+    consentContact: true, resultUrl,
   };
 
   const [sheetRes, emailRes] = await Promise.allSettled([
     appendToSheet(env, row),
-    sendEmail(env, body.email, body.campName, body.resultUrl),
+    sendEmail(env, body.email, body.campName, resultUrl),
   ]);
   return json({
     sheet: sheetRes.status === 'fulfilled' && sheetRes.value ? 'ok' : 'err',
@@ -50,7 +52,8 @@ async function appendToSheet(env, row) {
 }
 
 async function sendEmail(env, to, campName, resultUrl) {
-  if (!env.RESEND_API_KEY) return false;
+  if (!env.RESEND_API_KEY || !resultUrl) return false;
+  const href = escAttr(resultUrl);
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -58,10 +61,24 @@ async function sendEmail(env, to, campName, resultUrl) {
       from: 'Green Radius <results@greenradi.us>',
       to: [to],
       subject: `Your Green Radius — ${campName}`,
-      html: `<p>Thanks for playing the Green Radius Game!</p><p><a href="${resultUrl}">View &amp; share your Green Radius →</a></p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
+      html: `<p>Thanks for playing the Green Radius Game!</p><p><a href="${href}">View &amp; share your Green Radius →</a></p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
     }),
   });
   return r.ok;
+}
+
+function safeResultUrl(raw) {
+  try {
+    const u = new URL(raw || '');
+    const okHost = u.hostname === 'greenradi.us' || u.hostname === 'localhost';
+    const okProto = u.protocol === 'https:' || u.protocol === 'http:';
+    if (okProto && okHost && u.pathname === '/result/') return u.toString();
+  } catch {}
+  return '';
+}
+
+function escAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#x27;');
 }
 
 function json(obj, status = 200) {
