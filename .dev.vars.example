@@ -1,0 +1,10 @@
+# Local dev secrets for `npx wrangler dev`.
+# Copy this file to `.dev.vars` and fill in the values.
+# In production these are Cloudflare Worker secrets — never commit real values.
+
+# Google Apps Script web-app URL that appends a row to the results sheet
+SHEETS_WEBAPP_URL=
+# Shared secret sent with each append request (must match the Apps Script)
+SHEETS_SHARED_SECRET=
+# Resend API key for sending the result email
+RESEND_API_KEY=

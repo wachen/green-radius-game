@@ -5,44 +5,64 @@ across six sectors — Water, Waste, Power, Transport, Food, Shelter — answer
 Yes/No questions in four progressively harder tiers, and earn a unique green
 radius for your camp.
 
-This implementation is built from a Claude Design handoff bundle. The mechanics
-and copy come from the Green Theme Camp Community's BLAST framework.
+Live at **https://greenradi.us**.
+
+The mechanics and copy come from the Green Theme Camp Community's BLAST framework;
+this implementation began from a Claude Design handoff bundle.
 
 ## Stack
 
-- Static HTML + React 18 (loaded via UMD CDN)
-- In-browser JSX via `@babel/standalone`
-- No build step — `index.html` is the entry point
+- Static HTML + React 18 (loaded via UMD CDN), with in-browser JSX via `@babel/standalone`
+- **No build step** — the browser compiles the JSX
+- A small **Cloudflare Worker** (`worker/index.js`) backs one endpoint,
+  `POST /api/complete` — it saves a result row to a Google Sheet and emails the camp a
+  shareable link. Everything else is served as static assets.
+- Deployed on **Cloudflare Workers + Static Assets**
 
-The whole site is three files:
+## Layout
 
-| File              | Role                                                 |
-|-------------------|------------------------------------------------------|
-| `index.html`      | Page shell, fonts, mounts `<GreenRadiusGame/>`       |
-| `green-radius.jsx`| Game component (wheel, modal, share card, state)    |
-| `game-data.js`    | Sector / tier / question content from the BLAST PDF  |
+| Path               | Role                                                            |
+|--------------------|-----------------------------------------------------------------|
+| `index.html`       | Entry point; mounts `<GreenRadiusGame/>`                        |
+| `green-radius.jsx` | Game UI — wheel, question modal, form mode, result card, email capture |
+| `game-data.js`     | `window.SECTORS` — sector / tier / question content             |
+| `result-state.js`  | `window.ResultState` — encode/decode a result into the URL hash |
+| `result/`          | Stateless shareable result page                                 |
+| `worker/`          | Cloudflare Worker (`/api/complete`)                             |
+| `downloads/`       | Printable board-game + how-to-play PDFs                          |
 
 ## Run locally
 
-Any static server works — for example:
+Any static server works for the UI:
 
 ```bash
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
 
-Opening `index.html` directly via `file://` will not work because the JSX files
-are loaded via `<script src>` and browsers block cross-origin reads from
-`file://`.
+(`file://` won't work — browsers block cross-origin `<script src>` reads.) To run the
+Worker/API locally too, use `npx wrangler dev`. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the full dev + contribution flow.
 
 ## Deploy
 
-The repo is configured for [Vercel](https://vercel.com). No build step or
-framework — Vercel serves the files in this directory as-is.
+Hosted on Cloudflare Workers + Static Assets. **Merging to `main` auto-deploys to
+https://greenradi.us** — there is no separate staging environment, and `main` is
+branch-protected, so changes land via pull request.
+
+Manual deploy, if ever needed (requires Node.js):
 
 ```bash
-vercel deploy --prod
+npx wrangler deploy
 ```
+
+The Worker's secrets (`SHEETS_WEBAPP_URL`, `SHEETS_SHARED_SECRET`, `RESEND_API_KEY`)
+are stored in Cloudflare and never committed.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). New contributors join as collaborators on this
+repo (it's the canonical one) and open PRs against `main`.
 
 ## License
 
