@@ -1,9 +1,10 @@
 # Green Radius Game
 
-A self-ranking sustainability game for Burning Man theme camps. Spin a wheel
-across six sectors — Water, Waste, Power, Transport, Food, Shelter — answer
-Yes/No questions in four progressively harder tiers, and earn a unique green
-radius for your camp.
+A self-ranking sustainability game for Burning Man theme camps. Each spin of the
+wheel plays one of six sectors — Water, Waste, Power, Transport, Food, Shelter —
+answering its ten Yes/No questions across four progressively harder tiers; your
+run of consecutive greens sets that sector's radius. Six spins, one per sector,
+complete your camp's unique Green Radius.
 
 Live at **https://greenradi.us**.
 

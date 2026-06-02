@@ -3,6 +3,10 @@
 Thanks for helping build the Green Radius Game! It's a small, no-build static app,
 so getting started is quick.
 
+New here? **[`docs/architecture.md`](docs/architecture.md)** is the end-to-end map —
+the data flow, the integration contracts, and the gotchas worth knowing before you
+touch the wiring.
+
 ## Heads up: `main` is the live site
 
 `wachen/green-radius-game` is the canonical repo, and **merging to `main`
@@ -68,7 +72,10 @@ static site still serves — so you don't need them to work on the UI.
 
 1. Branch off `main`: `git switch -c my-change main`
 2. Keep each PR focused on one logical change, with a clear title.
-3. Push and open a PR against `main`; merge when you're happy with it
+3. If you changed the **wiring** (data flow, the `/api/complete` contract, an
+   external integration, or a gotcha), update
+   [`docs/architecture.md`](docs/architecture.md) to match.
+4. Push and open a PR against `main`; merge when you're happy with it
    (remember: **merge = deploy**).
 
 Happy hacking. 🌱

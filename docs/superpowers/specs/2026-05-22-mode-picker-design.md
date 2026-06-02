@@ -1,5 +1,7 @@
 # Mode picker: two-button intro
 
+> **Historical snapshot** (kept for the record) — for how the app works today, see [`docs/architecture.md`](../../architecture.md).
+
 **Status:** approved (pending user review of this document)
 **Branch:** `mode-picker`
 **Date:** 2026-05-22
