@@ -8,7 +8,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 // Bump STORAGE_VERSION when the saved shape changes so old saves are discarded
 // instead of trying to merge them in.
 const STORAGE_KEY = 'green-radius-game/v1';
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloring Wheel - Matrix -- v 26 FINAL .pdf');
@@ -242,41 +242,54 @@ function Wheel({ sectors, levelStates, rotation, spinning, onSpin, canSpin, vari
 // Each question has: title, prompt (yes/no question), description, optional link.
 // For tier 4 (level index 3), the question is generated from a topic the user
 // picks via dropdown. `tier4Topics` is provided per-sector.
-function QuestionModal({ sector, level, questions, tier4Topics, onComplete, palette, variant }) {
-  const isTier4 = level === 3;
-  const total = isTier4 ? 4 : questions.length;
+// Plays all 10 questions of a sector in a single open modal: tier 1 (1q) →
+// tier 2 (2q) → tier 3 (3q) → tier 4 (4 picks). The user always answers all
+// 10 — failures don't end the sector early. Final scoring (which levels go
+// green) is computed by the caller from the returned answersByLevel.
+function QuestionModal({ sector, onComplete, palette, variant }) {
+  const tierLabels = ['Start Here', 'Beginner', 'Intermediate', 'Advanced'];
+  const levelSizes = [1, 2, 3, 4];
+  const tier4Topics = sector.tier4Topics || [];
 
+  const [level, setLevel] = useState(0);
   const [idx, setIdx] = useState(0);
-  const [answers, setAnswers] = useState([]);
-  const [pickedTopicIds, setPickedTopicIds] = useState([]); // for tier4
-  const [topicId, setTopicId] = useState(''); // currently selected dropdown value
+  const [answersByLevel, setAnswersByLevel] = useState([[], [], [], []]);
+  const [pickedTopicIds, setPickedTopicIds] = useState([]); // tier 4 only
+  const [topicId, setTopicId] = useState(''); // tier 4 dropdown selection
 
-  // Available topics for this slot — exclude already-picked
+  const isTier4 = level === 3;
+  const questions = sector.levels[level] || [];
+  const total = levelSizes[level];
+
   const availableTopics = isTier4
-    ? (tier4Topics || []).filter(t => !pickedTopicIds.includes(t.id))
+    ? tier4Topics.filter(t => !pickedTopicIds.includes(t.id))
     : [];
 
   const q = isTier4
-    ? (tier4Topics || []).find(t => t.id === topicId) || null
+    ? tier4Topics.find(t => t.id === topicId) || null
     : questions[idx];
 
   function answer(yes) {
-    const next = [...answers, yes];
-    setAnswers(next);
+    const nextAnswers = answersByLevel.map((a, li) => li === level ? [...a, yes] : a);
+    setAnswersByLevel(nextAnswers);
     if (isTier4) {
-      const newPicked = [...pickedTopicIds, topicId];
-      setPickedTopicIds(newPicked);
+      setPickedTopicIds([...pickedTopicIds, topicId]);
       setTopicId('');
     }
     if (idx + 1 >= total) {
-      const allYes = next.every(a => a);
-      onComplete(allYes, next);
+      if (level + 1 >= 4) {
+        onComplete(nextAnswers);
+      } else {
+        setLevel(level + 1);
+        setIdx(0);
+      }
     } else {
       setIdx(idx + 1);
     }
   }
 
-  const tierLabels = ['Start Here', 'Beginner', 'Intermediate', 'Advanced'];
+  // Overall position across all 10 questions, for the counter and dot grouping
+  const stepNumber = levelSizes.slice(0, level).reduce((a, b) => a + b, 0) + idx + 1;
 
   return (
     <div style={{
@@ -311,9 +324,9 @@ function QuestionModal({ sector, level, questions, tier4Topics, onComplete, pale
           {sector.name} · Tier {level + 1} · {tierLabels[level]}
         </div>
 
-        {/* sector intro — show only on the first question of the tier so it
-            sets the frame without repeating across each step. */}
-        {idx === 0 && sector.bigGoal && (
+        {/* sector intro — show only on the very first question of the sector
+            (Tier 1, Q1) so it sets the frame once without repeating. */}
+        {level === 0 && idx === 0 && sector.bigGoal && (
           <div style={{ marginBottom: 16 }}>
             <div style={{
               fontSize: 13, lineHeight: 1.45, color: palette.text + 'b3',
@@ -335,16 +348,25 @@ function QuestionModal({ sector, level, questions, tier4Topics, onComplete, pale
           </div>
         )}
 
-        {/* progress dots */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
-          {Array.from({ length: total }).map((_, i) => (
-            <div key={i} style={{
-              flex: 1, height: 4, borderRadius: 2,
-              background: i < idx ? (answers[i] ? '#5BA84A' : 'rgba(60,40,30,0.35)')
-                       : i === idx ? '#3a2a20'
-                       : 'rgba(0,0,0,0.08)',
-              transition: 'background 0.3s',
-            }} />
+        {/* progress dots — 10 dots in 4 tier-groups (1 / 2 / 3 / 4) */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+          {levelSizes.map((n, li) => (
+            <div key={li} style={{ display: 'flex', gap: 4, flex: n }}>
+              {Array.from({ length: n }).map((_, i) => {
+                const past = li < level || (li === level && i < idx);
+                const current = li === level && i === idx;
+                const answered = past && answersByLevel[li][i];
+                return (
+                  <div key={i} style={{
+                    flex: 1, height: 4, borderRadius: 2,
+                    background: current ? '#3a2a20'
+                              : past ? (answered ? '#5BA84A' : 'rgba(60,40,30,0.35)')
+                              : 'rgba(0,0,0,0.08)',
+                    transition: 'background 0.3s',
+                  }} />
+                );
+              })}
+            </div>
           ))}
         </div>
 
@@ -352,7 +374,7 @@ function QuestionModal({ sector, level, questions, tier4Topics, onComplete, pale
         {isTier4 && !q && (
           <div style={{ marginBottom: 18 }}>
             <div style={{ fontSize: 11, letterSpacing: '0.15em', fontWeight: 700, color: palette.text + '99', marginBottom: 6 }}>
-              CHOOSE A TOPIC ({idx + 1} OF 4)
+              ADVANCED · CHOOSE A TOPIC ({idx + 1} OF 4)
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.5, color: palette.text + 'cc', marginBottom: 12, textWrap: 'pretty' }}>
               Pick an advanced {sector.name.toLowerCase()} idea your camp pursued — or one of "Our Camp's Idea" entries.
@@ -454,7 +476,7 @@ function QuestionModal({ sector, level, questions, tier4Topics, onComplete, pale
         )}
 
         <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: palette.text + '99' }}>
-          {idx + 1} of {total}
+          {stepNumber} of 10
         </div>
       </div>
     </div>
@@ -462,14 +484,14 @@ function QuestionModal({ sector, level, questions, tier4Topics, onComplete, pale
 }
 
 // ─── result toast (between questions and next spin) ───────────────────────────
-function ResultToast({ kind, sector, level, palette, onClose }) {
+function ResultToast({ kind, sector, greens, palette, onClose }) {
   useEffect(() => {
     const t = setTimeout(onClose, 2400);
     return () => clearTimeout(t);
   }, [onClose]);
 
-  const isGreen = kind === 'green';
-  const isFail = kind === 'failed';
+  const isDone = kind === 'sector-done';
+  const anyGreen = isDone && greens > 0;
 
   return (
     <div style={{
@@ -478,18 +500,94 @@ function ResultToast({ kind, sector, level, palette, onClose }) {
       animation: 'qm-fade 0.25s ease',
     }}>
       <div style={{
-        background: isGreen ? '#5BA84A' : '#3a2a20',
+        background: anyGreen ? '#5BA84A' : '#3a2a20',
         color: '#fff', padding: '22px 28px', borderRadius: 18,
         boxShadow: '0 18px 48px rgba(0,0,0,0.4)',
         textAlign: 'center', maxWidth: 320,
         animation: 'qm-up 0.3s cubic-bezier(0.2,0.8,0.2,1)',
       }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', opacity: 0.8, marginBottom: 6 }}>
-          {sector?.name?.toUpperCase()} {level !== undefined && `· LEVEL ${level + 1}`}
+          {sector?.name?.toUpperCase()} · DONE
         </div>
         <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.25, textWrap: 'pretty' }}>
-          {isGreen && '✓ Level cleared — turning green'}
-          {isFail && 'Sector closed — keep what you earned'}
+          {anyGreen
+            ? `${greens} of 4 levels green`
+            : 'Sector complete — no levels green this time'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── celebration overlay (full sector cleared) ────────────────────────────────
+// Burning-Man-flavored graffiti splatter + slogan. Auto-dismisses; honors
+// prefers-reduced-motion by showing a quiet text-only flash instead.
+function Celebration({ sector, palette, onDone }) {
+  const reduceMotion = typeof window !== 'undefined' && window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  useEffect(() => {
+    const t = setTimeout(onDone, reduceMotion ? 1400 : 2600);
+    return () => clearTimeout(t);
+  }, [onDone, reduceMotion]);
+
+  // Deterministic random per mount — splats stay in place for the duration
+  // instead of jittering on re-render.
+  const splats = useMemo(() => {
+    const colors = ['#5BA84A', '#7AB85C', '#D9885C', '#E0B85C', '#fbf7f0', '#3a2a20'];
+    return Array.from({ length: 18 }, (_, i) => ({
+      key: i,
+      left: 6 + Math.random() * 88,
+      top: 6 + Math.random() * 88,
+      size: 36 + Math.random() * 110,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      delay: Math.random() * 0.35,
+      blur: Math.random() < 0.3 ? 6 : 2,
+    }));
+  }, []);
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 20, pointerEvents: 'none',
+      overflow: 'hidden',
+    }}>
+      {!reduceMotion && splats.map(s => (
+        <div key={s.key} style={{
+          position: 'absolute',
+          left: `${s.left}%`, top: `${s.top}%`,
+          width: s.size, height: s.size,
+          marginLeft: -s.size / 2, marginTop: -s.size / 2,
+          background: s.color,
+          borderRadius: '50%',
+          opacity: 0,
+          filter: `blur(${s.blur}px)`,
+          mixBlendMode: 'multiply',
+          animation: `grg-splat 1.9s cubic-bezier(0.2,0.8,0.2,1) ${s.delay}s forwards`,
+        }}/>
+      ))}
+      <div style={{
+        position: 'absolute', left: '50%', top: '50%',
+        transform: 'translate(-50%, -50%)',
+        textAlign: 'center',
+        animation: reduceMotion ? 'qm-fade 0.3s ease forwards' : 'grg-celeb 2.5s cubic-bezier(0.2,0.8,0.2,1) forwards',
+      }}>
+        <div style={{
+          fontSize: 12, letterSpacing: '0.3em', fontWeight: 800,
+          color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.6)', marginBottom: 12,
+        }}>
+          {sector?.name?.toUpperCase()} · 4 / 4
+        </div>
+        <div style={{
+          fontSize: 'clamp(40px, 14vw, 72px)',
+          fontWeight: 900,
+          color: '#5BA84A',
+          textShadow: '0 4px 20px rgba(0,0,0,0.45), 0 0 60px rgba(91,168,74,0.55)',
+          textTransform: 'uppercase', letterSpacing: '-0.02em',
+          lineHeight: 0.9,
+          transform: reduceMotion ? 'none' : 'rotate(-3deg)',
+          fontFamily: 'inherit',
+        }}>
+          All Lit!
         </div>
       </div>
     </div>
@@ -1192,17 +1290,22 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
-  const [activeQuestion, setActiveQuestion] = useState(null); // {sector, level, questions}
+  const [activeQuestion, setActiveQuestion] = useState(null); // { sector }
   const [toast, setToast] = useState(null);
+  const [celebration, setCelebration] = useState(null); // { sector }
 
-  // any sector still has a level to play?
-  const allDone = sectors.every(s => sectorClosed[s.id] || sectorCursor[s.id] >= 4);
+  // Every sector is touched in exactly one spin (10 questions each), so the
+  // game ends once all six sectors are closed.
+  const allDone = sectors.every(s => sectorClosed[s.id]);
 
   useEffect(() => {
-    if (phase === 'playing' && allDone) {
-      setTimeout(() => setPhase('done'), 800);
+    // Wait for an in-flight celebration to finish before clearing the playing
+    // screen — otherwise the overlay vanishes mid-animation on the last sector.
+    if (phase === 'playing' && allDone && !celebration) {
+      const t = setTimeout(() => setPhase('done'), 800);
+      return () => clearTimeout(t);
     }
-  }, [phase, allDone]);
+  }, [phase, allDone, celebration]);
 
   // Persist on every meaningful state change. On the intro screen there's
   // nothing in flight, so clear the slot — that way "New Camp" wipes the
@@ -1231,9 +1334,9 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setPhase('done');
   }
 
-  // pick a random sector that still has work
+  // pick a random sector that hasn't been played yet
   function pickSector() {
-    const eligible = sectors.filter(s => !sectorClosed[s.id] && sectorCursor[s.id] < 4);
+    const eligible = sectors.filter(s => !sectorClosed[s.id]);
     if (eligible.length === 0) return null;
     return eligible[Math.floor(Math.random() * eligible.length)];
   }
@@ -1258,33 +1361,34 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     setTimeout(() => {
       setSpinning(false);
-      const lvl = sectorCursor[target.id];
-      const questions = target.levels[lvl];
-      setActiveQuestion({ sector: target, level: lvl, questions });
+      setActiveQuestion({ sector: target });
     }, reduceMotion ? 500 : 4300);
-  }, [sectors, sectorCursor, sectorClosed, rotation]);
+  }, [sectors, sectorClosed, rotation]);
 
-  function handleAnswers(allYes, answers) {
-    const { sector, level } = activeQuestion;
-    const newStates = { ...levelStates, [sector.id]: [...levelStates[sector.id]] };
-    if (allYes) {
-      newStates[sector.id][level] = 'green';
-      setLevelStates(newStates);
-      const newCursor = { ...sectorCursor, [sector.id]: level + 1 };
-      setSectorCursor(newCursor);
-      // if that was level 4, sector is finished green
-      if (level + 1 >= 4) {
-        setSectorClosed({ ...sectorClosed, [sector.id]: true });
-      }
-      setActiveQuestion(null);
-      setToast({ kind: 'green', sector, level });
+  // The player answers all 10 questions of a sector. Scoring: a level goes
+  // green only if every question in it is Yes AND every earlier level was
+  // green too. The first failure halts the scoring chain — subsequent levels
+  // show as 'failed' even if they were all-Yes.
+  function handleAnswers(answersByLevel) {
+    const { sector } = activeQuestion;
+    let chain = true;
+    const newLevelArr = [0, 1, 2, 3].map(li => {
+      const allYes = answersByLevel[li].every(a => a === true);
+      if (chain && allYes) return 'green';
+      chain = false;
+      return 'failed';
+    });
+
+    setLevelStates({ ...levelStates, [sector.id]: newLevelArr });
+    setSectorCursor({ ...sectorCursor, [sector.id]: 4 });
+    setSectorClosed({ ...sectorClosed, [sector.id]: true });
+    setActiveQuestion(null);
+
+    const greens = newLevelArr.filter(s => s === 'green').length;
+    if (greens === 4) {
+      setCelebration({ sector });
     } else {
-      // mark this and all higher levels as failed
-      for (let i = level; i < 4; i++) newStates[sector.id][i] = 'failed';
-      setLevelStates(newStates);
-      setSectorClosed({ ...sectorClosed, [sector.id]: true });
-      setActiveQuestion(null);
-      setToast({ kind: 'failed', sector, level });
+      setToast({ kind: 'sector-done', sector, greens });
     }
   }
 
@@ -1304,18 +1408,10 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setPhase('form');
   }
 
-  // For wheel display: pretend cursor levels are "open" (current focus tinted brighter)
-  const displayStates = useMemo(() => {
-    const out = {};
-    sectors.forEach(s => {
-      out[s.id] = levelStates[s.id].map((st, li) => {
-        if (st !== 'locked') return st;
-        if (li === sectorCursor[s.id] && !sectorClosed[s.id]) return 'open';
-        return 'locked';
-      });
-    });
-    return out;
-  }, [levelStates, sectorCursor, sectorClosed, sectors]);
+  // Wheel display: unplayed sectors are 'locked' (sandy), played sectors show
+  // their per-level result. There's no per-level "open" tinting anymore since
+  // a sector is now played as a single 10-question session.
+  const displayStates = levelStates;
 
   if (phase === 'pick-mode') {
     return (
@@ -1518,10 +1614,12 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         background: palette.card, border: `1px solid ${palette.text}11`,
         fontSize: 12, color: palette.text + 'cc', textAlign: 'center', textWrap: 'pretty',
       }}>
-        {totalAttempted === 0
-          ? 'Tap Spin to begin. The wheel chooses a sector — answer all questions Yes to turn that level green.'
-          : allDone ? 'All sectors complete — see your radius.'
-          : `${sectors.filter(s => !sectorClosed[s.id]).length} sectors still open · spin again`}
+        {(() => {
+          if (totalAttempted === 0) return 'Tap Spin to begin. The wheel picks a sector — answer all 10 questions to score it. Six spins total.';
+          if (allDone) return 'All sectors complete — see your radius.';
+          const left = sectors.filter(s => !sectorClosed[s.id]).length;
+          return `${left} ${left === 1 ? 'sector' : 'sectors'} left · spin again`;
+        })()}
       </div>
 
       <div style={{ textAlign: 'center', marginTop: 4 }}>
@@ -1553,16 +1651,16 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       {activeQuestion && (
         <QuestionModal
           sector={activeQuestion.sector}
-          level={activeQuestion.level}
-          questions={activeQuestion.questions}
-          tier4Topics={activeQuestion.sector.tier4Topics}
           onComplete={handleAnswers}
           palette={palette}
           variant={variant}
         />
       )}
       {toast && (
-        <ResultToast kind={toast.kind} sector={toast.sector} level={toast.level} palette={palette} onClose={() => setToast(null)}/>
+        <ResultToast kind={toast.kind} sector={toast.sector} greens={toast.greens} palette={palette} onClose={() => setToast(null)}/>
+      )}
+      {celebration && (
+        <Celebration sector={celebration.sector} palette={palette} onDone={() => setCelebration(null)}/>
       )}
     </div>
   );
