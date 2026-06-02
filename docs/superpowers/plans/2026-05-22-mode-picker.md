@@ -1,5 +1,7 @@
 # Mode Picker Implementation Plan
 
+> **Historical snapshot** (kept for the record) — for how the app works today, see [`docs/architecture.md`](../../architecture.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the single `Begin →` CTA on the intro screen with two distinct entry points (board game / form-based), per the approved spec at `docs/superpowers/specs/2026-05-22-mode-picker-design.md`.

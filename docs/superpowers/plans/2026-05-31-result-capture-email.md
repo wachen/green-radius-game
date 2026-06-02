@@ -1,5 +1,7 @@
 # Green Radius — Result Capture + Email Implementation Plan
 
+> **Historical snapshot** (kept for the record) — for how the app works today, see [`docs/architecture.md`](../../architecture.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** On game completion, let a camp submit (required email) to append their results to a Google Sheet and email themselves a shareable Green Radius result link. Consent to be contacted is implicit — granted when the player clicks **Start** (to play the game or fill the form) and disclosed on the Start screen; no consent checkbox or column.
