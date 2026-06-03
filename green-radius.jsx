@@ -411,10 +411,10 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
         {isTier4 && !q && (
           <div style={{ marginBottom: 18 }}>
             <div style={{ fontSize: 11, letterSpacing: '0.15em', fontWeight: 700, color: palette.text + '99', marginBottom: 6 }}>
-              ADVANCED · CHOOSE A TOPIC ({idx + 1} OF 4)
+              ADVANCED · OPTIONAL · TOPIC {idx + 1} OF 4
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.5, color: palette.text + 'cc', marginBottom: 12, textWrap: 'pretty' }}>
-              Pick an advanced {sector.name.toLowerCase()} idea your camp pursued — or one of "Our Camp's Idea" entries.
+              Pick an advanced {sector.name.toLowerCase()} idea your camp pursued — or one of "Our Camp's Idea" entries. This tier is optional.
             </div>
             <select
               value={topicId}
@@ -436,6 +436,18 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
                 <option key={t.id} value={t.id}>{t.title}</option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={() => onComplete(answersByLevel)}
+              aria-label="Skip the optional advanced tier"
+              style={{
+                width: '100%', marginTop: 10, padding: '12px 0', borderRadius: 12,
+                border: `1.5px solid ${palette.text}22`, background: 'transparent',
+                color: palette.text + 'aa', fontSize: 12, fontWeight: 700,
+                letterSpacing: '0.12em', textTransform: 'uppercase',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >None / skip advanced</button>
           </div>
         )}
 
@@ -1108,8 +1120,17 @@ function ModePicker({ onPick, palette }) {
 // A level with zero answered items stays 'locked'.
 function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, palette }) {
   const [page, setPage] = useState(0);
+  const [highlightMissing, setHighlightMissing] = useState(false);
   const lastPage = sectors.length - 1;
   const sector = sectors[page];
+
+  // A sector is "complete" once every Tier 1-3 question is answered. Tier 4 is optional.
+  const requiredAnswered = (s) => s.levels.slice(0, 3).every(
+    lvl => lvl.every(qq => answers[qq.id] === 'yes' || answers[qq.id] === 'no')
+  );
+  const incompleteSectors = sectors.filter(s => !requiredAnswered(s));
+  const allComplete = incompleteSectors.length === 0;
+  const firstIncompleteIndex = sectors.findIndex(s => !requiredAnswered(s));
 
   function computeLevelStates() {
     const result = {};
@@ -1185,16 +1206,16 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
           gap: 4, maxWidth: 320, margin: '0 auto',
         }}>
           {sectors.map((s, i) => {
-            const visited = i < page;
+            const complete = requiredAnswered(s);
             const current = i === page;
-            const iconColor = visited || current ? palette.accent : palette.text + '40';
+            const iconColor = complete || current ? palette.accent : palette.text + '40';
             return (
               <div key={s.id} aria-hidden="true" style={{
                 width: 40, height: 40, borderRadius: 999,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: current ? palette.accent + '22' : 'transparent',
                 border: `1.5px solid ${current ? palette.accent : 'transparent'}`,
-                opacity: visited || current ? 1 : 0.6,
+                opacity: complete || current ? 1 : 0.55,
                 transition: 'background .2s ease, border-color .2s ease, opacity .2s ease',
               }}>
                 <SectorIcon kind={s.icon} size={20} color={iconColor}/>
@@ -1224,6 +1245,7 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
         <FormSectorBlock
           sector={sector}
           answers={answers} setAnswer={setAnswer} palette={palette}
+          highlightMissing={highlightMissing}
         />
       </div>
 
@@ -1245,20 +1267,38 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
         ) : (
           <button
             onClick={handleSubmit}
-            disabled={totalAnswered === 0}
+            disabled={!allComplete}
             aria-label="Submit form answers"
             style={{
               flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
               fontFamily: 'inherit', fontSize: 13, fontWeight: 800,
               letterSpacing: '0.1em', textTransform: 'uppercase', minHeight: 52,
-              cursor: totalAnswered === 0 ? 'default' : 'pointer',
-              background: totalAnswered === 0 ? palette.text + '33' : palette.accent,
+              cursor: !allComplete ? 'default' : 'pointer',
+              background: !allComplete ? palette.text + '33' : palette.accent,
               color: '#fff',
-              boxShadow: totalAnswered === 0 ? 'none' : `0 4px 0 ${palette.accentDark}`,
+              boxShadow: !allComplete ? 'none' : `0 4px 0 ${palette.accentDark}`,
             }}
           >Submit →</button>
         )}
       </div>
+
+      {page === lastPage && !allComplete && (
+        <div style={{ textAlign: 'center', marginTop: 12 }}>
+          <div style={{ fontSize: 12, color: palette.text + '99', marginBottom: 6, textWrap: 'pretty' }}>
+            {incompleteSectors.length} {incompleteSectors.length === 1 ? 'sector' : 'sectors'} still need required answers.
+          </div>
+          <button
+            type="button"
+            onClick={() => { setHighlightMissing(true); setPage(firstIncompleteIndex); }}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: palette.accentDark, fontSize: 12, fontWeight: 800,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              padding: '6px 10px', minHeight: 44, fontFamily: 'inherit',
+            }}
+          >Go to {sectors[firstIncompleteIndex].name} →</button>
+        </div>
+      )}
 
       <div style={{ textAlign: 'center' }}>
         <button
@@ -1297,9 +1337,10 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
   );
 }
 
-function FormSectorBlock({ sector, answers, setAnswer, palette }) {
+function FormSectorBlock({ sector, answers, setAnswer, palette, highlightMissing }) {
   const fixedQs = [].concat(...sector.levels.slice(0, 3));
   const t4 = sector.tier4Topics || [];
+  const isAnswered = (id) => answers[id] === 'yes' || answers[id] === 'no';
   return (
     <section style={{
       margin: '20px 0', padding: '18px 16px',
@@ -1318,22 +1359,38 @@ function FormSectorBlock({ sector, answers, setAnswer, palette }) {
         {sector.bigGoal}
       </div>
 
+      <div style={{
+        fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
+        textTransform: 'uppercase', color: palette.text + '88',
+        marginBottom: 2,
+      }}>
+        Required
+      </div>
       {fixedQs.map(q => (
         <YesNoRow
           key={q.id} qid={q.id}
           text={q.prompt}
           answer={answers[q.id]} setAnswer={setAnswer} palette={palette}
+          missing={highlightMissing && !isAnswered(q.id)}
         />
       ))}
 
       {t4.length > 0 && (
         <>
           <div style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
-            textTransform: 'uppercase', color: palette.text + '88',
-            marginTop: 14, marginBottom: 4,
+            display: 'flex', alignItems: 'center', gap: 8,
+            marginTop: 16, marginBottom: 4,
           }}>
-            Tier 4 · Mark any 4+ for completion
+            <span style={{
+              fontSize: 9, fontWeight: 800, letterSpacing: '0.12em',
+              textTransform: 'uppercase', color: palette.accentDark,
+              background: palette.accent + '22', borderRadius: 999,
+              padding: '2px 8px',
+            }}>Optional</span>
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.16em',
+              textTransform: 'uppercase', color: palette.text + '88',
+            }}>Tier 4 · mark any 4+ to go deeper</span>
           </div>
           {t4.map(t => (
             <YesNoRow
@@ -1348,7 +1405,7 @@ function FormSectorBlock({ sector, answers, setAnswer, palette }) {
   );
 }
 
-function YesNoRow({ qid, text, subtext, answer, setAnswer, palette }) {
+function YesNoRow({ qid, text, subtext, answer, setAnswer, palette, missing }) {
   const btnBase = {
     border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
     letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -1359,9 +1416,12 @@ function YesNoRow({ qid, text, subtext, answer, setAnswer, palette }) {
     <div style={{
       padding: '12px 0',
       borderTop: `1px solid ${palette.text}11`,
+      borderLeft: `3px solid ${missing ? '#C9821E' : 'transparent'}`,
+      paddingLeft: missing ? 10 : 0,
+      transition: 'border-color .2s ease, padding-left .2s ease',
     }}>
       <div style={{ fontSize: 13, lineHeight: 1.4, color: palette.text, marginBottom: subtext ? 4 : 8 }}>
-        {text}
+        {text}{missing && <span style={{ color: '#C9821E', fontWeight: 700, fontSize: 11, marginLeft: 6 }}>Needs an answer</span>}
       </div>
       {subtext && (
         <div style={{ fontSize: 11, lineHeight: 1.4, color: palette.text + '88', marginBottom: 8 }}>
@@ -1398,6 +1458,27 @@ function Intro({ onStart, onBack, palette, description }) {
   const [campName, setCampName] = useState('');
   const [leadName, setLeadName] = useState('');
   const [email, setEmail] = useState('');
+  const [tried, setTried] = useState(false);
+
+  const campOk = !!campName.trim();
+  const leadOk = !!leadName.trim();
+  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const canStart = campOk && leadOk && emailOk;
+
+  function handleStart() {
+    if (!canStart) { setTried(true); return; }
+    onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim() });
+  }
+
+  const missing = [];
+  if (!campOk) missing.push('a camp name');
+  if (!leadOk) missing.push('your name');
+  if (!emailOk) missing.push('a valid email');
+  const missingMsg = missing.length === 1
+    ? `Please add ${missing[0]} to continue.`
+    : missing.length === 2
+      ? `Please add ${missing[0]} and ${missing[1]} to continue.`
+      : `Please add ${missing.slice(0, -1).join(', ')}, and ${missing[missing.length - 1]} to continue.`;
 
   return (
     <div style={{ padding: '20px 24px 28px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
@@ -1425,31 +1506,40 @@ function Intro({ onStart, onBack, palette, description }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28, textAlign: 'left' }}>
-        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Burners Without Orders" palette={palette}/>
-        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Wild N Wet" palette={palette}/>
-        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette}/>
+        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
+        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
+        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk}/>
       </div>
 
       <button
-        onClick={() => campName.trim() && onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim() })}
-        disabled={!campName.trim()}
+        onClick={handleStart}
+        aria-label="Start"
         style={{
           width: '100%', padding: '16px', borderRadius: 14,
           border: 'none',
-          background: campName.trim() ? palette.accent : palette.text + '33',
+          background: palette.accent,
           color: '#fff',
           fontSize: 14, fontWeight: 800, letterSpacing: '0.15em',
-          textTransform: 'uppercase', cursor: campName.trim() ? 'pointer' : 'default',
-          boxShadow: campName.trim() ? `0 4px 0 ${palette.accentDark}` : 'none',
+          textTransform: 'uppercase', cursor: 'pointer',
+          boxShadow: `0 4px 0 ${palette.accentDark}`,
           minHeight: 52,
         }}
       >Start →</button>
+
+      {tried && !canStart && (
+        <div role="alert" style={{
+          fontSize: 12, lineHeight: 1.4, color: '#B4463A',
+          marginTop: 10, fontWeight: 700, textWrap: 'pretty',
+        }}>
+          {missingMsg}
+        </div>
+      )}
 
       <div style={{
         fontSize: 11, lineHeight: 1.45, color: palette.text + '99',
         marginTop: 16, textWrap: 'pretty',
       }}>
-        By starting, you agree the Green Theme Camp Community may email your Green Radius and contact you about Green Theme Camp efforts.
+        By continuing, you agree the Green Theme Camp Community will email your results on completion and may contact you.
       </div>
 
       <div style={{
@@ -1473,11 +1563,11 @@ function Intro({ onStart, onBack, palette, description }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, palette }) {
+function Field({ label, value, onChange, placeholder, palette, required, invalid }) {
   return (
     <label style={{ display: 'block' }}>
       <div style={{ fontSize: 10, letterSpacing: '0.15em', fontWeight: 700, color: palette.text + '99', marginBottom: 4 }}>
-        {label.toUpperCase()}
+        {label.toUpperCase()}{required && <span style={{ color: palette.accentDark, marginLeft: 3 }}>*</span>}
       </div>
       <input
         value={value}
@@ -1485,7 +1575,7 @@ function Field({ label, value, onChange, placeholder, palette }) {
         placeholder={placeholder}
         style={{
           width: '100%', padding: '12px 14px', borderRadius: 10,
-          border: `1.5px solid ${palette.text}22`,
+          border: `1.5px solid ${invalid ? '#B4463A' : palette.text + '22'}`,
           background: palette.card, color: palette.text,
           fontSize: 16,
           fontFamily: 'inherit',
@@ -1610,8 +1700,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   function handleAnswers(answersByLevel) {
     const { sector } = activeQuestion;
     let chain = true;
+    const sizes = [1, 2, 3, 4];
     const newLevelArr = [0, 1, 2, 3].map(li => {
-      const allYes = answersByLevel[li].every(a => a === true);
+      const ans = answersByLevel[li] || [];
+      const complete = ans.length >= sizes[li];
+      const allYes = complete && ans.every(a => a === true);
       if (chain && allYes) return 'green';
       chain = false;
       return 'failed';
