@@ -13,6 +13,8 @@ const STORAGE_VERSION = 4;
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloring Wheel - Matrix -- v 26 FINAL .pdf');
 const HOW_TO_PLAY_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- How-to-Play - Board Game - Matrix - Detail -- v 26 FINAL .pdf');
+const RESOURCE_GUIDE_URL = 'https://www.greenthemecampcommunity.org/resource-guide';
+const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 
 function loadSaved(sectors) {
   try {
@@ -804,6 +806,141 @@ function ShareCard({ sectors, levelStates, campName, leadName, year, palette }) 
           GREENTHEMECAMPCOMMUNITY.ORG
         </div>
       </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── FAQ (home screen only) ─────────────────────────────────────────────────
+// Content is data; FaqModal renders it all expanded. The two link answers are
+// JSX with hard-coded accent colors (the app has a single fixed palette).
+const FAQ_ITEMS = [
+  {
+    q: 'What is the Green Radius?',
+    a: "A six-spoke snapshot of your camp's sustainability, one spoke each for food, water, waste, power, transport, and shelter. The more green choices you've already made in an area, the further that spoke reaches. Together, the six make up your camp's Green Radius.",
+  },
+  {
+    q: 'How do I play?',
+    a: 'Spin the wheel to draw a sector, then answer its yes/no questions, working up four tiers from easiest to hardest. Your streak of consecutive "green" answers sets how far that sector reaches. Six spins (one per sector) complete your Green Radius.',
+  },
+  {
+    q: 'Do I need to both play the game and fill out the form?',
+    a: "Nope! They're two ways through the same assessment, so just pick one. The game is the playful path; the form is the familiar one: the classic questionnaire in a single list. Either way, you end up with the same Green Radius.",
+  },
+  {
+    q: 'What happens to my results?',
+    a: "When you finish, you'll see your Green Radius and can email yourself a shareable results card. Add your camp's details and your results join the community tally, so we can celebrate progress together. It's an honor-system self-assessment: no proof required, just answer honestly.",
+  },
+  {
+    q: "What's happening to BLAST?",
+    a: (
+      <>Nothing's disappearing; it's evolving. The Green Radius <em>is</em> BLAST, in a more playable form: the same six-area framework and the same goals. You're still measuring your camp's "blast radius," just with a wheel instead of a worksheet. All the original BLAST guidance lives on in the Resource Guide below.</>
+    ),
+  },
+  {
+    q: 'Where can I learn more?',
+    a: (
+      <>
+        Dig into the full guidance for every area and tier in the Green Theme Camp Community's Resource Guide.<br/>
+        <a href={RESOURCE_GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{
+          display: 'inline-block', marginTop: 8,
+          background: '#7AB85C', color: '#fff', fontWeight: 700, fontSize: 13,
+          padding: '8px 13px', borderRadius: 11, boxShadow: '0 4px 0 #558040',
+          textDecoration: 'none',
+        }}>Open the Resource Guide →</a>
+      </>
+    ),
+  },
+  {
+    q: 'How do I report an issue or suggest an improvement?',
+    a: (
+      <>Found a bug or have an idea to make this better? We'd love to hear it. Email <a href={'mailto:' + REPORT_EMAIL} style={{ color: '#558040', fontWeight: 700, textDecoration: 'none', borderBottom: '1.5px solid rgba(85,128,64,0.4)' }}>{REPORT_EMAIL}</a>.</>
+    ),
+  },
+];
+
+function FaqButton({ onClick, palette, btnRef, expanded }) {
+  return (
+    <button
+      ref={btnRef}
+      onClick={onClick}
+      aria-haspopup="dialog"
+      aria-expanded={!!expanded}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 7,
+        background: '#3B7DD8', color: '#fff', border: 'none', cursor: 'pointer',
+        fontFamily: 'inherit', fontWeight: 700, fontSize: 13, letterSpacing: '0.02em',
+        padding: '8px 17px', borderRadius: 999, boxShadow: '0 4px 0 #2C5DA0',
+      }}
+    >
+      <span aria-hidden="true" style={{
+        width: 16, height: 16, borderRadius: '50%', background: 'rgba(255,255,255,0.28)',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 11, fontWeight: 800,
+      }}>?</span>
+      FAQ
+    </button>
+  );
+}
+
+function FaqModal({ onClose, palette }) {
+  const closeRef = useRef(null);
+  // Focus the close button once on open; keep the Escape listener in its own
+  // effect so a changing onClose can't re-trigger the focus.
+  useEffect(() => { closeRef.current?.focus(); }, []);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        background: 'rgba(20,12,8,0.55)', backdropFilter: 'blur(6px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16, animation: 'qm-fade 0.25s ease', overflowY: 'auto',
+      }}
+    >
+      <div
+        role="dialog" aria-modal="true" aria-labelledby="faq-title"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: palette.card, color: palette.text,
+          borderRadius: 24, padding: '0 22px 18px',
+          maxWidth: 400, width: '100%',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
+          position: 'relative',
+          animation: 'qm-up 0.3s cubic-bezier(0.2,0.8,0.2,1)',
+          maxHeight: '92vh', overflowY: 'auto',
+        }}
+      >
+        <div style={{
+          position: 'sticky', top: 0, background: palette.card,
+          paddingTop: 22, paddingBottom: 8, marginBottom: 2,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+        }}>
+          <div>
+            <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, color: palette.accent, textTransform: 'uppercase' }}>Green Radius</div>
+            <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3 }}>Frequently Asked Questions</div>
+          </div>
+          <button
+            ref={closeRef} onClick={onClose} aria-label="Close"
+            style={{ border: 'none', background: palette.text + '0f', width: 30, height: 30, borderRadius: '50%', fontSize: 14, cursor: 'pointer', color: palette.text, flex: '0 0 auto', lineHeight: 1 }}
+          >✕</button>
+        </div>
+
+        {FAQ_ITEMS.map((item, i) => (
+          <div key={i} style={{
+            borderTop: i === 0 ? 'none' : '1px solid ' + palette.text + '1a',
+            paddingTop: i === 0 ? 2 : 14, paddingBottom: 2,
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 5 }}>{item.q}</div>
+            <div style={{ fontSize: 13.5, lineHeight: 1.55, color: palette.text + 'd1' }}>{item.a}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
