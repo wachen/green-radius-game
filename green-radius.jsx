@@ -949,16 +949,16 @@ function FaqModal({ onClose, palette }) {
 function ModePicker({ onPick, palette }) {
   const tileBase = {
     display: 'block', width: '100%', border: 'none', cursor: 'pointer',
-    padding: '16px 16px', borderRadius: 18, marginBottom: 10,
+    padding: '18px 16px', borderRadius: 18, marginBottom: 12,
     textAlign: 'center', fontFamily: 'inherit',
   };
   const [faqOpen, setFaqOpen] = useState(false);
   const faqBtnRef = useRef(null);
   const closeFaq = useCallback(() => { setFaqOpen(false); faqBtnRef.current?.focus(); }, []);
   return (
-    <div style={{ padding: '16px 24px 18px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+    <div style={{ padding: '22px 24px 22px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
       <h1 style={{
-        fontSize: 40, lineHeight: 1, fontWeight: 900, margin: '0 0 6px',
+        fontSize: 40, lineHeight: 1, fontWeight: 900, margin: '0 0 10px',
         textWrap: 'balance', color: palette.heading,
         letterSpacing: '-0.02em',
       }}>
@@ -967,7 +967,7 @@ function ModePicker({ onPick, palette }) {
 
       <div style={{
         display: 'flex', justifyContent: 'center', alignItems: 'center',
-        gap: 12, margin: '8px 0 10px',
+        gap: 14, margin: '12px 0 14px',
       }} aria-hidden="true">
         {window.SECTORS.map(s => (
           <SectorIcon key={s.id} kind={s.icon} size={24} color={palette.accent}/>
@@ -976,7 +976,7 @@ function ModePicker({ onPick, palette }) {
 
       <div style={{
         fontSize: 15, lineHeight: 1.45, color: palette.text + 'cc',
-        maxWidth: 340, margin: '0 auto 18px', textWrap: 'pretty',
+        maxWidth: 340, margin: '0 auto 24px', textWrap: 'pretty',
       }}>
         Participate in BLAST 2026 and track your camp's progress across all 6 sustainability sectors. Pick any way to play.
       </div>
@@ -1044,13 +1044,13 @@ function ModePicker({ onPick, palette }) {
       </button>
 
       <div style={{
-        marginTop: 2, marginBottom: 12,
+        marginTop: 4, marginBottom: 14,
         display: 'flex', justifyContent: 'center', gap: 18,
         flexWrap: 'wrap', rowGap: 8,
       }}>
         <a
           href={BOARD_GAME_PDF_URL}
-          target="_blank" rel="noopener noreferrer"
+          download
           style={{
             color: palette.text + '99', fontSize: 11, fontWeight: 600,
             letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -1058,10 +1058,10 @@ function ModePicker({ onPick, palette }) {
             textUnderlineOffset: '3px',
             textDecorationColor: palette.text + '44',
           }}
-        >Board Game PDF ↗</a>
+        >Board Game PDF Download ↓</a>
         <a
           href={HOW_TO_PLAY_PDF_URL}
-          target="_blank" rel="noopener noreferrer"
+          download
           style={{
             color: palette.text + '99', fontSize: 11, fontWeight: 600,
             letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -1069,17 +1069,17 @@ function ModePicker({ onPick, palette }) {
             textUnderlineOffset: '3px',
             textDecorationColor: palette.text + '44',
           }}
-        >How to Play ↗</a>
+        >How to Play ↓</a>
       </div>
 
-      <div style={{ margin: '6px 0' }}>
+      <div style={{ margin: '9px 0' }}>
         <FaqButton btnRef={faqBtnRef} expanded={faqOpen} onClick={() => setFaqOpen(true)} palette={palette}/>
       </div>
 
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
         style={{
           fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-          color: palette.accent, marginTop: 16, lineHeight: 1.5,
+          color: palette.accent, marginTop: 20, lineHeight: 1.5,
           textDecoration: 'none', display: 'block',
         }}
       >
