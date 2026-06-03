@@ -909,7 +909,7 @@ function FaqModal({ onClose, palette }) {
         role="dialog" aria-modal="true" aria-labelledby="faq-title"
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: palette.card, color: palette.text,
+          background: palette.card, color: palette.text, textAlign: 'left',
           borderRadius: 24, padding: '0 22px 18px',
           maxWidth: 400, width: '100%', margin: 'auto',
           boxShadow: '0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
