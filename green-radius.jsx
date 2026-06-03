@@ -40,6 +40,76 @@ function clearSaved() {
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
 }
 
+// ─── PNG export (pure SVG → canvas, no dependency) ──────────────────────────────
+// The result card is built as a self-contained <svg> (ResultCardSVG); we
+// serialize it, draw it onto a 2× canvas, and hand back a PNG. No foreignObject,
+// so it rasterizes reliably on iOS Safari. Best-effort: embed the app font so the
+// PNG matches the screen typeface; if that fetch fails, text falls back to
+// system-ui and the export still works.
+let _fontEmbedCss = null;
+function bufToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+async function fontEmbedCss() {
+  if (_fontEmbedCss !== null) return _fontEmbedCss;
+  try {
+    const css = await fetch('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap')
+      .then(r => (r.ok ? r.text() : Promise.reject()));
+    const faces = css.match(/@font-face\s*{[^}]+}/g) || [];
+    const out = [];
+    for (const face of faces) {
+      const m = face.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+\.woff2)\)/);
+      if (!m) continue;
+      const b64 = bufToBase64(await fetch(m[1]).then(r => r.arrayBuffer()));
+      out.push(face.replace(m[1], `data:font/woff2;base64,${b64}`));
+    }
+    _fontEmbedCss = out.join('\n');
+  } catch {
+    _fontEmbedCss = '';
+  }
+  return _fontEmbedCss;
+}
+async function downloadSvgAsPng(svgEl, filename, scale = 2) {
+  const W = svgEl.viewBox.baseVal.width, H = svgEl.viewBox.baseVal.height;
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  const css = await fontEmbedCss();
+  if (css) {
+    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    style.textContent = css;
+    clone.insertBefore(style, clone.firstChild);
+  }
+  const svgUrl = URL.createObjectURL(
+    new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' })
+  );
+  try {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = svgUrl; });
+    if (css) await new Promise(r => setTimeout(r, 60)); // let the embedded font settle before drawing
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(W * scale);
+    canvas.height = Math.round(H * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0, W, H);
+    await new Promise(res => canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      res();
+    }, 'image/png'));
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
 // ─── icons ────────────────────────────────────────────────────────────────────
 function SectorIcon({ kind, size = 28, color = '#fff' }) {
   const s = size, sw = 1.8;
@@ -820,6 +890,94 @@ function ShareCard({ sectors, levelStates, campName, leadName, year, palette }) 
       </div>
       </div>
     </div>
+  );
+}
+
+// ─── result card as a single SVG (for PNG download) ────────────────────────────
+// Mirrors ShareCard's design but as one self-contained <svg>, so it can be
+// serialized + rasterized to PNG (downloadSvgAsPng). Kept separate from the
+// on-screen HTML ShareCard so the live card's wrapping/shadow are untouched; this
+// version lays everything out at fixed coordinates and clamps long camp names.
+const CARD_W = 360, CARD_H = 612;
+function fitCampName(name) {
+  const n = ((name || '').trim()) || 'Theme Camp';
+  if (n.length <= 16) return { lines: [n], size: 22, ys: [80] };
+  const words = n.split(/\s+/);
+  let l1 = '', l2 = '';
+  for (const w of words) {
+    if (!l2 && (l1 ? `${l1} ${w}` : w).length <= 17) l1 = l1 ? `${l1} ${w}` : w;
+    else l2 = l2 ? `${l2} ${w}` : w;
+  }
+  if (!l1) l1 = n.slice(0, 16);
+  if (!l2) return { lines: [l1.length > 18 ? `${l1.slice(0, 17)}…` : l1], size: 18, ys: [80] };
+  if (l2.length > 20) l2 = `${l2.slice(0, 19)}…`;
+  return { lines: [l1, l2], size: 18, ys: [72, 94] };
+}
+function ResultCardSVG({ sectors, levelStates, campName, leadName, year, svgRef }) {
+  const pad = 28, textX = 124;
+  const name = fitCampName(campName);
+  const leadY = name.lines.length > 1 ? 112 : 100;
+  const gridY = 440, gap = 6, cellH = 58;
+  const cellW = (CARD_W - 2 * pad - 2 * gap) / 3;
+  const cols = [pad, pad + cellW + gap, pad + 2 * (cellW + gap)];
+  return (
+    <svg ref={svgRef} width={CARD_W} height={CARD_H} viewBox={`0 0 ${CARD_W} ${CARD_H}`}
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ fontFamily: "'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}>
+      <defs>
+        <linearGradient id="rcBg" x1="0" y1="0" x2="0.45" y2="1">
+          <stop offset="0%" stopColor="#1c1410"/>
+          <stop offset="100%" stopColor="#2a1c14"/>
+        </linearGradient>
+        <radialGradient id="rcGlow" cx="50%" cy="26%" r="62%">
+          <stop offset="0%" stopColor="#D9885C" stopOpacity="0.18"/>
+          <stop offset="100%" stopColor="#D9885C" stopOpacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect x="0" y="0" width={CARD_W} height={CARD_H} rx="24" fill="url(#rcBg)"/>
+      <rect x="0" y="0" width={CARD_W} height={CARD_H} rx="24" fill="url(#rcGlow)"/>
+
+      <g transform={`translate(${pad}, 30)`}>
+        <RadiusLogomark sectors={sectors} levelStates={levelStates} size={80}/>
+      </g>
+      <text x={textX} y="50" fontSize="10" fontWeight="700" letterSpacing="2.4" fill="#fff" opacity="0.6">
+        GREEN RADIUS · {year}
+      </text>
+      {name.lines.map((ln, i) => (
+        <text key={i} x={textX} y={name.ys[i]} fontSize={name.size} fontWeight="800" fill="#fff">{ln}</text>
+      ))}
+      <text x={textX} y={leadY} fontSize="11" fontWeight="400" fill="#fff" opacity="0.7">
+        Sustainability Lead · {leadName || '—'}
+      </text>
+
+      <g transform={`translate(${(CARD_W - 300) / 2}, 124)`}>
+        <RadialBadge sectors={sectors} levelStates={levelStates} size={300} showGrid={true}/>
+      </g>
+
+      {sectors.map((s, i) => {
+        const greens = levelStates[s.id].filter(x => x === 'green').length;
+        const col = cols[i % 3], rowY = gridY + (i < 3 ? 0 : cellH + gap), cx = col + cellW / 2;
+        const color = greens > 0 ? '#5BA84A' : 'rgba(255,255,255,0.4)';
+        return (
+          <g key={s.id}>
+            <rect x={col} y={rowY} width={cellW} height={cellH} rx="10" fill="#ffffff" fillOpacity="0.05"/>
+            <g transform={`translate(${cx - 9}, ${rowY + 9})`}>
+              <SectorIcon kind={s.icon} size={18} color={color}/>
+            </g>
+            <text x={cx} y={rowY + 40} textAnchor="middle" fontSize="9" fontWeight="700" letterSpacing="0.7" fill="#fff" opacity="0.8">
+              {s.name.toUpperCase()}
+            </text>
+            <text x={cx} y={rowY + 53} textAnchor="middle" fontSize="13" fontWeight="800" fill={color}>
+              L{greens}
+            </text>
+          </g>
+        );
+      })}
+
+      <text x={CARD_W / 2} y={gridY + 2 * cellH + gap + 30} textAnchor="middle" fontSize="9" fontWeight="600" letterSpacing="1.6" fill="#fff" opacity="0.5">
+        GREENTHEMECAMPCOMMUNITY.ORG
+      </text>
+    </svg>
   );
 }
 
@@ -1619,9 +1777,10 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   });
   const [formAnswers, setFormAnswers] = useState(saved?.formAnswers || {});
   const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
-  const [doneEmail, setDoneEmail] = useState(saved?.camp?.email || camp.email || '');
   const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
   const [copied, setCopied] = useState(false);
+  const cardSvgRef = useRef(null);   // offscreen ResultCardSVG, serialized on Download
+  const autoSentRef = useRef(false); // guards the one-shot auto-email on the done screen
 
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -1642,9 +1801,42 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     }
   }, [phase, allDone, celebration]);
 
-  // Persist on every meaningful state change. On the intro screen there's
-  // nothing in flight, so clear the slot — that way "New Camp" wipes the
-  // save (it transitions phase back to 'intro').
+  // On the result screen, email the player their card once — using the address
+  // captured at start (camp.email). submittedAt (persisted) prevents re-sending
+  // across reloads; autoSentRef guards against a double-fire within a session.
+  useEffect(() => {
+    if (phase !== 'done') return;
+    if (submittedAt) { setSubmitState('done'); return; }
+    if (autoSentRef.current) return;
+    autoSentRef.current = true;
+    fontEmbedCss(); // warm the font cache so the Download button is snappy
+    (async () => {
+      const greens = {};
+      sectors.forEach(s => { greens[s.id] = levelStates[s.id].filter(x => x === 'green').length; });
+      const year = new Date().getFullYear();
+      const resultUrl = window.location.origin + '/result/#' +
+        window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, greens });
+      const email = (camp.email || '').trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setSubmitState('error'); return; }
+      setSubmitState('sending');
+      try {
+        const res = await fetch('/api/complete', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campName: camp.campName, leadName: camp.leadName, email,
+            year, greens, source: Object.keys(formAnswers).length ? 'form' : 'board', resultUrl,
+          }),
+        });
+        const j = await res.json();
+        if (j.email === 'sent' || j.sheet === 'ok') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); }
+        else setSubmitState('error');
+      } catch { setSubmitState('error'); }
+    })();
+  }, [phase, submittedAt]);
+
+  // Persist on every meaningful state change. On the mode-picker / intro screens
+  // there's nothing in flight, so clear the slot — that way "Exit" (→ pick-mode)
+  // wipes the save, as does starting fresh from the intro.
   useEffect(() => {
     if (phase === 'intro' || phase === 'form-intro' || phase === 'pick-mode') {
       clearSaved();
@@ -1802,31 +1994,31 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     const year = new Date().getFullYear();
     const resultUrl = window.location.origin + '/result/#' +
       window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, greens });
-    const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((doneEmail || '').trim());
-    const canSubmit = emailOk && submitState === 'idle' && !submittedAt;
-
-    async function handleSubmit() {
-      setSubmitState('sending');
-      try {
-        const res = await fetch('/api/complete', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            campName: camp.campName, leadName: camp.leadName, email: doneEmail.trim(),
-            year, greens, source: Object.keys(formAnswers).length ? 'form' : 'board',
-            resultUrl,
-          }),
-        });
-        const j = await res.json();
-        if (j.sheet === 'ok' || j.email === 'sent') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); }
-        else setSubmitState('error');
-      } catch { setSubmitState('error'); }
-    }
+    const email = (camp.email || '').trim();
+    const slug = (camp.campName || 'theme-camp').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'theme-camp';
+    const sent = submitState === 'done' || !!submittedAt;
 
     async function handleShare() {
       try {
         if (navigator.share) await navigator.share({ title: 'Our Green Radius', url: resultUrl });
         else { await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }
       } catch {}
+    }
+    async function handleDownload() {
+      if (!cardSvgRef.current) return;
+      try { await downloadSvgAsPng(cardSvgRef.current, `green-radius-${slug}.png`); } catch {}
+    }
+    function handleExit() {
+      clearSaved();
+      autoSentRef.current = false;
+      setLevelStates(initState);
+      setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
+      setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
+      setFormAnswers({});
+      setCamp({ campName: '', leadName: '', email: '' });
+      setSubmittedAt(null);
+      setSubmitState('idle');
+      setPhase('pick-mode');
     }
 
     return (
@@ -1839,25 +2031,27 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           <ShareCard sectors={sectors} levelStates={levelStates} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette}/>
         </div>
 
-        {submittedAt || submitState === 'done' ? (
-          <div style={{ marginBottom: 16, color: palette.text, fontSize: 14 }}>✓ Sent — check {doneEmail} for your Green Radius.</div>
-        ) : (
-          <div style={{ textAlign: 'left', marginBottom: 16 }}>
-            <Field label="Email address (required)" value={doneEmail} onChange={setDoneEmail} placeholder="you@your.camp" palette={palette} type="email"/>
-            {submitState === 'error' && <div style={{ color: '#b4463a', fontSize: 12, marginTop: 8 }}>Couldn't save just now — your share link below still works.</div>}
-          </div>
-        )}
+        {/* offscreen SVG twin of the card — serialized to PNG by handleDownload */}
+        <div aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: CARD_W, height: CARD_H, overflow: 'hidden', pointerEvents: 'none' }}>
+          <ResultCardSVG svgRef={cardSvgRef} sectors={sectors} levelStates={levelStates} campName={camp.campName} leadName={camp.leadName} year={year}/>
+        </div>
+
+        <div role="status" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
+          {sent
+            ? <>Thank you for participating! Your results were sent to <strong>{email}</strong> (please check spam).</>
+            : submitState === 'error'
+              ? <>Thank you for participating! We couldn't email your results just now — you can still download your card or copy the share link below.</>
+              : <>Thank you for participating! Emailing your results to <strong>{email}</strong>…</>}
+        </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
-          {!(submittedAt || submitState === 'done') && (
-            <button onClick={handleSubmit} disabled={!canSubmit}
-              style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
-                background: canSubmit ? palette.accent : `${palette.text}33`, color: '#fff', fontSize: 13, fontWeight: 800,
-                letterSpacing: '0.12em', textTransform: 'uppercase', cursor: canSubmit ? 'pointer' : 'not-allowed',
-                boxShadow: canSubmit ? `0 3px 0 ${palette.accentDark}` : 'none' }}>
-              {submitState === 'sending' ? 'Sending…' : '✉ Email my Green Radius'}
-            </button>
-          )}
+          <button onClick={handleDownload}
+            style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
+              background: palette.accent, color: '#fff', fontSize: 13, fontWeight: 800,
+              letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
+              boxShadow: `0 3px 0 ${palette.accentDark}` }}>
+            ⬇ Download
+          </button>
           <button onClick={handleShare}
             style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: `1.5px solid ${palette.text}22`,
               background: 'transparent', color: palette.text, fontSize: 13, fontWeight: 800,
@@ -1866,9 +2060,9 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           </button>
         </div>
 
-        <button onClick={() => { setLevelStates(initState); setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; }); setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; }); setFormAnswers({}); setSubmittedAt(null); setSubmitState('idle'); setDoneEmail(''); setPhase('pick-mode'); }}
+        <button onClick={handleExit}
           style={{ marginTop: 16, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-          New Camp
+          Exit
         </button>
       </div>
     );
