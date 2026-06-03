@@ -9,7 +9,7 @@ window.SECTORS = [
     id: 'food', code: 'F', name: 'Food', icon: 'food',
     color: '#7AB85C',
     bigGoal: "Create radical solutions for efficient, economical and ecological food selection. Purchase mindfully, share food and cooking, reduce food waste.",
-    resourceLink: { label: 'Food page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/food' },
+    resourceLink: { label: 'Food page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/resource-guide/food' },
     levels: [
       // Tier 1 (1 question)
       [{
@@ -54,12 +54,12 @@ window.SECTORS = [
     tier4Topics: [
       { id: 'F-hub', title: 'Be a Food HUB', description: "Provide food and kitchens for your Placement HUB camps. Join a HUB with other camps in the Placement system." },
       { id: 'F-communal', title: 'Communal Meals', description: "Sharing within camp builds member relationships. Plus, less energy use for cooking, heating, cooling." },
-      { id: 'F-reusable', title: 'Reusable Eatery', description: "Drink + food containers + utensils. No disposables. Encourage everyone to bring their own plate, cup, utensils.", link: { label: 'Reusable eatery', url: 'https://www.greenthemecampcommunity.org/food' } },
+      { id: 'F-reusable', title: 'Reusable Eatery', description: "Drink + food containers + utensils. No disposables. Encourage everyone to bring their own plate, cup, utensils.", link: { label: 'Reusable eatery', url: 'https://www.greenthemecampcommunity.org/resource-guide/food' } },
       { id: 'F-packaging', title: 'Reduce Packaging', description: "Minimize individually-packaged foods. Buy in bulk. Make communal meals easier. Freeze or store in large containers to minimize packaging.", link: { label: 'Waste from Food Packaging', url: 'https://foodprint.org/issues/the-environmental-impact-of-food-packaging/' } },
-      { id: 'F-cooling', title: 'Reduce Cooling', description: "Ice chests, rated coolers, fewer fridges + freezers. Use Arctica. Ice intelligently: shade, elevate, insulate, wrap coolers. Try no-cooling meals.", link: { label: 'Ice Intelligently', url: 'https://www.greenthemecampcommunity.org/food' } },
+      { id: 'F-cooling', title: 'Reduce Cooling', description: "Ice chests, rated coolers, fewer fridges + freezers. Use Arctica. Ice intelligently: shade, elevate, insulate, wrap coolers. Try no-cooling meals.", link: { label: 'Ice Intelligently', url: 'https://www.greenthemecampcommunity.org/resource-guide/food' } },
       { id: 'F-cooking', title: 'Reduce Cooking', description: "Try solar cooking. Or no cooking. Pre-make more. Experiment with reflective, radiant and induction methods. Consider solar slow-cooking and reheating." },
       { id: 'F-washing', title: 'Reduce Washing', description: "Try dishwashing with low water. Or no water. Eat all food on your plate or scrape into compost. Spray bottles with white vinegar and water. Or three-bucket wash: pre-wash, soap, rinse, air-dry." },
-      { id: 'F-local', title: 'Source Locally', description: "Increase food freshness, reduce transportation. Source food in Northern Nevada or local to your hometown. Buying local supports growers, increases food security.", link: { label: 'Source Local Foods', url: 'https://www.greenthemecampcommunity.org/food' } },
+      { id: 'F-local', title: 'Source Locally', description: "Increase food freshness, reduce transportation. Source food in Northern Nevada or local to your hometown. Buying local supports growers, increases food security.", link: { label: 'Source Local Foods', url: 'https://www.greenthemecampcommunity.org/resource-guide/food' } },
       { id: 'F-plant', title: 'Source Plant-based Foods', description: "More veggies! Increase plant-based regenerative meats. Meat production has a high environmental impact. Transition to more plant-based meals.", link: { label: 'More Plant-based Foods', url: 'https://worldmetrics.org/plant-based-diet-statistics/' } },
       { id: 'F-collexodus', title: 'Gift to Collexodus', description: "Collexodus collects leftover food and drinks for BM staff and Resto. As you make your exodus from BRC at 6:00 and K, donate unused unopened non-perishable food, beer or booze." },
       { id: 'F-camp', title: "Our Camp's Idea", description: "Describe one of your camp's own food ideas, and answer whether you actually achieved it." },
@@ -71,7 +71,7 @@ window.SECTORS = [
     id: 'water', code: 'H', name: 'Water', icon: 'water',
     color: '#4FA8C9',
     bigGoal: "We are 60–75% water. Drink it. Share it. Reuse it. In the very near future, water will replace power as the most important green variable.",
-    resourceLink: { label: 'Water page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/water' },
+    resourceLink: { label: 'Water page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/resource-guide/water' },
     levels: [
       [{
         id: 'H1', code: 'H1', step: 1, title: 'Estimate Water',
@@ -121,7 +121,7 @@ window.SECTORS = [
     id: 'waste', code: 'W', name: 'Waste', icon: 'waste',
     color: '#C97A4F',
     bigGoal: "LNT. Leave No Trace. Simple.",
-    resourceLink: { label: 'Waste page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/waste' },
+    resourceLink: { label: 'Waste page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/resource-guide/waste' },
     levels: [
       [{
         id: 'W1', code: 'W1', step: 1, title: 'LNT + MOOP Plan',
@@ -171,7 +171,7 @@ window.SECTORS = [
     id: 'transport', code: 'T', name: 'Transport', icon: 'transport',
     color: '#9B7AC9',
     bigGoal: "Take a risk, share a ride. Share stuff, save cash. Our toxin du-jour is CO2e — reduce and offset.",
-    resourceLink: { label: 'Transport page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/transport' },
+    resourceLink: { label: 'Transport page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/resource-guide/transportation' },
     levels: [
       [{
         id: 'T1', code: 'T1', step: 1, title: 'Carpool Plan',
@@ -225,7 +225,7 @@ window.SECTORS = [
     id: 'shelter', code: 'S', name: 'Shelter', icon: 'shelter',
     color: '#D9885C',
     bigGoal: "While the sun may burn you, the wind will kill you. Provide protection and shelter. Sun, wind, dust. And a place to get a good night's sleep, even in the daytime.",
-    resourceLink: { label: 'Shelter page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/shelter' },
+    resourceLink: { label: 'Shelter page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/resource-guide/shelter' },
     levels: [
       [{
         id: 'S1', code: 'S1', step: 1, title: 'Estimate Shelter',
@@ -273,13 +273,13 @@ window.SECTORS = [
     id: 'power', code: 'P', name: 'Power', icon: 'power',
     color: '#E0B85C',
     bigGoal: "Power reduction is our priority goal. Alternative sources are secondary. Reduction impacts everything in the power stream — smaller solar panels, batteries, wiring, controls.",
-    resourceLink: { label: 'Power page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/power' },
+    resourceLink: { label: 'Power page — Green Camp Resource Guide', url: 'https://www.greenthemecampcommunity.org/resource-guide/power' },
     levels: [
       [{
         id: 'P1', code: 'P1', step: 1, title: 'Guess Power',
         prompt: "Have you inventoried your stuff and your power needs?",
         description: "Geeks use our Ohm-azing spreadsheet in our Resource Guide. Non-engineers, guess-estimate — count fridges, ACs, lights, blow dryers.",
-        link: { label: 'Electrical Inventory — RAT', url: 'https://www.greenthemecampcommunity.org/power' }
+        link: { label: 'Electrical Inventory — RAT', url: 'https://www.greenthemecampcommunity.org/resource-guide/power' }
       }],
       [{
         id: 'P2', code: 'P2', step: 2, title: '50% Power Reduction',
