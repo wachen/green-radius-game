@@ -27,7 +27,7 @@ No build step — the browser compiles the JSX in place via `@babel/standalone`.
 | Path               | Role                                                                 |
 |--------------------|----------------------------------------------------------------------|
 | `index.html`       | Entry point; mounts `<GreenRadiusGame/>`                             |
-| `green-radius.jsx` | The whole game UI — wheel, question modal, form mode, result card, done/email screen |
+| `green-radius.jsx` | The whole game UI — wheel, question modal, form mode, result card, done/email screen, home FAQ modal |
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content (BLAST framework) |
 | `result-state.js`  | `window.ResultState` — encode/decode a result into the URL hash       |
 | `result/`          | Stateless shareable result page (renders a card from the hash)        |

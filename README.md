@@ -25,7 +25,7 @@ this implementation began from a Claude Design handoff bundle.
 | Path               | Role                                                            |
 |--------------------|-----------------------------------------------------------------|
 | `index.html`       | Entry point; mounts `<GreenRadiusGame/>`                        |
-| `green-radius.jsx` | Game UI — wheel, question modal, form mode, result card, email capture |
+| `green-radius.jsx` | Game UI — wheel, question modal, form mode, result card, email capture, home FAQ modal |
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content             |
 | `result-state.js`  | `window.ResultState` — encode/decode a result into the URL hash |
 | `result/`          | Stateless shareable result page                                 |
