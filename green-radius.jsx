@@ -953,6 +953,9 @@ function ModePicker({ onPick, palette }) {
     padding: '22px 16px', borderRadius: 18, marginBottom: 12,
     textAlign: 'center', fontFamily: 'inherit',
   };
+  const [faqOpen, setFaqOpen] = useState(false);
+  const faqBtnRef = useRef(null);
+  const closeFaq = useCallback(() => { setFaqOpen(false); faqBtnRef.current?.focus(); }, []);
   return (
     <div style={{ padding: '20px 24px 28px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
       <h1 style={{
@@ -974,9 +977,13 @@ function ModePicker({ onPick, palette }) {
 
       <div style={{
         fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc',
-        marginBottom: 32, textWrap: 'pretty',
+        marginBottom: 24, textWrap: 'pretty',
       }}>
         Map your camp's footprint across the six sustainability sectors. Pick any way to play. You only need to choose one.
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <FaqButton btnRef={faqBtnRef} expanded={faqOpen} onClick={() => setFaqOpen(true)} palette={palette}/>
       </div>
 
       <button
@@ -1080,6 +1087,8 @@ function ModePicker({ onPick, palette }) {
         CREATED BY THE<br/>
         GREEN THEME CAMP COMMUNITY
       </a>
+
+      {faqOpen && <FaqModal onClose={closeFaq} palette={palette}/>}
     </div>
   );
 }
