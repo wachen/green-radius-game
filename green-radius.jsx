@@ -42,19 +42,54 @@ function clearSaved() {
 function SectorIcon({ kind, size = 28, color = '#fff' }) {
   const s = size, sw = 1.8;
   const p = { fill: 'none', stroke: color, strokeWidth: sw, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const svgProps = { width: s, height: s, viewBox: '0 0 24 24' };
   switch (kind) {
-    case 'water':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg>;
-    case 'waste':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6"/></svg>;
-    case 'power':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>;
-    case 'transport':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M4 16V8a2 2 0 0 1 2-2h8l4 5v5M4 16h16M4 16v2a1 1 0 0 0 1 1h2M20 16v2a1 1 0 0 1-1 1h-2M14 6v5h4"/><circle {...p} cx="8" cy="18" r="1.5"/><circle {...p} cx="17" cy="18" r="1.5"/></svg>;
-    case 'food':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M12 21c5-5 8-9 8-13a8 8 0 0 0-16 0c0 4 3 8 8 13zM12 3v18M8 7c1 1.5 1 3 0 5M16 7c-1 1.5-1 3 0 5"/></svg>;
-    case 'shelter':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M3 20 12 5l9 15M7 20v-5h10v5"/></svg>;
+    case 'water': // lucide: droplet
+      return <svg {...svgProps}><path {...p} d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>;
+    case 'waste': // lucide: recycle
+      return (
+        <svg {...svgProps}>
+          <path {...p} d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"/>
+          <path {...p} d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"/>
+          <path {...p} d="m14 16-3 3 3 3"/>
+          <path {...p} d="M8.293 13.596 7.196 9.5 3.1 10.598"/>
+          <path {...p} d="m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843"/>
+          <path {...p} d="m13.378 9.633 4.096 1.098 1.097-4.096"/>
+        </svg>
+      );
+    case 'power': // lucide: zap
+      return <svg {...svgProps}><path {...p} d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>;
+    case 'transport': // lucide: bus-front
+      return (
+        <svg {...svgProps}>
+          <path {...p} d="M4 6 2 7"/>
+          <path {...p} d="M10 6h4"/>
+          <path {...p} d="m22 7-2-1"/>
+          <rect {...p} width="16" height="16" x="4" y="3" rx="2"/>
+          <path {...p} d="M4 11h16"/>
+          <path {...p} d="M8 15h.01"/>
+          <path {...p} d="M16 15h.01"/>
+          <path {...p} d="M6 19v2"/>
+          <path {...p} d="M18 21v-2"/>
+        </svg>
+      );
+    case 'food': // lucide: utensils
+      return (
+        <svg {...svgProps}>
+          <path {...p} d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+          <path {...p} d="M7 2v20"/>
+          <path {...p} d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+        </svg>
+      );
+    case 'shelter': // lucide: tent
+      return (
+        <svg {...svgProps}>
+          <path {...p} d="M3.5 21 14 3"/>
+          <path {...p} d="M20.5 21 10 3"/>
+          <path {...p} d="M15.5 21 12 15l-3.5 6"/>
+          <path {...p} d="M2 21h20"/>
+        </svg>
+      );
     default: return null;
   }
 }
