@@ -1508,7 +1508,7 @@ function Intro({ onStart, onBack, palette, description }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28, textAlign: 'left' }}>
         <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
         <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
-        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk}/>
+        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk} type="email"/>
       </div>
 
       <button
@@ -1563,16 +1563,23 @@ function Intro({ onStart, onBack, palette, description }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, palette, required, invalid }) {
+function Field({ label, value, onChange, placeholder, palette, required, invalid, type }) {
+  const isEmail = type === 'email';
   return (
     <label style={{ display: 'block' }}>
       <div style={{ fontSize: 10, letterSpacing: '0.15em', fontWeight: 700, color: palette.text + '99', marginBottom: 4 }}>
         {label.toUpperCase()}{required && <span style={{ color: palette.accentDark, marginLeft: 3 }}>*</span>}
       </div>
       <input
+        type={type || 'text'}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
+        inputMode={isEmail ? 'email' : undefined}
+        autoCapitalize={isEmail ? 'none' : undefined}
+        autoCorrect={isEmail ? 'off' : undefined}
+        autoComplete={isEmail ? 'email' : undefined}
+        spellCheck={isEmail ? false : undefined}
         style={{
           width: '100%', padding: '12px 14px', borderRadius: 10,
           border: `1.5px solid ${invalid ? '#B4463A' : palette.text + '22'}`,
@@ -1836,7 +1843,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           <div style={{ marginBottom: 16, color: palette.text, fontSize: 14 }}>✓ Sent — check {doneEmail} for your Green Radius.</div>
         ) : (
           <div style={{ textAlign: 'left', marginBottom: 16 }}>
-            <Field label="Email address (required)" value={doneEmail} onChange={setDoneEmail} placeholder="you@your.camp" palette={palette}/>
+            <Field label="Email address (required)" value={doneEmail} onChange={setDoneEmail} placeholder="you@your.camp" palette={palette} type="email"/>
             {submitState === 'error' && <div style={{ color: '#b4463a', fontSize: 12, marginTop: 8 }}>Couldn't save just now — your share link below still works.</div>}
           </div>
         )}
