@@ -16,7 +16,7 @@ window.SECTORS = [
         id: 'F1', code: 'F1', step: 1, title: 'Meal Plan',
         prompt: "Have you whipped up a Meal Plan for your camp?",
         description: "Forgot milk? Forgot vegan? Forgot time? Closest grocery is 100 km away, and you can't leave anyway. Make sure everyone has enough food, special diets included, balanced with less food waste — leftovers can be repurposed into another meal.",
-        link: { label: 'Whip up a Meal Plan', url: 'https://www.greenthemecampcommunity.org/food' }
+        link: { label: 'Whip up a Meal Plan', url: 'https://southernsustainabilityinstitute.org/meal-planning-for-the-planet-how-reducing-food-waste-starts-in-your-kitchen/' }
       }],
       // Tier 2 (2 questions)
       [{
@@ -28,24 +28,24 @@ window.SECTORS = [
         id: 'F3', code: 'F3', step: 3, title: 'Share Food Ideas in Camp',
         prompt: "Does every camper understand the Meal Plan, food waste, and their individual impact?",
         description: "Food footprint Acculturation! Food Waste Coffee Talk. Make your grocery list before leaving home. Every camper ought to understand the Meal Plan, food waste, and their individual impact — and how to wash dishes with little water.",
-        link: { label: 'Food Footprint Calculator', url: 'https://www.greenthemecampcommunity.org/food' }
+        link: { label: 'Food Footprint Calculator', url: 'https://harvard-foodprint-calculator.github.io/' }
       }],
       // Tier 3 (3 questions)
       [{
         id: 'F4', code: 'F4', step: 4, title: 'Share One Kitchen',
         prompt: "Does your camp share one kitchen (or fewer)?",
         description: "Saves space, time + money. More FUN! Share cooking, refrigeration, dishwashing, utensils, food and supplies. Centralizing is more hygienic and helps monitoring for temperature and spoiling. Sharing a kitchen can still allow different people to cook for special diets.",
-        link: { label: 'Large-scale recipes', url: 'https://www.greenthemecampcommunity.org/food' }
+        link: { label: 'Large-scale recipes', url: 'https://www.cdkitchen.com/recipes/holidays-parties/cooking-for-a-crowd/' }
       }, {
         id: 'F5', code: 'F5', step: 5, title: 'Gift Food in Camp',
         prompt: "Does your camp gift food to the public?",
         description: "Food is perhaps the most sacred gift for Community Engagement. Your gift could be a sweet and salty snack, or a 7-course feast. Provide food for public engagement, community building and enjoyment. Share unpackaged food hygienically.",
-        link: { label: 'Gifting Food', url: 'https://www.greenthemecampcommunity.org/food' }
+        link: { label: 'Gifting Food', url: 'https://easyhealthyfoods.com/what-does-it-mean-when-someone-gives-you-food/' }
       }, {
         id: 'F6', code: 'F6', step: 6, title: 'Show People! Food Ideas',
         prompt: "Does your camp showcase its green food ideas to the public?",
         description: "Leave No Food Waste — our Leftovers Cookbook! Help us all reduce food waste. Send your leftovers recipes to our cookbook, host a cooking class in camp, or a vegan cook-off. We are Burners — we showcase our experiments through signage, exhibits, programs, games, plays, music, Green ART.",
-        link: { label: 'Green Resource Guide', url: 'https://www.greenthemecampcommunity.org/food' }
+        link: { label: 'Green Resource Guide', url: 'https://www.greenthemecampcommunity.org/resource-guide/food' }
       }],
       // Tier 4 — pick a topic from this list, then yes/no (4 picks)
       // Marker: tier4 = true; topics is the dropdown options
@@ -55,12 +55,12 @@ window.SECTORS = [
       { id: 'F-hub', title: 'Be a Food HUB', description: "Provide food and kitchens for your Placement HUB camps. Join a HUB with other camps in the Placement system." },
       { id: 'F-communal', title: 'Communal Meals', description: "Sharing within camp builds member relationships. Plus, less energy use for cooking, heating, cooling." },
       { id: 'F-reusable', title: 'Reusable Eatery', description: "Drink + food containers + utensils. No disposables. Encourage everyone to bring their own plate, cup, utensils.", link: { label: 'Reusable eatery', url: 'https://www.greenthemecampcommunity.org/food' } },
-      { id: 'F-packaging', title: 'Reduce Packaging', description: "Minimize individually-packaged foods. Buy in bulk. Make communal meals easier. Freeze or store in large containers to minimize packaging.", link: { label: 'Waste from Food Packaging', url: 'https://www.epa.gov' } },
+      { id: 'F-packaging', title: 'Reduce Packaging', description: "Minimize individually-packaged foods. Buy in bulk. Make communal meals easier. Freeze or store in large containers to minimize packaging.", link: { label: 'Waste from Food Packaging', url: 'https://foodprint.org/issues/the-environmental-impact-of-food-packaging/' } },
       { id: 'F-cooling', title: 'Reduce Cooling', description: "Ice chests, rated coolers, fewer fridges + freezers. Use Arctica. Ice intelligently: shade, elevate, insulate, wrap coolers. Try no-cooling meals.", link: { label: 'Ice Intelligently', url: 'https://www.greenthemecampcommunity.org/food' } },
       { id: 'F-cooking', title: 'Reduce Cooking', description: "Try solar cooking. Or no cooking. Pre-make more. Experiment with reflective, radiant and induction methods. Consider solar slow-cooking and reheating." },
       { id: 'F-washing', title: 'Reduce Washing', description: "Try dishwashing with low water. Or no water. Eat all food on your plate or scrape into compost. Spray bottles with white vinegar and water. Or three-bucket wash: pre-wash, soap, rinse, air-dry." },
       { id: 'F-local', title: 'Source Locally', description: "Increase food freshness, reduce transportation. Source food in Northern Nevada or local to your hometown. Buying local supports growers, increases food security.", link: { label: 'Source Local Foods', url: 'https://www.greenthemecampcommunity.org/food' } },
-      { id: 'F-plant', title: 'Source Plant-based Foods', description: "More veggies! Increase plant-based regenerative meats. Meat production has a high environmental impact. Transition to more plant-based meals.", link: { label: 'More Plant-based Foods', url: 'https://www.greenthemecampcommunity.org/food' } },
+      { id: 'F-plant', title: 'Source Plant-based Foods', description: "More veggies! Increase plant-based regenerative meats. Meat production has a high environmental impact. Transition to more plant-based meals.", link: { label: 'More Plant-based Foods', url: 'https://worldmetrics.org/plant-based-diet-statistics/' } },
       { id: 'F-collexodus', title: 'Gift to Collexodus', description: "Collexodus collects leftover food and drinks for BM staff and Resto. As you make your exodus from BRC at 6:00 and K, donate unused unopened non-perishable food, beer or booze." },
       { id: 'F-camp', title: "Our Camp's Idea", description: "Describe one of your camp's own food ideas, and answer whether you actually achieved it." },
     ]
@@ -77,7 +77,7 @@ window.SECTORS = [
         id: 'H1', code: 'H1', step: 1, title: 'Estimate Water',
         prompt: "Have you centrally planned at least 6 L / person / day of water?",
         description: "Hydrate, Hydrate, Hydrate. The Survival Guide hydration minimum is 1.5 gallons (6 litres) per person per day. Plus cooking, washing, showering, gifting. Plus spills, evaporation and contingency. Don't die.",
-        link: { label: 'Potable Water — Burning Man', url: 'https://burningman.org' }
+        link: { label: 'Potable Water — Burning Man', url: 'https://burningman.org/black-rock-city/preparation/camping-tips/water/' }
       }],
       [{
         id: 'H2', code: 'H2', step: 2, title: '75% Water Reduction',
@@ -106,9 +106,9 @@ window.SECTORS = [
     ],
     tier4Topics: [
       { id: 'H-hub', title: 'Be a Water HUB', description: "Provide fresh or grey water systems, showers or kitchens. Join a Placement Water HUB with other camps." },
-      { id: 'H-oss', title: 'Use OSS', description: "Out-Side Services sells fresh water and pumps grey/black water on playa. Large-volume OSS trucks are more efficient for transport and emissions.", link: { label: 'OSS', url: 'https://burningman.org' } },
-      { id: 'H-arctica', title: 'Use Arctica', description: "Arctica provides ice, block and bag, on playa. Ice use can reduce refrigeration and power. Melt water can be used for washing. Three locations across BRC.", link: { label: 'Arctica ice sales', url: 'https://burningman.org' } },
-      { id: 'H-local', title: 'Local Water', description: "Fill water in Northern Nevada. Reno has lots of water stores. Water weighs a ton — don't drive it across the country.", link: { label: 'Potable Water — Burning Man', url: 'https://burningman.org' } },
+      { id: 'H-oss', title: 'Use OSS', description: "Out-Side Services sells fresh water and pumps grey/black water on playa. Large-volume OSS trucks are more efficient for transport and emissions.", link: { label: 'OSS', url: 'https://burningman.org/black-rock-city/preparation/infrastructure/deliveries/outside-services-program/' } },
+      { id: 'H-arctica', title: 'Use Arctica', description: "Arctica provides ice, block and bag, on playa. Ice use can reduce refrigeration and power. Melt water can be used for washing. Three locations across BRC.", link: { label: 'Arctica ice sales', url: 'https://burningman.org/black-rock-city/preparation/infrastructure/arctica-ice-sales/' } },
+      { id: 'H-local', title: 'Local Water', description: "Fill water in Northern Nevada. Reno has lots of water stores. Water weighs a ton — don't drive it across the country.", link: { label: 'Potable Water — Burning Man', url: 'https://burningman.org/black-rock-city/preparation/camping-tips/water/' } },
       { id: 'H-bottles', title: 'Reusable Bottles', description: "People: get your own water bottle. Put your name on it. Sleep with it. Avoid single-use water containers. For public watering, provide compostable cone Dixie cups." },
       { id: 'H-grey', title: 'Greywater Processing', description: "Build a system for evaporation, filtration, or reuse. Try a Greywater Evaporation Pond, Wikatron, or wind-power. Locate away from your compost-drying racks." },
       { id: 'H-reduce', title: 'More Reduction', description: "Even less water: food prep, dishwashing, cleaning, showers. Low-flow sprayers, fixtures, shower heads. Tubs for different dish water types. Discounts for showering with a friend." },
@@ -143,12 +143,12 @@ window.SECTORS = [
         id: 'W4', code: 'W4', step: 4, title: '100% Recycling + Composting',
         prompt: "Does your camp recycle and compost 100% of materials that can be recycled?",
         description: "Plastic + metal, wet + dry. Sparkling water bottles, PBR cans. Inevitably there will be some containers — try for 100% of materials which CAN BE recycled. Separate waste streams. Reduce landfill. Pack-it-in / Pack-it-OUT.",
-        link: { label: 'Waste Disposal + Recycling — Burning Man', url: 'https://burningman.org' }
+        link: { label: 'Waste Disposal + Recycling — Burning Man', url: 'https://burningman.org/black-rock-city/preparation/leaving-no-trace/leave-nevada-beautiful/' }
       }, {
         id: 'W5', code: 'W5', step: 5, title: 'Gift Waste to BRC',
         prompt: "Does your camp bring compost & recycling to BRC stations, or MOOP your hood?",
         description: "Bring your compost to a BRC Compost Collection Station. OR MOOP past your camp, around your hood, and beyond. Streets have the most MOOP, fire lanes too. Carry a MOOP bag with you at all times.",
-        link: { label: 'Composting — Burning Man', url: 'https://burningman.org' }
+        link: { label: 'Composting — Burning Man', url: 'https://burningman.org/black-rock-city/preparation/leaving-no-trace/composting/' }
       }, {
         id: 'W6', code: 'W6', step: 6, title: 'Show People! Waste Ideas',
         prompt: "Does your camp showcase its green waste ideas to the public?",
@@ -193,7 +193,7 @@ window.SECTORS = [
         id: 'T4', code: 'T4', step: 4, title: '50% Cargo Reduction',
         prompt: "Has your camp reduced cargo (weight + volume of stuff) by 50%?",
         description: "Reduce weight and volume of YOUR STUFF. Share Stuff. Share everything, make do, innovate. Leave stuff at home. Don't replicate home — you're camping.",
-        link: { label: 'Stuff Optimization — Carlin', url: 'https://www.greenthemecampcommunity.org/transport' }
+        link: { label: 'Stuff Optimization — Carlin', url: 'https://www.youtube.com/watch?v=MvgN5gCuLac' }
       }, {
         id: 'T5', code: 'T5', step: 5, title: 'Gift CO2e Offsets',
         prompt: "Does your camp offset CO2e — by reducing back home, planting, or buying credits?",
@@ -207,8 +207,8 @@ window.SECTORS = [
     ],
     tier4Topics: [
       { id: 'T-hub', title: 'Be a Transport HUB', description: "Provide rides for other campers in your HUB — and their stuff. Offer people and cargo sharing through a Placement Transport HUB." },
-      { id: 'T-rideshare', title: 'Rideshare', description: "Offer rides through the Burner Ride Share Board, or your local and regional internet/social-media networks.", link: { label: 'BM Rideshare', url: 'https://burningman.org' } },
-      { id: 'T-mv', title: 'Mutant Vehicle', description: "Many MVs gift rides. It takes a lot of work to offer an MV — like bicycles, MVs are our Burning Man-unique CO2e reductions.", link: { label: 'DMV — Department of Mutant Vehicles', url: 'https://burningman.org' } },
+      { id: 'T-rideshare', title: 'Rideshare', description: "Offer rides through the Burner Ride Share Board, or your local and regional internet/social-media networks.", link: { label: 'BM Rideshare', url: 'https://burningman.org/black-rock-city/preparation/getting-there-and-back/rideshare/' } },
+      { id: 'T-mv', title: 'Mutant Vehicle', description: "Many MVs gift rides. It takes a lot of work to offer an MV — like bicycles, MVs are our Burning Man-unique CO2e reductions.", link: { label: 'DMV — Department of Mutant Vehicles', url: 'https://burningman.org/black-rock-city/volunteering/dept-of-mutant-vehicles/' } },
       { id: 'T-container', title: 'BM Container', description: "Have a BM Container, vehicle storage, or still on the wait-list. The Burning Man Container program is the BEST — saves time, money, transport, CO2e. Apply even if you haven't gotten one yet.", link: { label: 'BRC Storage Program', url: 'https://burningman.org' } },
       { id: 'T-storelocal', title: 'Store Local', description: "Empire, Fernley, Wadsworth, Sparks, Reno, NW NV, or NE CA. If you don't have a BM Container, use any place in the region to reduce transport of stuff." },
       { id: 'T-55', title: 'Drive 55', description: "Or 88 km per hour. Saves gas, money, CO2e. 55 MPH max to and from BRC. An ancient proven green success." },
@@ -260,7 +260,7 @@ window.SECTORS = [
       { id: 'S-hub', title: 'Be a Shelter HUB', description: "Provide shade, protection, common areas, structures. Protect your campers by participating in the Placement Shelter HUB program." },
       { id: 'S-storm', title: 'Storm Drainage', description: "Rain prep: level, Pre-MOOP, slope, channel to north side of the street. Drag a 2×4 board around to cut down little dunes. Direct water out to streets and fire lanes." },
       { id: 'S-roof', title: 'Roof Drainage', description: "Tilt your shade just a little for rainwater run-off. Raise a few columns, or put blocks of wood underneath for a high point. Keep electrical wires off the ground." },
-      { id: 'S-stake', title: 'Stake Count', description: "Count and whisker tent stakes, lag bolts, screws, re-bar. Buried metal is our number-one MOOP problem. Count every stake before you pack at home, count again on build, MOOP exactly there on strike. Bring a magnet or metal detector — Resto will love you forever.", link: { label: 'MOOP Map — Playa Resto', url: 'https://burningman.org' } },
+      { id: 'S-stake', title: 'Stake Count', description: "Count and whisker tent stakes, lag bolts, screws, re-bar. Buried metal is our number-one MOOP problem. Count every stake before you pack at home, count again on build, MOOP exactly there on strike. Bring a magnet or metal detector — Resto will love you forever.", link: { label: 'MOOP Map — Playa Resto', url: 'https://burningman.org/black-rock-city/volunteering/playa-restoration/' } },
       { id: 'S-cover', title: 'Ground Cover', description: "Tarps, mats, carpets, sandbags. Ideal to cut down blowing dust and keep you dry. Sandbags can hold down lots of stuff — they're cheap, weigh nothing, avoid stakes." },
       { id: 'S-shade', title: 'More Shade', description: "Over tents, trailers, RVs. Especially over sleeping spaces. Extra shade reduces AC + cooling demand, hopefully sheds rain, and may give dust protection." },
       { id: 'S-optimize', title: 'Optimize Shelter', description: "Rent vs. buy? Or gift in the off-season, or use at home? Shelter is a big investment for a week. Renting a trailer or RV can be practical for BRC and have a low green footprint overall." },
@@ -285,7 +285,7 @@ window.SECTORS = [
         id: 'P2', code: 'P2', step: 2, title: '50% Power Reduction',
         prompt: "Are you below 6 kWh / person / day?",
         description: "US average was 12 kWh / person / day (2015). 12 × 50% = 6 kWh. Or go the no-math way — count sharing. Can you leave half your appliances at home?",
-        link: { label: 'US Power Consumption — Solar Tech', url: 'https://www.solartechnologies.com' }
+        link: { label: 'US Power Consumption — Solar Tech', url: 'https://solartechonline.com/blog/how-much-electricity-does-us-use-2025-guide/' }
       }, {
         id: 'P3', code: 'P3', step: 3, title: 'Share Power Ideas in Camp',
         prompt: "Does every camper understand your power estimate, consumption reduction, and their individual impact?",
@@ -295,7 +295,7 @@ window.SECTORS = [
         id: 'P4', code: 'P4', step: 4, title: '75% Renewable Power',
         prompt: "Is at least 75% of your camp's power from renewables (solar, wind)?",
         description: "Get a little solar. With current technology and BRC's limitations, solar is a good value now. Off-the-shelf packaged units at reasonable prices. Backup petrol generator only for emergencies — keep it under 25%.",
-        link: { label: 'Intro to Renewable Power — RAT', url: 'https://www.greenthemecampcommunity.org/power' }
+        link: { label: 'Intro to Renewable Power — RAT', url: 'https://www.renewablesforartiststeam.org/intro-to-renewable-power' }
       }, {
         id: 'P5', code: 'P5', step: 5, title: 'Gift Power in Camp',
         prompt: "Does your camp provide a small-scale power source open to the public?",
