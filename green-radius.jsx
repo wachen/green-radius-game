@@ -1458,9 +1458,27 @@ function Intro({ onStart, onBack, palette, description }) {
   const [campName, setCampName] = useState('');
   const [leadName, setLeadName] = useState('');
   const [email, setEmail] = useState('');
+  const [tried, setTried] = useState(false);
 
-  const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const canStart = !!campName.trim() && !!leadName.trim() && emailValid;
+  const campOk = !!campName.trim();
+  const leadOk = !!leadName.trim();
+  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const canStart = campOk && leadOk && emailOk;
+
+  function handleStart() {
+    if (!canStart) { setTried(true); return; }
+    onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim() });
+  }
+
+  const missing = [];
+  if (!campOk) missing.push('a camp name');
+  if (!leadOk) missing.push('your name');
+  if (!emailOk) missing.push('a valid email');
+  const missingMsg = missing.length === 1
+    ? `Please add ${missing[0]} to continue.`
+    : missing.length === 2
+      ? `Please add ${missing[0]} and ${missing[1]} to continue.`
+      : `Please add ${missing.slice(0, -1).join(', ')}, and ${missing[missing.length - 1]} to continue.`;
 
   return (
     <div style={{ padding: '20px 24px 28px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
@@ -1488,25 +1506,34 @@ function Intro({ onStart, onBack, palette, description }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28, textAlign: 'left' }}>
-        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette} required/>
-        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette} required/>
-        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required/>
+        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
+        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
+        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk}/>
       </div>
 
       <button
-        onClick={() => canStart && onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim() })}
-        disabled={!canStart}
+        onClick={handleStart}
+        aria-label="Start"
         style={{
           width: '100%', padding: '16px', borderRadius: 14,
           border: 'none',
-          background: canStart ? palette.accent : palette.text + '33',
+          background: palette.accent,
           color: '#fff',
           fontSize: 14, fontWeight: 800, letterSpacing: '0.15em',
-          textTransform: 'uppercase', cursor: canStart ? 'pointer' : 'default',
-          boxShadow: canStart ? `0 4px 0 ${palette.accentDark}` : 'none',
+          textTransform: 'uppercase', cursor: 'pointer',
+          boxShadow: `0 4px 0 ${palette.accentDark}`,
           minHeight: 52,
         }}
       >Start →</button>
+
+      {tried && !canStart && (
+        <div role="alert" style={{
+          fontSize: 12, lineHeight: 1.4, color: '#B4463A',
+          marginTop: 10, fontWeight: 700, textWrap: 'pretty',
+        }}>
+          {missingMsg}
+        </div>
+      )}
 
       <div style={{
         fontSize: 11, lineHeight: 1.45, color: palette.text + '99',
@@ -1536,7 +1563,7 @@ function Intro({ onStart, onBack, palette, description }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, palette, required }) {
+function Field({ label, value, onChange, placeholder, palette, required, invalid }) {
   return (
     <label style={{ display: 'block' }}>
       <div style={{ fontSize: 10, letterSpacing: '0.15em', fontWeight: 700, color: palette.text + '99', marginBottom: 4 }}>
@@ -1548,7 +1575,7 @@ function Field({ label, value, onChange, placeholder, palette, required }) {
         placeholder={placeholder}
         style={{
           width: '100%', padding: '12px 14px', borderRadius: 10,
-          border: `1.5px solid ${palette.text}22`,
+          border: `1.5px solid ${invalid ? '#B4463A' : palette.text + '22'}`,
           background: palette.card, color: palette.text,
           fontSize: 16,
           fontFamily: 'inherit',
