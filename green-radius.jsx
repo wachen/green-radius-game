@@ -949,16 +949,16 @@ function FaqModal({ onClose, palette }) {
 function ModePicker({ onPick, palette }) {
   const tileBase = {
     display: 'block', width: '100%', border: 'none', cursor: 'pointer',
-    padding: '22px 16px', borderRadius: 18, marginBottom: 12,
+    padding: '16px 16px', borderRadius: 18, marginBottom: 10,
     textAlign: 'center', fontFamily: 'inherit',
   };
   const [faqOpen, setFaqOpen] = useState(false);
   const faqBtnRef = useRef(null);
   const closeFaq = useCallback(() => { setFaqOpen(false); faqBtnRef.current?.focus(); }, []);
   return (
-    <div style={{ padding: '20px 24px 28px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+    <div style={{ padding: '16px 24px 18px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
       <h1 style={{
-        fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
+        fontSize: 40, lineHeight: 1, fontWeight: 900, margin: '0 0 6px',
         textWrap: 'balance', color: palette.heading,
         letterSpacing: '-0.02em',
       }}>
@@ -967,22 +967,18 @@ function ModePicker({ onPick, palette }) {
 
       <div style={{
         display: 'flex', justifyContent: 'center', alignItems: 'center',
-        gap: 14, margin: '12px 0 16px',
+        gap: 12, margin: '8px 0 10px',
       }} aria-hidden="true">
         {window.SECTORS.map(s => (
-          <SectorIcon key={s.id} kind={s.icon} size={26} color={palette.accent}/>
+          <SectorIcon key={s.id} kind={s.icon} size={24} color={palette.accent}/>
         ))}
       </div>
 
       <div style={{
-        fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc',
-        marginBottom: 24, textWrap: 'pretty',
+        fontSize: 15, lineHeight: 1.45, color: palette.text + 'cc',
+        maxWidth: 340, margin: '0 auto 18px', textWrap: 'pretty',
       }}>
-        Map your camp's footprint across the six sustainability sectors. Pick any way to play. You only need to choose one.
-      </div>
-
-      <div style={{ marginBottom: 24 }}>
-        <FaqButton btnRef={faqBtnRef} expanded={faqOpen} onClick={() => setFaqOpen(true)} palette={palette}/>
+        Participate in BLAST 2026 and track your camp's progress across all 6 sustainability sectors. Pick any way to play.
       </div>
 
       <button
@@ -994,9 +990,9 @@ function ModePicker({ onPick, palette }) {
           boxShadow: `0 5px 0 ${palette.accentDark}`,
         }}
       >
-        <svg viewBox="0 0 60 60" width="56" height="56" fill="none"
+        <svg viewBox="0 0 60 60" width="46" height="46" fill="none"
           stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"
-          aria-hidden="true" style={{ display: 'block', margin: '0 auto 10px' }}>
+          aria-hidden="true" style={{ display: 'block', margin: '0 auto 8px' }}>
           <circle cx="30" cy="30" r="22"/>
           <line x1="30" y1="8" x2="30" y2="52"/>
           <line x1="8" y1="30" x2="52" y2="30"/>
@@ -1005,7 +1001,7 @@ function ModePicker({ onPick, palette }) {
           <circle cx="30" cy="30" r="5" fill="currentColor" stroke="none"/>
           <polygon points="30,3 24,12 36,12" fill="currentColor" stroke="none"/>
         </svg>
-        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
+        <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
           Play the Game
         </div>
         <div style={{
@@ -1025,9 +1021,9 @@ function ModePicker({ onPick, palette }) {
           boxShadow: `0 5px 0 ${palette.text}1f`,
         }}
       >
-        <svg viewBox="0 0 60 60" width="56" height="56" fill="none"
+        <svg viewBox="0 0 60 60" width="46" height="46" fill="none"
           stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"
-          aria-hidden="true" style={{ display: 'block', margin: '0 auto 10px' }}>
+          aria-hidden="true" style={{ display: 'block', margin: '0 auto 8px' }}>
           <rect x="14" y="12" width="32" height="42" rx="3"/>
           <rect x="22" y="6" width="16" height="10" rx="2" fill="currentColor" stroke="none"/>
           <rect x="19" y="24" width="7" height="7" rx="1.5" fill="currentColor" stroke="none"/>
@@ -1036,25 +1032,25 @@ function ModePicker({ onPick, palette }) {
           <line x1="30" y1="40" x2="42" y2="40"/>
           <rect x="19" y="48" width="7" height="7" rx="1.5"/>
         </svg>
-        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
+        <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
           Fill the Form
         </div>
         <div style={{
           fontSize: 10, fontWeight: 700, letterSpacing: '0.2em',
           textTransform: 'uppercase', opacity: 0.75,
         }}>
-          Application · Quick
+          Application · Familiar
         </div>
       </button>
 
       <div style={{
-        marginTop: 4, marginBottom: 8,
+        marginTop: 2, marginBottom: 12,
         display: 'flex', justifyContent: 'center', gap: 18,
         flexWrap: 'wrap', rowGap: 8,
       }}>
         <a
           href={BOARD_GAME_PDF_URL}
-          download
+          target="_blank" rel="noopener noreferrer"
           style={{
             color: palette.text + '99', fontSize: 11, fontWeight: 600,
             letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -1062,10 +1058,10 @@ function ModePicker({ onPick, palette }) {
             textUnderlineOffset: '3px',
             textDecorationColor: palette.text + '44',
           }}
-        >Board Game PDF Download ↓</a>
+        >Board Game PDF ↗</a>
         <a
           href={HOW_TO_PLAY_PDF_URL}
-          download
+          target="_blank" rel="noopener noreferrer"
           style={{
             color: palette.text + '99', fontSize: 11, fontWeight: 600,
             letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -1073,13 +1069,17 @@ function ModePicker({ onPick, palette }) {
             textUnderlineOffset: '3px',
             textDecorationColor: palette.text + '44',
           }}
-        >How to Play ↓</a>
+        >How to Play ↗</a>
+      </div>
+
+      <div style={{ margin: '6px 0' }}>
+        <FaqButton btnRef={faqBtnRef} expanded={faqOpen} onClick={() => setFaqOpen(true)} palette={palette}/>
       </div>
 
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
         style={{
           fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-          color: palette.accent, marginTop: 32, lineHeight: 1.5,
+          color: palette.accent, marginTop: 16, lineHeight: 1.5,
           textDecoration: 'none', display: 'block',
         }}
       >
