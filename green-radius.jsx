@@ -1093,7 +1093,8 @@ function ModePicker({ onPick, palette }) {
 }
 
 // ─── linear application form ─────────────────────────────────────────────────
-// Renders all 60 board-game questions as a single scrollable yes/no form.
+// Renders the 60 board-game questions as a yes/no form, paginated one sector
+// per page (6 pages, with a sector stepper and Back/Next; see the 2026-06-03 spec).
 // Submit maps answers back to the same levelStates shape the wheel game uses,
 // so the existing 'done' phase + ShareCard work without modification.
 //
@@ -1106,12 +1107,16 @@ function ModePicker({ onPick, palette }) {
 //                                                  threshold by count.)
 // A level with zero answered items stays 'locked'.
 function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, palette }) {
+  const [page, setPage] = useState(0);
+  const lastPage = sectors.length - 1;
+  const sector = sectors[page];
+
   function computeLevelStates() {
     const result = {};
-    sectors.forEach(sector => {
+    sectors.forEach(s => {
       const states = ['locked', 'locked', 'locked', 'locked'];
-      sector.levels.forEach((qs, li) => {
-        const items = li === 3 ? (sector.tier4Topics || []) : qs;
+      s.levels.forEach((qs, li) => {
+        const items = li === 3 ? (s.tier4Topics || []) : qs;
         if (items.length === 0) return;
         const itemAnswers = items.map(it => answers[it.id]);
         const answered = itemAnswers.filter(a => a === 'yes' || a === 'no');
@@ -1123,7 +1128,7 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
           states[li] = yeses === items.length ? 'green' : 'failed';
         }
       });
-      result[sector.id] = states;
+      result[s.id] = states;
     });
     return result;
   }
@@ -1139,102 +1144,155 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
     onSubmit({ levelStates, sectorCursor, sectorClosed });
   }
 
-  const totalQuestions = sectors.reduce((acc, s) => {
-    const fixed = s.levels.slice(0, 3).reduce((c, qs) => c + qs.length, 0);
-    return acc + fixed + (s.tier4Topics || []).length;
-  }, 0);
   const totalAnswered = Object.values(answers).filter(a => a === 'yes' || a === 'no').length;
 
+  // A new page should always open at its header, not mid-scroll.
+  useEffect(() => { try { window.scrollTo(0, 0); } catch {} }, [page]);
+
+  // Equal-width neutral pill for Previous / Next. Submit is styled separately.
+  const navPill = (enabled) => ({
+    flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
+    fontFamily: 'inherit', fontSize: 13, fontWeight: 800,
+    letterSpacing: '0.1em', textTransform: 'uppercase', minHeight: 52,
+    cursor: enabled ? 'pointer' : 'default',
+    background: enabled ? palette.text + '11' : palette.text + '08',
+    color: enabled ? palette.text : palette.text + '40',
+  });
+
   return (
-    <div style={{ padding: '20px 24px 28px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-      <div style={{ textAlign: 'left', marginBottom: 12 }}>
+    <div style={{ padding: '18px 24px 28px', maxWidth: 480, margin: '0 auto' }}>
+      <div style={{ marginBottom: 14 }}>
         <button
           onClick={onBack}
-          aria-label="Back to mode picker"
+          aria-label="Close form"
           style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
             color: palette.text + '99', fontSize: 12, fontWeight: 700,
             letterSpacing: '0.1em', textTransform: 'uppercase',
             padding: '4px 0', fontFamily: 'inherit',
           }}
-        >← Back</button>
+        >✕ Close</button>
       </div>
 
-      <h1 style={{
-        fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
-        textWrap: 'balance', color: palette.heading, letterSpacing: '-0.02em',
-      }}>
-        <span style={{ whiteSpace: 'nowrap' }}>What's Your</span> <span style={{ whiteSpace: 'nowrap' }}>Green Radius?</span>
-      </h1>
-      <div style={{
-        fontSize: 14, lineHeight: 1.5, color: palette.text + 'cc',
-        marginBottom: 8, textWrap: 'pretty',
-      }}>
-        Answer yes/no for your camp. Progress is autosaved.
-      </div>
-      <div style={{
-        fontSize: 10, letterSpacing: '0.15em',
-        color: palette.text + '66', marginBottom: 20, fontWeight: 600,
-      }}>
-        {totalAnswered} / {totalQuestions} ANSWERED
+      {/* sector progress stepper */}
+      <div
+        role="group"
+        aria-label={`Progress: sector ${page + 1} of ${sectors.length}, ${sector.name}`}
+        style={{ marginBottom: 18 }}
+      >
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          gap: 4, maxWidth: 320, margin: '0 auto',
+        }}>
+          {sectors.map((s, i) => {
+            const visited = i < page;
+            const current = i === page;
+            const iconColor = visited || current ? palette.accent : palette.text + '40';
+            return (
+              <div key={s.id} aria-hidden="true" style={{
+                width: 40, height: 40, borderRadius: 999,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: current ? palette.accent + '22' : 'transparent',
+                border: `1.5px solid ${current ? palette.accent : 'transparent'}`,
+                opacity: visited || current ? 1 : 0.6,
+                transition: 'background .2s ease, border-color .2s ease, opacity .2s ease',
+              }}>
+                <SectorIcon kind={s.icon} size={20} color={iconColor}/>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{
+          textAlign: 'center', marginTop: 8, fontSize: 11, fontWeight: 700,
+          letterSpacing: '0.18em', color: palette.text + '99',
+        }}>
+          {sector.name.toUpperCase()} · {page + 1} OF {sectors.length}
+        </div>
       </div>
 
-      {sectors.map(sector => (
+      {page === 0 && (
+        <div style={{
+          textAlign: 'center', fontSize: 13, lineHeight: 1.5,
+          color: palette.text + 'cc', marginBottom: 4, textWrap: 'pretty',
+        }}>
+          Answer yes/no for your camp. Progress is autosaved.
+        </div>
+      )}
+
+      {/* one sector per page; key re-mounts + re-animates on page change */}
+      <div key={page} style={{ animation: 'qm-up .25s ease both' }}>
         <FormSectorBlock
-          key={sector.id} sector={sector}
+          sector={sector}
           answers={answers} setAnswer={setAnswer} palette={palette}
         />
-      ))}
+      </div>
 
-      <button
-        onClick={handleSubmit}
-        disabled={totalAnswered === 0}
-        aria-label="Submit form answers"
-        style={{
-          width: '100%', padding: '16px', borderRadius: 14,
-          border: 'none',
-          background: totalAnswered === 0 ? palette.text + '33' : palette.accent,
-          color: '#fff',
-          fontSize: 14, fontWeight: 800, letterSpacing: '0.15em',
-          textTransform: 'uppercase',
-          cursor: totalAnswered === 0 ? 'default' : 'pointer',
-          fontFamily: 'inherit',
-          boxShadow: totalAnswered === 0 ? 'none' : `0 4px 0 ${palette.accentDark}`,
-          marginTop: 12,
-          minHeight: 52,
-        }}
-      >Submit →</button>
+      {/* Back / Next, or Submit on the last page */}
+      <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+        <button
+          onClick={() => setPage(p => Math.max(0, p - 1))}
+          disabled={page === 0}
+          aria-label="Previous sector"
+          style={navPill(page !== 0)}
+        >← Previous</button>
 
-      <button
-        type="button"
-        aria-label="Clear all form answers"
-        onClick={() => {
-          if (totalAnswered === 0) return;
-          if (!confirm('Clear all answers?')) return;
-          onClear();
-        }}
-        disabled={totalAnswered === 0}
-        style={{
-          background: 'transparent', border: 'none',
-          cursor: totalAnswered === 0 ? 'default' : 'pointer',
-          color: palette.text + (totalAnswered === 0 ? '33' : '66'),
-          fontSize: 11, fontWeight: 600, letterSpacing: '0.18em',
-          textTransform: 'uppercase', padding: '14px 12px',
-          minHeight: 44,
-          fontFamily: 'inherit',
-        }}
-      >Clear Form ✕</button>
+        {page < lastPage ? (
+          <button
+            onClick={() => setPage(p => Math.min(lastPage, p + 1))}
+            aria-label="Next sector"
+            style={navPill(true)}
+          >Next →</button>
+        ) : (
+          <button
+            onClick={handleSubmit}
+            disabled={totalAnswered === 0}
+            aria-label="Submit form answers"
+            style={{
+              flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
+              fontFamily: 'inherit', fontSize: 13, fontWeight: 800,
+              letterSpacing: '0.1em', textTransform: 'uppercase', minHeight: 52,
+              cursor: totalAnswered === 0 ? 'default' : 'pointer',
+              background: totalAnswered === 0 ? palette.text + '33' : palette.accent,
+              color: '#fff',
+              boxShadow: totalAnswered === 0 ? 'none' : `0 4px 0 ${palette.accentDark}`,
+            }}
+          >Submit →</button>
+        )}
+      </div>
 
-      <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
-        style={{
-          fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-          color: palette.accent, marginTop: 32, lineHeight: 1.5,
-          textDecoration: 'none', display: 'block',
-        }}
-      >
-        CREATED BY THE<br/>
-        GREEN THEME CAMP COMMUNITY
-      </a>
+      <div style={{ textAlign: 'center' }}>
+        <button
+          type="button"
+          aria-label="Clear all form answers"
+          onClick={() => {
+            if (totalAnswered === 0) return;
+            if (!confirm('Clear all answers?')) return;
+            onClear();
+          }}
+          disabled={totalAnswered === 0}
+          style={{
+            background: 'transparent', border: 'none',
+            cursor: totalAnswered === 0 ? 'default' : 'pointer',
+            color: palette.text + (totalAnswered === 0 ? '33' : '66'),
+            fontSize: 11, fontWeight: 600, letterSpacing: '0.18em',
+            textTransform: 'uppercase', padding: '14px 12px',
+            minHeight: 44, fontFamily: 'inherit',
+          }}
+        >Clear Form ✕</button>
+      </div>
+
+      {page === lastPage && (
+        <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
+          style={{
+            fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
+            color: palette.accent, marginTop: 20, lineHeight: 1.5,
+            textDecoration: 'none', display: 'block', textAlign: 'center',
+          }}
+        >
+          CREATED BY THE<br/>
+          GREEN THEME CAMP COMMUNITY
+        </a>
+      )}
     </div>
   );
 }
