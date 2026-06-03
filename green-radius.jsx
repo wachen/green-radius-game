@@ -13,6 +13,8 @@ const STORAGE_VERSION = 4;
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloring Wheel - Matrix -- v 26 FINAL .pdf');
 const HOW_TO_PLAY_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- How-to-Play - Board Game - Matrix - Detail -- v 26 FINAL .pdf');
+const RESOURCE_GUIDE_URL = 'https://www.greenthemecampcommunity.org/resource-guide';
+const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 
 function loadSaved(sectors) {
   try {
@@ -42,19 +44,54 @@ function clearSaved() {
 function SectorIcon({ kind, size = 28, color = '#fff' }) {
   const s = size, sw = 1.8;
   const p = { fill: 'none', stroke: color, strokeWidth: sw, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const svgProps = { width: s, height: s, viewBox: '0 0 24 24' };
   switch (kind) {
-    case 'water':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg>;
-    case 'waste':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6"/></svg>;
-    case 'power':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>;
-    case 'transport':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M4 16V8a2 2 0 0 1 2-2h8l4 5v5M4 16h16M4 16v2a1 1 0 0 0 1 1h2M20 16v2a1 1 0 0 1-1 1h-2M14 6v5h4"/><circle {...p} cx="8" cy="18" r="1.5"/><circle {...p} cx="17" cy="18" r="1.5"/></svg>;
-    case 'food':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M12 21c5-5 8-9 8-13a8 8 0 0 0-16 0c0 4 3 8 8 13zM12 3v18M8 7c1 1.5 1 3 0 5M16 7c-1 1.5-1 3 0 5"/></svg>;
-    case 'shelter':
-      return <svg width={s} height={s} viewBox="-1 -1 26 26" overflow="visible"><path {...p} d="M3 20 12 5l9 15M7 20v-5h10v5"/></svg>;
+    case 'water': // lucide: droplet
+      return <svg {...svgProps}><path {...p} d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>;
+    case 'waste': // lucide: recycle
+      return (
+        <svg {...svgProps}>
+          <path {...p} d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"/>
+          <path {...p} d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"/>
+          <path {...p} d="m14 16-3 3 3 3"/>
+          <path {...p} d="M8.293 13.596 7.196 9.5 3.1 10.598"/>
+          <path {...p} d="m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843"/>
+          <path {...p} d="m13.378 9.633 4.096 1.098 1.097-4.096"/>
+        </svg>
+      );
+    case 'power': // lucide: zap
+      return <svg {...svgProps}><path {...p} d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>;
+    case 'transport': // lucide: bus-front
+      return (
+        <svg {...svgProps}>
+          <path {...p} d="M4 6 2 7"/>
+          <path {...p} d="M10 6h4"/>
+          <path {...p} d="m22 7-2-1"/>
+          <rect {...p} width="16" height="16" x="4" y="3" rx="2"/>
+          <path {...p} d="M4 11h16"/>
+          <path {...p} d="M8 15h.01"/>
+          <path {...p} d="M16 15h.01"/>
+          <path {...p} d="M6 19v2"/>
+          <path {...p} d="M18 21v-2"/>
+        </svg>
+      );
+    case 'food': // lucide: utensils
+      return (
+        <svg {...svgProps}>
+          <path {...p} d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+          <path {...p} d="M7 2v20"/>
+          <path {...p} d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+        </svg>
+      );
+    case 'shelter': // lucide: tent
+      return (
+        <svg {...svgProps}>
+          <path {...p} d="M3.5 21 14 3"/>
+          <path {...p} d="M20.5 21 10 3"/>
+          <path {...p} d="M15.5 21 12 15l-3.5 6"/>
+          <path {...p} d="M2 21h20"/>
+        </svg>
+      );
     default: return null;
   }
 }
@@ -774,17 +811,154 @@ function ShareCard({ sectors, levelStates, campName, leadName, year, palette }) 
   );
 }
 
+// ─── FAQ (home screen only) ─────────────────────────────────────────────────
+// Content is data; FaqModal renders it all expanded. The two link answers are
+// JSX with hard-coded accent colors (the app has a single fixed palette).
+const FAQ_ITEMS = [
+  {
+    q: 'What is the Green Radius?',
+    a: "A six-spoke snapshot of your camp's sustainability, one spoke each for food, water, waste, power, transport, and shelter. The more green choices you've already made in an area, the further that spoke reaches. Together, the six make up your camp's Green Radius.",
+  },
+  {
+    q: 'How do I play?',
+    a: 'Spin the wheel to draw a sector, then answer its yes/no questions, working up four tiers from easiest to hardest. Your streak of consecutive "green" answers sets how far that sector reaches. Six spins (one per sector) complete your Green Radius.',
+  },
+  {
+    q: 'Do I need to both play the game and fill out the form?',
+    a: "Nope! They're two ways through the same assessment, so just pick one. The game is the playful path; the form is the familiar one: the classic questionnaire in a single list. Either way, you end up with the same Green Radius.",
+  },
+  {
+    q: 'What happens to my results?',
+    a: "When you finish, you'll see your Green Radius and can email yourself a shareable results card. Add your camp's details and your results join the community tally, so we can celebrate progress together. It's an honor-system self-assessment: no proof required, just answer honestly.",
+  },
+  {
+    q: "What's happening to BLAST?",
+    a: (
+      <>Nothing's disappearing; it's evolving. The Green Radius <em>is</em> BLAST, in a more playable form: the same six-area framework and the same goals. You're still measuring your camp's "blast radius," just with a wheel instead of a worksheet. All the original BLAST guidance lives on in the Resource Guide below.</>
+    ),
+  },
+  {
+    q: 'Where can I learn more?',
+    a: (
+      <>
+        Dig into the full guidance for every area and tier in the Green Theme Camp Community's Resource Guide.<br/>
+        <a href={RESOURCE_GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{
+          display: 'inline-block', marginTop: 8,
+          background: '#7AB85C', color: '#fff', fontWeight: 700, fontSize: 13,
+          padding: '8px 13px', borderRadius: 11, boxShadow: '0 4px 0 #558040',
+          textDecoration: 'none',
+        }}>Open the Resource Guide →</a>
+      </>
+    ),
+  },
+  {
+    q: 'How do I report an issue or suggest an improvement?',
+    a: (
+      <>Found a bug or have an idea to make this better? We'd love to hear it. Email <a href={'mailto:' + REPORT_EMAIL} style={{ color: '#558040', fontWeight: 700, textDecoration: 'none', borderBottom: '1.5px solid rgba(85,128,64,0.4)' }}>{REPORT_EMAIL}</a>.</>
+    ),
+  },
+];
+
+function FaqButton({ onClick, palette, btnRef, expanded }) {
+  return (
+    <button
+      ref={btnRef}
+      onClick={onClick}
+      aria-haspopup="dialog"
+      aria-expanded={!!expanded}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 7,
+        background: '#3B7DD8', color: '#fff', border: 'none', cursor: 'pointer',
+        fontFamily: 'inherit', fontWeight: 700, fontSize: 13, letterSpacing: '0.02em',
+        padding: '8px 17px', borderRadius: 999, boxShadow: '0 4px 0 #2C5DA0',
+      }}
+    >
+      <span aria-hidden="true" style={{
+        width: 16, height: 16, borderRadius: '50%', background: 'rgba(255,255,255,0.28)',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 11, fontWeight: 800,
+      }}>?</span>
+      FAQ
+    </button>
+  );
+}
+
+function FaqModal({ onClose, palette }) {
+  const closeRef = useRef(null);
+  // Focus the close button once on open; keep the Escape listener in its own
+  // effect so a changing onClose can't re-trigger the focus.
+  useEffect(() => { closeRef.current?.focus(); }, []);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        background: 'rgba(20,12,8,0.55)', backdropFilter: 'blur(6px)',
+        display: 'flex',
+        padding: 16, animation: 'qm-fade 0.25s ease',
+        overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+      }}
+    >
+      <div
+        role="dialog" aria-modal="true" aria-labelledby="faq-title"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: palette.card, color: palette.text, textAlign: 'left',
+          borderRadius: 24, padding: '0 22px 18px',
+          maxWidth: 400, width: '100%', margin: 'auto',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
+          position: 'relative',
+          animation: 'qm-up 0.3s cubic-bezier(0.2,0.8,0.2,1)',
+          maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        <div style={{
+          position: 'sticky', top: 0, background: palette.card,
+          paddingTop: 22, paddingBottom: 10, marginBottom: 2,
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, color: palette.accent, textTransform: 'uppercase' }}>Green Radius</div>
+          <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3, padding: '0 30px' }}>Frequently Asked Questions</div>
+          <button
+            ref={closeRef} onClick={onClose} aria-label="Close"
+            style={{ position: 'absolute', top: 16, right: 0, border: 'none', background: palette.text + '0f', width: 30, height: 30, borderRadius: '50%', fontSize: 14, cursor: 'pointer', color: palette.text, lineHeight: 1 }}
+          >✕</button>
+        </div>
+
+        {FAQ_ITEMS.map((item, i) => (
+          <div key={i} style={{
+            borderTop: i === 0 ? 'none' : '1px solid ' + palette.text + '1a',
+            paddingTop: i === 0 ? 2 : 14, paddingBottom: 2,
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 5 }}>{item.q}</div>
+            <div style={{ fontSize: 13.5, lineHeight: 1.55, color: palette.text + 'd1' }}>{item.a}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── mode picker ─────────────────────────────────────────────────────────────
 function ModePicker({ onPick, palette }) {
   const tileBase = {
     display: 'block', width: '100%', border: 'none', cursor: 'pointer',
-    padding: '22px 16px', borderRadius: 18, marginBottom: 12,
+    padding: '18px 16px', borderRadius: 18, marginBottom: 12,
     textAlign: 'center', fontFamily: 'inherit',
   };
+  const [faqOpen, setFaqOpen] = useState(false);
+  const faqBtnRef = useRef(null);
+  const closeFaq = useCallback(() => { setFaqOpen(false); faqBtnRef.current?.focus(); }, []);
   return (
-    <div style={{ padding: '20px 24px 28px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+    <div style={{ padding: '22px 24px 22px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
       <h1 style={{
-        fontSize: 44, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
+        fontSize: 40, lineHeight: 1, fontWeight: 900, margin: '0 0 10px',
         textWrap: 'balance', color: palette.heading,
         letterSpacing: '-0.02em',
       }}>
@@ -793,18 +967,18 @@ function ModePicker({ onPick, palette }) {
 
       <div style={{
         display: 'flex', justifyContent: 'center', alignItems: 'center',
-        gap: 14, margin: '12px 0 16px',
+        gap: 14, margin: '12px 0 14px',
       }} aria-hidden="true">
         {window.SECTORS.map(s => (
-          <SectorIcon key={s.id} kind={s.icon} size={26} color={palette.accent}/>
+          <SectorIcon key={s.id} kind={s.icon} size={24} color={palette.accent}/>
         ))}
       </div>
 
       <div style={{
-        fontSize: 15, lineHeight: 1.5, color: palette.text + 'cc',
-        marginBottom: 32, textWrap: 'pretty',
+        fontSize: 15, lineHeight: 1.45, color: palette.text + 'cc',
+        maxWidth: 340, margin: '0 auto 24px', textWrap: 'pretty',
       }}>
-        Map your camp's footprint across the six sustainability sectors. Pick any way to play. You only need to choose one.
+        Participate in BLAST 2026 and track your camp's progress across all 6 sustainability sectors. Pick any way to play.
       </div>
 
       <button
@@ -816,9 +990,9 @@ function ModePicker({ onPick, palette }) {
           boxShadow: `0 5px 0 ${palette.accentDark}`,
         }}
       >
-        <svg viewBox="0 0 60 60" width="56" height="56" fill="none"
+        <svg viewBox="0 0 60 60" width="46" height="46" fill="none"
           stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"
-          aria-hidden="true" style={{ display: 'block', margin: '0 auto 10px' }}>
+          aria-hidden="true" style={{ display: 'block', margin: '0 auto 8px' }}>
           <circle cx="30" cy="30" r="22"/>
           <line x1="30" y1="8" x2="30" y2="52"/>
           <line x1="8" y1="30" x2="52" y2="30"/>
@@ -827,7 +1001,7 @@ function ModePicker({ onPick, palette }) {
           <circle cx="30" cy="30" r="5" fill="currentColor" stroke="none"/>
           <polygon points="30,3 24,12 36,12" fill="currentColor" stroke="none"/>
         </svg>
-        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
+        <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
           Play the Game
         </div>
         <div style={{
@@ -847,9 +1021,9 @@ function ModePicker({ onPick, palette }) {
           boxShadow: `0 5px 0 ${palette.text}1f`,
         }}
       >
-        <svg viewBox="0 0 60 60" width="56" height="56" fill="none"
+        <svg viewBox="0 0 60 60" width="46" height="46" fill="none"
           stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"
-          aria-hidden="true" style={{ display: 'block', margin: '0 auto 10px' }}>
+          aria-hidden="true" style={{ display: 'block', margin: '0 auto 8px' }}>
           <rect x="14" y="12" width="32" height="42" rx="3"/>
           <rect x="22" y="6" width="16" height="10" rx="2" fill="currentColor" stroke="none"/>
           <rect x="19" y="24" width="7" height="7" rx="1.5" fill="currentColor" stroke="none"/>
@@ -858,19 +1032,19 @@ function ModePicker({ onPick, palette }) {
           <line x1="30" y1="40" x2="42" y2="40"/>
           <rect x="19" y="48" width="7" height="7" rx="1.5"/>
         </svg>
-        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
+        <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
           Fill the Form
         </div>
         <div style={{
           fontSize: 10, fontWeight: 700, letterSpacing: '0.2em',
           textTransform: 'uppercase', opacity: 0.75,
         }}>
-          Application · Quick
+          Application · Familiar
         </div>
       </button>
 
       <div style={{
-        marginTop: 4, marginBottom: 8,
+        marginTop: 4, marginBottom: 14,
         display: 'flex', justifyContent: 'center', gap: 18,
         flexWrap: 'wrap', rowGap: 8,
       }}>
@@ -898,16 +1072,22 @@ function ModePicker({ onPick, palette }) {
         >How to Play ↓</a>
       </div>
 
+      <div style={{ margin: '9px 0' }}>
+        <FaqButton btnRef={faqBtnRef} expanded={faqOpen} onClick={() => setFaqOpen(true)} palette={palette}/>
+      </div>
+
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
         style={{
           fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-          color: palette.accent, marginTop: 32, lineHeight: 1.5,
+          color: palette.accent, marginTop: 20, lineHeight: 1.5,
           textDecoration: 'none', display: 'block',
         }}
       >
         CREATED BY THE<br/>
         GREEN THEME CAMP COMMUNITY
       </a>
+
+      {faqOpen && <FaqModal onClose={closeFaq} palette={palette}/>}
     </div>
   );
 }
