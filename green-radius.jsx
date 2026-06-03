@@ -900,8 +900,9 @@ function FaqModal({ onClose, palette }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
         background: 'rgba(20,12,8,0.55)', backdropFilter: 'blur(6px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 16, animation: 'qm-fade 0.25s ease', overflowY: 'auto',
+        display: 'flex',
+        padding: 16, animation: 'qm-fade 0.25s ease',
+        overflowY: 'auto', WebkitOverflowScrolling: 'touch',
       }}
     >
       <div
@@ -910,25 +911,23 @@ function FaqModal({ onClose, palette }) {
         style={{
           background: palette.card, color: palette.text,
           borderRadius: 24, padding: '0 22px 18px',
-          maxWidth: 400, width: '100%',
+          maxWidth: 400, width: '100%', margin: 'auto',
           boxShadow: '0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
           position: 'relative',
           animation: 'qm-up 0.3s cubic-bezier(0.2,0.8,0.2,1)',
-          maxHeight: '92vh', overflowY: 'auto',
+          maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
         }}
       >
         <div style={{
           position: 'sticky', top: 0, background: palette.card,
-          paddingTop: 22, paddingBottom: 8, marginBottom: 2,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+          paddingTop: 22, paddingBottom: 10, marginBottom: 2,
+          textAlign: 'center',
         }}>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, color: palette.accent, textTransform: 'uppercase' }}>Green Radius</div>
-            <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3 }}>Frequently Asked Questions</div>
-          </div>
+          <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, color: palette.accent, textTransform: 'uppercase' }}>Green Radius</div>
+          <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3, padding: '0 30px' }}>Frequently Asked Questions</div>
           <button
             ref={closeRef} onClick={onClose} aria-label="Close"
-            style={{ border: 'none', background: palette.text + '0f', width: 30, height: 30, borderRadius: '50%', fontSize: 14, cursor: 'pointer', color: palette.text, flex: '0 0 auto', lineHeight: 1 }}
+            style={{ position: 'absolute', top: 16, right: 0, border: 'none', background: palette.text + '0f', width: 30, height: 30, borderRadius: '50%', fontSize: 14, cursor: 'pointer', color: palette.text, lineHeight: 1 }}
           >✕</button>
         </div>
 
