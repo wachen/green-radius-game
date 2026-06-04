@@ -40,6 +40,41 @@ function clearSaved() {
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
 }
 
+// ─── Scoring (per-point, cumulative bands) ──────────────────────────────────────
+// Every Yes is worth 1 point. A sector has 10 questions (tiers sized 1/2/3/4).
+// The sector's Yes count maps to a contiguous radius depth (0–4): depth = how
+// many of the cumulative thresholds [1,3,6,10] the count clears. So a single
+// early No no longer zeroes the sector — later Yes answers compensate.
+const SCORE_BANDS = [1, 3, 6, 10];
+
+// All answerable ids for a sector: 6 fixed (T1–T3) + its Tier-4 topic ids.
+function sectorAnswerIds(sector) {
+  const fixed = [].concat(...sector.levels.slice(0, 3)).map(q => q.id);
+  const t4 = (sector.tier4Topics || []).map(t => t.id);
+  return fixed.concat(t4);
+}
+
+function scoreSector(sector, answers) {
+  const ids = sectorAnswerIds(sector);
+  const answered = ids.filter(id => answers[id] === 'yes' || answers[id] === 'no');
+  const yeses = ids.filter(id => answers[id] === 'yes').length;
+  const depth = SCORE_BANDS.filter(b => yeses >= b).length; // 0..4
+  return { yeses, depth, played: answered.length > 0 };
+}
+
+// Contiguous green prefix to `depth`; the remainder is 'failed' for a played
+// sector and 'locked' for an untouched one — preserving the wheel visuals.
+function sectorLevelStates(sector, answers) {
+  const { depth, played } = scoreSector(sector, answers);
+  return [0, 1, 2, 3].map(i => i < depth ? 'green' : (played ? 'failed' : 'locked'));
+}
+
+function levelStatesFromAnswers(sectors, answers) {
+  const out = {};
+  sectors.forEach(s => { out[s.id] = sectorLevelStates(s, answers); });
+  return out;
+}
+
 // ─── PNG export (pure SVG → canvas, no dependency) ──────────────────────────────
 // The result card is built as a self-contained <svg> (ResultCardSVG); we
 // serialize it, draw it onto a 2× canvas, and hand back a PNG. No foreignObject,
