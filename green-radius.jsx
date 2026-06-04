@@ -750,7 +750,7 @@ function Celebration({ sector, palette, onDone }) {
 // ─── radial badge (final result) ──────────────────────────────────────────────
 // Grid of green ring-cells: each sector shows its 4 levels as concentric arcs.
 // No gaps between sectors — a sector reads as a continuous radial wedge whose
-// outer reach equals its consecutive-greens depth. Adjacent sectors share
+// outer reach equals its scored depth (contiguous green prefix). Adjacent sectors share
 // boundaries so the green area forms a single silhouette.
 function RadialBadge({ sectors, levelStates, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false }) {
   const cx = size / 2, cy = size / 2;
@@ -1025,7 +1025,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How do I play?',
-    a: 'Spin the wheel to draw a sector, then answer its yes/no questions, working up four tiers from easiest to hardest. Your streak of consecutive "green" answers sets how far that sector reaches. Six spins (one per sector) complete your Green Radius.',
+    a: 'Spin the wheel to draw a sector, then answer its yes/no questions across four tiers from easiest to hardest. Every "yes" earns a point, and your point total sets how far that sector reaches — so a single "no" early on no longer stops you; later "yes" answers make up for it. Six spins (one per sector) complete your Green Radius.',
   },
   {
     q: 'Do I need to both play the game and fill out the form?',
@@ -1302,14 +1302,10 @@ function ModePicker({ onPick, palette }) {
 // Submit maps answers back to the same levelStates shape the wheel game uses,
 // so the existing 'done' phase + ShareCard work without modification.
 //
-// Scoring rule (matches the wheel's all-yes-per-level convention):
-//   T1 (1 q):     all yes  → green, else failed (if any answered)
-//   T2 (2 qs):    all yes  → green, else failed
-//   T3 (3 qs):    all yes  → green, else failed
-//   T4 (N picks): ≥ 4 yes  → green, else failed   (wheel picks 4; form
-//                                                  shows all topics — same
-//                                                  threshold by count.)
-// A level with zero answered items stays 'locked'.
+// Scoring is per-point and identical to the board game (see scoreSector):
+// 1 point per yes (up to 6 fixed + up to 4 Tier-4, capped at 4), and the
+// sector's yes count maps to a contiguous depth via cumulative bands [1,3,6,10].
+// A sector with no answers stays 'locked'.
 function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, palette }) {
   const [page, setPage] = useState(0);
   const [highlightMissing, setHighlightMissing] = useState(false);
