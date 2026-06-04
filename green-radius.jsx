@@ -47,19 +47,17 @@ function clearSaved() {
 // early No no longer zeroes the sector — later Yes answers compensate.
 const SCORE_BANDS = [1, 3, 6, 10];
 
-// All answerable ids for a sector: 6 fixed (T1–T3) + its Tier-4 topic ids.
-function sectorAnswerIds(sector) {
+// A sector scores 1 point per Yes: up to 6 from the fixed T1–T3 questions plus
+// up to 4 from Tier-4 — the Tier-4 count is capped at 4 so the board's "pick 4"
+// and the form's "mark any 4+" reach the same ceiling of 10 (= full radius).
+function scoreSector(sector, answers) {
   const fixed = [].concat(...sector.levels.slice(0, 3)).map(q => q.id);
   const t4 = (sector.tier4Topics || []).map(t => t.id);
-  return fixed.concat(t4);
-}
-
-function scoreSector(sector, answers) {
-  const ids = sectorAnswerIds(sector);
-  const answered = ids.filter(id => answers[id] === 'yes' || answers[id] === 'no');
-  const yeses = ids.filter(id => answers[id] === 'yes').length;
+  const isYes = id => answers[id] === 'yes';
+  const isAns = id => answers[id] === 'yes' || answers[id] === 'no';
+  const yeses = fixed.filter(isYes).length + Math.min(4, t4.filter(isYes).length);
   const depth = SCORE_BANDS.filter(b => yeses >= b).length; // 0..4
-  return { yeses, depth, played: answered.length > 0 };
+  return { yeses, depth, played: fixed.some(isAns) || t4.some(isAns) };
 }
 
 // Contiguous green prefix to `depth`; the remainder is 'failed' for a played
@@ -414,13 +412,14 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
   function answer(yes) {
     const nextAnswers = answersByLevel.map((a, li) => li === level ? [...a, yes] : a);
     setAnswersByLevel(nextAnswers);
+    const nextPicks = isTier4 ? [...pickedTopicIds, topicId] : pickedTopicIds;
     if (isTier4) {
-      setPickedTopicIds([...pickedTopicIds, topicId]);
+      setPickedTopicIds(nextPicks);
       setTopicId('');
     }
     if (idx + 1 >= total) {
       if (level + 1 >= 4) {
-        onComplete(nextAnswers);
+        onComplete(nextAnswers, nextPicks);
       } else {
         setLevel(level + 1);
         setIdx(0);
@@ -543,7 +542,7 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
             </select>
             <button
               type="button"
-              onClick={() => onComplete(answersByLevel)}
+              onClick={() => onComplete(answersByLevel, pickedTopicIds)}
               aria-label="Skip the optional advanced tier"
               style={{
                 width: '100%', marginTop: 10, padding: '12px 0', borderRadius: 12,
@@ -1325,26 +1324,10 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
   const allComplete = incompleteSectors.length === 0;
   const firstIncompleteIndex = sectors.findIndex(s => !requiredAnswered(s));
 
+  // Same per-point rule as the board game: count a sector's Yes answers and
+  // map to a contiguous depth via cumulative bands (see levelStatesFromAnswers).
   function computeLevelStates() {
-    const result = {};
-    sectors.forEach(s => {
-      const states = ['locked', 'locked', 'locked', 'locked'];
-      s.levels.forEach((qs, li) => {
-        const items = li === 3 ? (s.tier4Topics || []) : qs;
-        if (items.length === 0) return;
-        const itemAnswers = items.map(it => answers[it.id]);
-        const answered = itemAnswers.filter(a => a === 'yes' || a === 'no');
-        if (answered.length === 0) return;
-        const yeses = itemAnswers.filter(a => a === 'yes').length;
-        if (li === 3) {
-          states[li] = yeses >= 4 ? 'green' : 'failed';
-        } else {
-          states[li] = yeses === items.length ? 'green' : 'failed';
-        }
-      });
-      result[s.id] = states;
-    });
-    return result;
+    return levelStatesFromAnswers(sectors, answers);
   }
 
   function handleSubmit() {
@@ -1930,23 +1913,28 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     }, reduceMotion ? 500 : 4300);
   }, [sectors, sectorClosed, rotation]);
 
-  // The player answers all 10 questions of a sector. Scoring: a level goes
-  // green only if every question in it is Yes AND every earlier level was
-  // green too. The first failure halts the scoring chain — subsequent levels
-  // show as 'failed' even if they were all-Yes.
-  function handleAnswers(answersByLevel) {
+  // The player answered every question of a sector. Build the per-question
+  // answer map (T1–T3 by question id; Tier-4 keyed by the picked topic id),
+  // merge it into the shared `answers` state, and score via cumulative bands —
+  // a single early No no longer zeroes the sector; later Yes answers compensate.
+  function handleAnswers(answersByLevel, pickedTopicIds = []) {
     const { sector } = activeQuestion;
-    let chain = true;
-    const sizes = [1, 2, 3, 4];
-    const newLevelArr = [0, 1, 2, 3].map(li => {
-      const ans = answersByLevel[li] || [];
-      const complete = ans.length >= sizes[li];
-      const allYes = complete && ans.every(a => a === true);
-      if (chain && allYes) return 'green';
-      chain = false;
-      return 'failed';
+    const sectorAns = {};
+    for (let li = 0; li < 3; li++) {
+      (sector.levels[li] || []).forEach((q, i) => {
+        const a = (answersByLevel[li] || [])[i];
+        if (a === true || a === false) sectorAns[q.id] = a ? 'yes' : 'no';
+      });
+    }
+    (pickedTopicIds || []).forEach((tid, i) => {
+      const a = (answersByLevel[3] || [])[i];
+      if (tid && (a === true || a === false)) sectorAns[tid] = a ? 'yes' : 'no';
     });
 
+    const merged = { ...answers, ...sectorAns };
+    setAnswers(merged);
+
+    const newLevelArr = sectorLevelStates(sector, merged);
     setLevelStates({ ...levelStates, [sector.id]: newLevelArr });
     setSectorCursor({ ...sectorCursor, [sector.id]: 4 });
     setSectorClosed({ ...sectorClosed, [sector.id]: true });
