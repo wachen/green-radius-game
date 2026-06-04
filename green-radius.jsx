@@ -1845,7 +1845,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             campName: camp.campName, leadName: camp.leadName, email,
-            year, greens, source: mode === 'form' ? 'form' : 'board', resultUrl,
+            year, greens,
+            mode: mode === 'form' ? 'form' : 'board',
+            answers,
+            schemaVersion: window.SCHEMA_VERSION || '',
+            resultUrl,
           }),
         });
         const j = await res.json();
