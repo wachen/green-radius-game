@@ -1,7 +1,7 @@
 # Unified Per-Point Scoring + Granular Answer Capture — Design
 
 **Date:** 2026-06-04
-**Status:** Awaiting user spec review
+**Status:** Approved 2026-06-04 — single `answers_json` column confirmed; admin viewer is a separate follow-up. Building.
 **Branch (planned):** one branch off `origin/main`, one PR.
 
 ## Goal
@@ -158,7 +158,7 @@ Adapt the column order / sheet name to the actual script. Existing rows simply h
 
 Why a JSON column rather than ~100 per-question columns: the T1–T3 questions are stable, but Tier-4 answers are **picked** from an ~11-option menu per sector, so a fully columnar layout needs a column for every possible topic and breaks whenever the topic list changes. The JSON column is lossless, survives content edits, and can be expanded into columns later in-sheet. `schema_version` lets you align historical rows if questions change.
 
-**Alternative (if you want Forms-style pivots now):** add 36 fixed-question columns (one per T1–T3 question id) plus a single `tier4_json` column for the variable advanced picks. More setup, more pivotable. Say the word and the plan will target this instead.
+**Decided (2026-06-04):** the single `answers_json` column above. Native Sheets pivotability is intentionally traded away in favor of a dedicated **admin response viewer** (a separate follow-up project — see Out of scope) that reads the sheet and renders Forms-style per-question breakdowns. The JSON column stays lossless and can be expanded into columns in-sheet at any time, so this choice is reversible.
 
 ## Visual note
 
@@ -185,4 +185,5 @@ Under the compensated model there is no per-tier "fail" — only a reached depth
 
 - The Apps Script change is manual and external; the PR cannot verify it. The Worker degrades gracefully if the sheet write fails (returns `err`, site/email unaffected), so shipping the code before the sheet is updated only means `answers_json` is sent-but-not-recorded until the script is updated — no breakage.
 - No change to question content, the share link, or the result page.
+- **Admin response viewer** (the primary way the team will read granular data) is a *separate* follow-up project, not part of this PR. It is feasible and a good fit for the stack: a new gated `/admin/` static page reusing `window.SECTORS` for labels and `ShareCard`/`RadialBadge` for per-camp visuals, fed by a read endpoint (Apps Script `doGet` proxied by the Worker), with access controlled via Cloudflare Access (email allowlist) since the data includes emails. To be specced on its own.
 ```
