@@ -8,7 +8,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 // Bump STORAGE_VERSION when the saved shape changes so old saves are discarded
 // instead of trying to merge them in.
 const STORAGE_KEY = 'green-radius-game/v1';
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 5;
 
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloring Wheel - Matrix -- v 26 FINAL .pdf');
@@ -1810,7 +1810,10 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     if (saved?.sectorClosed) return saved.sectorClosed;
     const o = {}; sectors.forEach(s => o[s.id] = false); return o;
   });
-  const [formAnswers, setFormAnswers] = useState(saved?.formAnswers || {});
+  // Per-question answers, keyed by question id (Tier-4 keyed by picked topic id).
+  // Both modes write this map; it drives scoring AND the backend-only granular record.
+  const [answers, setAnswers] = useState(saved?.answers || {});
+  const [mode, setMode] = useState(saved?.mode || null); // 'board' | 'form'
   const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
   const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
   const [copied, setCopied] = useState(false);
@@ -1859,7 +1862,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             campName: camp.campName, leadName: camp.leadName, email,
-            year, greens, source: Object.keys(formAnswers).length ? 'form' : 'board', resultUrl,
+            year, greens, source: mode === 'form' ? 'form' : 'board', resultUrl,
           }),
         });
         const j = await res.json();
@@ -1880,13 +1883,13 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORAGE_VERSION,
-        phase, camp, levelStates, sectorCursor, sectorClosed, formAnswers, submittedAt,
+        phase, camp, levelStates, sectorCursor, sectorClosed, answers, mode, submittedAt,
       }));
     } catch {}
-  }, [phase, camp, levelStates, sectorCursor, sectorClosed, formAnswers, submittedAt]);
+  }, [phase, camp, levelStates, sectorCursor, sectorClosed, answers, mode, submittedAt]);
 
   function setFormAnswer(qid, value) {
-    setFormAnswers(prev => ({ ...prev, [qid]: value }));
+    setAnswers(prev => ({ ...prev, [qid]: value }));
   }
 
   function submitForm({ levelStates: ls, sectorCursor: sc, sectorClosed: scl }) {
@@ -1959,6 +1962,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   function startGame(info) {
     setCamp(info);
+    setMode('board');
     setPhase('playing');
     if (debugFill) {
       // demo: pre-fill some greens for screenshotting
@@ -1970,6 +1974,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   function startForm(info) {
     setCamp(info);
+    setMode('form');
     setPhase('form');
   }
 
@@ -2002,11 +2007,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     return (
       <LinearForm
         sectors={sectors}
-        answers={formAnswers}
+        answers={answers}
         setAnswer={setFormAnswer}
         onSubmit={submitForm}
         onBack={() => setPhase('pick-mode')}
-        onClear={() => setFormAnswers({})}
+        onClear={() => setAnswers({})}
         palette={palette}
       />
     );
@@ -2049,7 +2054,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setLevelStates(initState);
       setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
       setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
-      setFormAnswers({});
+      setAnswers({});
+      setMode(null);
       setCamp({ campName: '', leadName: '', email: '' });
       setSubmittedAt(null);
       setSubmitState('idle');
@@ -2199,7 +2205,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             setLevelStates(initState);
             setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; });
             setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; });
-            setFormAnswers({});
+            setAnswers({});
+            setMode(null);
             setPhase('pick-mode');
           }}
           disabled={totalAttempted === 0}
