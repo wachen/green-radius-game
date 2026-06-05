@@ -40,36 +40,30 @@ function clearSaved() {
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
 }
 
-// ─── Scoring (per-point, cumulative bands) ──────────────────────────────────────
-// Every Yes is worth 1 point. A sector has 10 questions (tiers sized 1/2/3/4).
-// The sector's Yes count maps to a contiguous radius depth (0–4): depth = how
-// many of the cumulative thresholds [1,3,6,10] the count clears. So a single
-// early No no longer zeroes the sector — later Yes answers compensate.
-const SCORE_BANDS = [1, 3, 6, 10];
+// ─── Scoring + fill (per-point, per-question) ──────────────────────────────────
+// Every Yes is worth 1 point. A sector has 10 questions: 6 fixed (Levels 1–3,
+// sized 1/2/3) + up to 4 advanced picks (Level 4). The radius mirrors the answers
+// exactly — each level's ring fills per question — so a No just leaves its
+// segment empty (no compensation, gaps allowed).
+const LEVEL_COLORS = ['#B91C1C', '#EA580B', '#3B82F6', '#31975B'];
 
-// A sector scores 1 point per Yes: up to 6 from the fixed T1–T3 questions plus
-// up to 4 from Tier-4 — the Tier-4 count is capped at 4 so the board's "pick 4"
-// and the form's "mark any 4+" reach the same ceiling of 10 (= full radius).
-function scoreSector(sector, answers) {
-  const fixed = [].concat(...sector.levels.slice(0, 3)).map(q => q.id);
-  const t4 = (sector.tier4Topics || []).map(t => t.id);
-  const isYes = id => answers[id] === 'yes';
-  const isAns = id => answers[id] === 'yes' || answers[id] === 'no';
-  const yeses = fixed.filter(isYes).length + Math.min(4, t4.filter(isYes).length);
-  const depth = SCORE_BANDS.filter(b => yeses >= b).length; // 0..4
-  return { yeses, depth, played: fixed.some(isAns) || t4.some(isAns) };
+// Per-sector fill: levels[0..2] = one bool per fixed question (in order);
+// levels[3] = 4 slots, the first (advanced-Yes count, capped at 4) set true.
+// totalYes is 0..10; `played` is true once any of the sector's questions is answered.
+function sectorFill(sector, answers) {
+  const levels = [0, 1, 2].map(li => (sector.levels[li] || []).map(q => answers[q.id] === 'yes'));
+  const advYes = Math.min(4, (sector.tier4Topics || []).filter(t => answers[t.id] === 'yes').length);
+  levels[3] = [0, 1, 2, 3].map(i => i < advYes);
+  const fixedYes = levels.slice(0, 3).reduce((n, a) => n + a.filter(Boolean).length, 0);
+  const ids = [].concat(...sector.levels.slice(0, 3)).map(q => q.id)
+    .concat((sector.tier4Topics || []).map(t => t.id));
+  const played = ids.some(id => answers[id] === 'yes' || answers[id] === 'no');
+  return { levels, totalYes: fixedYes + advYes, played };
 }
 
-// Contiguous green prefix to `depth`; the remainder is 'failed' for a played
-// sector and 'locked' for an untouched one — preserving the wheel visuals.
-function sectorLevelStates(sector, answers) {
-  const { depth, played } = scoreSector(sector, answers);
-  return [0, 1, 2, 3].map(i => i < depth ? 'green' : (played ? 'failed' : 'locked'));
-}
-
-function levelStatesFromAnswers(sectors, answers) {
+function fillsFromAnswers(sectors, answers) {
   const out = {};
-  sectors.forEach(s => { out[s.id] = sectorLevelStates(s, answers); });
+  sectors.forEach(s => { out[s.id] = sectorFill(s, answers); });
   return out;
 }
 
@@ -211,6 +205,12 @@ function arcPath(cx, cy, rIn, rOut, a0, a1) {
   const [x0i, y0i] = polar(cx, cy, rIn, a0);
   const large = (a1 - a0) > 180 ? 1 : 0;
   return `M ${x0o} ${y0o} A ${rOut} ${rOut} 0 ${large} 1 ${x1o} ${y1o} L ${x1i} ${y1i} A ${rIn} ${rIn} 0 ${large} 0 ${x0i} ${y0i} Z`;
+}
+// Split sweep [a0,a1] into n angular segments, each inset by gap/2 on both sides
+// (so per-question segments read as distinct cells). Returns [[s0,e0],…].
+function segAngles(a0, a1, n, gap = 0) {
+  const step = (a1 - a0) / n;
+  return Array.from({ length: n }, (_, i) => [a0 + i * step + gap / 2, a0 + (i + 1) * step - gap / 2]);
 }
 
 // ─── the wheel ────────────────────────────────────────────────────────────────
