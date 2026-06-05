@@ -24,7 +24,7 @@ async function handleComplete(request, env) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email)) return json({ error: 'bad_email' }, 400);
 
   const greens = {};
-  for (const id of SECTOR_IDS) greens[id] = Math.max(0, Math.min(4, (body.greens && body.greens[id]) | 0));
+  for (const id of SECTOR_IDS) greens[id] = Math.max(0, Math.min(10, (body.greens && body.greens[id]) | 0));
 
   // Granular per-question answers (backend-only). Keep it bounded and clean:
   // string keys <= 40 chars, values strictly 'yes'/'no', at most 120 entries.

@@ -25,9 +25,8 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 if (!data) {
   root.render(<p style={{ fontFamily: 'system-ui', color: '#3c2a1e' }}>This result link looks invalid or incomplete.</p>);
 } else {
-  const levelStates = window.ResultState.greensToLevelStates(data.greens);
   root.render(
-    <ShareCard sectors={window.SECTORS} levelStates={levelStates}
+    <ShareCard sectors={window.SECTORS} fills={data.fills}
       campName={data.campName} leadName={data.leadName} year={data.year} palette={{}} />
   );
 }

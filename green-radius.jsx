@@ -8,7 +8,7 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 // Bump STORAGE_VERSION when the saved shape changes so old saves are discarded
 // instead of trying to merge them in.
 const STORAGE_KEY = 'green-radius-game/v1';
-const STORAGE_VERSION = 5;
+const STORAGE_VERSION = 6;
 
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloring Wheel - Matrix -- v 26 FINAL .pdf');
@@ -25,8 +25,7 @@ function loadSaved(sectors) {
     // Schema sanity: every current sector id must be present and well-typed
     // in the saved arrays. If sectors changed, drop the save instead of
     // mixing shapes — better to start fresh than glitch.
-    const ok = sectors.every(s =>
-      Array.isArray(data.levelStates?.[s.id]) &&
+    const ok = data.answers && typeof data.answers === 'object' && sectors.every(s =>
       typeof data.sectorCursor?.[s.id] === 'number' &&
       typeof data.sectorClosed?.[s.id] === 'boolean'
     );
@@ -216,7 +215,7 @@ function segAngles(a0, a1, n, gap = 0) {
 // ─── the wheel ────────────────────────────────────────────────────────────────
 // Sectors render as 4 stacked rings (level 1 inner → level 4 outer).
 // Each ring cell has its own state: 'locked' | 'open' | 'green' | 'failed'.
-function Wheel({ sectors, levelStates, rotation, spinning, onSpin, canSpin, variant, palette }) {
+function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, palette }) {
   // Internal SVG coordinate space. Wheel outer radius is 200, so SIZE needs at
   // least 400 + headroom for the drop-shadow filter and dust-ring glow.
   const SIZE = 420;
@@ -230,16 +229,9 @@ function Wheel({ sectors, levelStates, rotation, spinning, onSpin, canSpin, vari
   const reduceMotion = typeof window !== 'undefined' &&
     window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // Cell colors per state — neutral/sandy ramp; green is reserved for completion.
-  // Outer rings are progressively lighter so the wheel still has visual rhythm,
-  // but no per-sector color noise to compete with the green earned.
-  const ringTint = ['#c9b89a', '#d3c4a8', '#dcd0b5', '#e4d9c1']; // L1 darkest → L4 lightest
-  const cellFill = (sector, levelState, li) => {
-    if (levelState === 'green') return '#5BA84A';
-    if (levelState === 'failed') return 'rgba(60,40,30,0.16)';
-    if (levelState === 'open') return '#b9a47e'; // current target ring — slightly warmer
-    return ringTint[li]; // locked / pending
-  };
+  // Empty cells use a neutral/sandy ramp (L1 darkest → L4 lightest); a Yes lights
+  // the cell in its level color (LEVEL_COLORS). Each question is its own cell.
+  const ringTint = ['#c9b89a', '#d3c4a8', '#dcd0b5', '#e4d9c1'];
 
   return (
     <div style={{
@@ -280,26 +272,29 @@ function Wheel({ sectors, levelStates, rotation, spinning, onSpin, canSpin, vari
         {sectors.map((sector, si) => {
           const a0 = si * sweep;
           const a1 = (si + 1) * sweep;
+          const lv = (fills[sector.id] && fills[sector.id].levels) || [[], [], [], []];
           return [0, 1, 2, 3].map(li => {
-            const state = levelStates[sector.id][li];
-            const fill = cellFill(sector, state, li);
-            return (
-              <g key={`${sector.id}-${li}`}>
-                <path
-                  d={arcPath(cx, cy, ringRadii[li], ringOuter[li], a0, a1)}
-                  fill={fill}
-                  stroke={palette.bg}
-                  strokeWidth={dim ? 2 : 1.5}
-                />
-                {state === 'green' && (
+            const cells = lv[li] || [];
+            return segAngles(a0, a1, cells.length || 1, 0).map(([s0, s1], qi) => {
+              const filled = cells[qi];
+              return (
+                <g key={`${sector.id}-${li}-${qi}`}>
                   <path
-                    d={arcPath(cx, cy, ringRadii[li], ringOuter[li], a0, a1)}
-                    fill="url(#greenShimmer)"
-                    fillOpacity="0.3"
+                    d={arcPath(cx, cy, ringRadii[li], ringOuter[li], s0, s1)}
+                    fill={filled ? LEVEL_COLORS[li] : ringTint[li]}
+                    stroke={palette.bg}
+                    strokeWidth={dim ? 2 : 1.5}
                   />
-                )}
-              </g>
-            );
+                  {filled && (
+                    <path
+                      d={arcPath(cx, cy, ringRadii[li], ringOuter[li], s0, s1)}
+                      fill="url(#greenShimmer)"
+                      fillOpacity="0.25"
+                    />
+                  )}
+                </g>
+              );
+            });
           });
         })}
 
@@ -462,7 +457,7 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
           marginBottom: 14,
         }}>
           <SectorIcon kind={sector.icon} size={14} color="#fff"/>
-          {sector.name} · Tier {level + 1} · {tierLabels[level]}
+          {sector.name} · Level {level + 1} · {tierLabels[level]}
         </div>
 
         {/* sector intro — show only on the very first question of the sector
@@ -518,7 +513,7 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
               ADVANCED · OPTIONAL · TOPIC {idx + 1} OF 4
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.5, color: palette.text + 'cc', marginBottom: 12, textWrap: 'pretty' }}>
-              Pick an advanced {sector.name.toLowerCase()} idea your camp pursued — or one of "Our Camp's Idea" entries. This tier is optional.
+              Pick an advanced {sector.name.toLowerCase()} idea your camp pursued — or one of "Our Camp's Idea" entries. This level is optional.
             </div>
             <select
               value={topicId}
@@ -664,8 +659,8 @@ function ResultToast({ kind, sector, greens, palette, onClose }) {
         </div>
         <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.25, textWrap: 'pretty' }}>
           {anyGreen
-            ? `${greens} of 4 levels green`
-            : 'Sector complete — no levels green this time'}
+            ? `${greens} of 10 answered yes`
+            : 'Sector complete — no yeses this time'}
         </div>
       </div>
     </div>
@@ -728,7 +723,7 @@ function Celebration({ sector, palette, onDone }) {
           fontSize: 12, letterSpacing: '0.3em', fontWeight: 800,
           color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.6)', marginBottom: 12,
         }}>
-          {sector?.name?.toUpperCase()} · 4 / 4
+          {sector?.name?.toUpperCase()} · 10 / 10
         </div>
         <div style={{
           fontSize: 'clamp(40px, 14vw, 72px)',
@@ -752,63 +747,44 @@ function Celebration({ sector, palette, onDone }) {
 // No gaps between sectors — a sector reads as a continuous radial wedge whose
 // outer reach equals its scored depth (contiguous green prefix). Adjacent sectors share
 // boundaries so the green area forms a single silhouette.
-function RadialBadge({ sectors, levelStates, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false }) {
+function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false }) {
   const cx = size / 2, cy = size / 2;
   // [center, L1, L2, L3, L4]
   const RINGS = [0, 0.30, 0.50, 0.66, 0.82].map(f => f * size / 2);
   const N = sectors.length;
   const sweep = 360 / N;
+  const gap = size < 120 ? 0 : 2;   // angular gap between question-segments (deg)
+  const rGap = size < 120 ? 0 : 1;  // tiny radial gap between level bands (px)
 
-  const depths = sectors.map(s => {
-    const arr = levelStates[s.id];
-    let d = 0;
-    for (let i = 0; i < arr.length; i++) {
-      if (arr[i] === 'green') d++;
-      else break;
-    }
-    return d;
-  });
+  const totalYes = sectors.reduce((acc, s) => acc + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
 
-  const greenCount = sectors.reduce((acc, s) =>
-    acc + levelStates[s.id].filter(x => x === 'green').length, 0
-  );
-
-  const baseColor = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
+  const baseColor = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
   const baseStroke = dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.12)';
   const gridStroke = dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)';
 
-  // Solid pie wedges from center → reads as one continuous green shape.
-  function buildSilhouette() {
-    let d = '';
-    for (let i = 0; i < N; i++) {
-      const depth = depths[i];
-      if (depth === 0) continue;
-      const outerR = RINGS[depth];
-      const a0 = i * sweep;
-      const a1 = (i + 1) * sweep;
-      const [x0, y0] = polar(cx, cy, outerR, a0);
-      const [x1, y1] = polar(cx, cy, outerR, a1);
-      const large = sweep > 180 ? 1 : 0;
-      d += ` M ${cx} ${cy} L ${x0} ${y0} A ${outerR} ${outerR} 0 ${large} 1 ${x1} ${y1} Z`;
-    }
-    return d.trim();
-  }
-
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
-      <defs>
-        <radialGradient id={`grBadge-${size}`} cx="50%" cy="40%" r="65%">
-          <stop offset="0%" stopColor="#7fc46a"/>
-          <stop offset="60%" stopColor="#5BA84A"/>
-          <stop offset="100%" stopColor="#3d7a31"/>
-        </radialGradient>
-      </defs>
-
       {showLabels && (
         <circle cx={cx} cy={cy} r={RINGS[4]} fill={baseColor} stroke={baseStroke} strokeWidth={1}/>
       )}
 
-      <path d={buildSilhouette()} fill={`url(#grBadge-${size})`}/>
+      {/* per-question segments: each sector × level split into one cell per question */}
+      {sectors.map((sector, si) => {
+        const a0 = si * sweep, a1 = (si + 1) * sweep;
+        const lv = (fills[sector.id] && fills[sector.id].levels) || [[], [], [], []];
+        return [0, 1, 2, 3].map(li => {
+          const rIn = RINGS[li] + (li > 0 ? rGap : 0);
+          const rOut = RINGS[li + 1];
+          const cells = lv[li] || [];
+          return segAngles(a0, a1, cells.length || 1, gap).map(([s0, s1], qi) => (
+            <path key={`${sector.id}-${li}-${qi}`}
+              d={arcPath(cx, cy, rIn, rOut, s0, s1)}
+              fill={cells[qi] ? LEVEL_COLORS[li] : baseColor}
+              stroke={baseStroke} strokeWidth={0.5}
+            />
+          ));
+        });
+      })}
 
       {showGrid && (
         <g style={{ pointerEvents: 'none' }}>
@@ -846,8 +822,8 @@ function RadialBadge({ sectors, levelStates, size = 320, dark = true, showLabels
         <text x={cx} y={cy + size*0.04} textAnchor="middle"
           fontSize={size*0.13} fontWeight="900" fill="#fff"
           style={{ paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.18)', strokeWidth: 0.6 }}>
-          {greenCount}
-          <tspan fontSize={size*0.055} dx="2" opacity="0.75">/24</tspan>
+          {totalYes}
+          <tspan fontSize={size*0.055} dx="2" opacity="0.75">/60</tspan>
         </text>
       )}
     </svg>
@@ -856,12 +832,12 @@ function RadialBadge({ sectors, levelStates, size = 320, dark = true, showLabels
 
 // Mini logomark version — no labels, no center, no background ring.
 // Just the camp's silhouette as a tiny logo glyph next to the camp name.
-function RadiusLogomark({ sectors, levelStates, size = 32 }) {
-  return <RadialBadge sectors={sectors} levelStates={levelStates} size={size} showLabels={false} showCenter={false} dark={false}/>;
+function RadiusLogomark({ sectors, fills, size = 32 }) {
+  return <RadialBadge sectors={sectors} fills={fills} size={size} showLabels={false} showCenter={false} dark={false}/>;
 }
 
 // ─── shareable card ───────────────────────────────────────────────────────────
-function ShareCard({ sectors, levelStates, campName, leadName, year, palette }) {
+function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
   return (
     <div style={{
       width: 360, padding: 28,
@@ -877,7 +853,7 @@ function ShareCard({ sectors, levelStates, campName, leadName, year, palette }) 
         {/* top block: large logomark left, 3-line text right */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
           <div style={{ flex: '0 0 auto' }}>
-            <RadiusLogomark sectors={sectors} levelStates={levelStates} size={84}/>
+            <RadiusLogomark sectors={sectors} fills={fills} size={84}/>
           </div>
           <div style={{ flex: '1 1 auto', minWidth: 0, textAlign: 'left' }}>
             <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, opacity: 0.6, marginBottom: 2 }}>
@@ -894,24 +870,25 @@ function ShareCard({ sectors, levelStates, campName, leadName, year, palette }) 
 
       <div style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', margin: '0 0 14px' }}>
-          <RadialBadge sectors={sectors} levelStates={levelStates} size={300} showGrid={true}/>
+          <RadialBadge sectors={sectors} fills={fills} size={300} showGrid={true}/>
         </div>
 
         {/* sector breakdown */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 14 }}>
           {sectors.map(s => {
-            const greens = levelStates[s.id].filter(x => x === 'green').length;
+            const ty = (fills[s.id] && fills[s.id].totalYes) || 0;
+            const c = ty > 0 ? '#7fc46a' : 'rgba(255,255,255,0.4)';
             return (
               <div key={s.id} style={{
                 background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '8px 4px',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
               }}>
-                <SectorIcon kind={s.icon} size={18} color={greens > 0 ? '#5BA84A' : 'rgba(255,255,255,0.4)'}/>
+                <SectorIcon kind={s.icon} size={18} color={c}/>
                 <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', opacity: 0.8 }}>
                   {s.name.toUpperCase()}
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: greens > 0 ? '#5BA84A' : 'rgba(255,255,255,0.4)' }}>
-                  L{greens}
+                <div style={{ fontSize: 14, fontWeight: 800, color: c }}>
+                  {ty}<span style={{ fontSize: 9, opacity: 0.6 }}>/10</span>
                 </div>
               </div>
             );
@@ -947,7 +924,7 @@ function fitCampName(name) {
   if (l2.length > 20) l2 = `${l2.slice(0, 19)}…`;
   return { lines: [l1, l2], size: 18, ys: [72, 94] };
 }
-function ResultCardSVG({ sectors, levelStates, campName, leadName, year, svgRef }) {
+function ResultCardSVG({ sectors, fills, campName, leadName, year, svgRef }) {
   const pad = 28, textX = 124;
   const name = fitCampName(campName);
   const leadY = name.lines.length > 1 ? 112 : 100;
@@ -972,7 +949,7 @@ function ResultCardSVG({ sectors, levelStates, campName, leadName, year, svgRef 
       <rect x="0" y="0" width={CARD_W} height={CARD_H} rx="24" fill="url(#rcGlow)"/>
 
       <g transform={`translate(${pad}, 30)`}>
-        <RadiusLogomark sectors={sectors} levelStates={levelStates} size={80}/>
+        <RadiusLogomark sectors={sectors} fills={fills} size={80}/>
       </g>
       <text x={textX} y="50" fontSize="10" fontWeight="700" letterSpacing="2.4" fill="#fff" opacity="0.6">
         GREEN RADIUS · {year}
@@ -985,13 +962,13 @@ function ResultCardSVG({ sectors, levelStates, campName, leadName, year, svgRef 
       </text>
 
       <g transform={`translate(${(CARD_W - 300) / 2}, 124)`}>
-        <RadialBadge sectors={sectors} levelStates={levelStates} size={300} showGrid={true}/>
+        <RadialBadge sectors={sectors} fills={fills} size={300} showGrid={true}/>
       </g>
 
       {sectors.map((s, i) => {
-        const greens = levelStates[s.id].filter(x => x === 'green').length;
+        const ty = (fills[s.id] && fills[s.id].totalYes) || 0;
         const col = cols[i % 3], rowY = gridY + (i < 3 ? 0 : cellH + gap), cx = col + cellW / 2;
-        const color = greens > 0 ? '#5BA84A' : 'rgba(255,255,255,0.4)';
+        const color = ty > 0 ? '#7fc46a' : 'rgba(255,255,255,0.4)';
         return (
           <g key={s.id}>
             <rect x={col} y={rowY} width={cellW} height={cellH} rx="10" fill="#ffffff" fillOpacity="0.05"/>
@@ -1002,7 +979,7 @@ function ResultCardSVG({ sectors, levelStates, campName, leadName, year, svgRef 
               {s.name.toUpperCase()}
             </text>
             <text x={cx} y={rowY + 53} textAnchor="middle" fontSize="13" fontWeight="800" fill={color}>
-              L{greens}
+              {ty}/10
             </text>
           </g>
         );
@@ -1025,7 +1002,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How do I play?',
-    a: 'Spin the wheel to draw a sector, then answer its yes/no questions across four tiers from easiest to hardest. Every "yes" earns a point, and your point total sets how far that sector reaches — so a single "no" early on no longer stops you; later "yes" answers make up for it. Six spins (one per sector) complete your Green Radius.',
+    a: 'Spin the wheel to draw a sector, then answer its yes/no questions across four levels from easiest to hardest. Every "yes" earns a point, and your point total sets how far that sector reaches — so a single "no" early on no longer stops you; later "yes" answers make up for it. Six spins (one per sector) complete your Green Radius.',
   },
   {
     q: 'Do I need to both play the game and fill out the form?',
@@ -1045,7 +1022,7 @@ const FAQ_ITEMS = [
     q: 'Where can I learn more?',
     a: (
       <>
-        Dig into the full guidance for every area and tier in the Green Theme Camp Community's Resource Guide.<br/>
+        Dig into the full guidance for every area and level in the Green Theme Camp Community's Resource Guide.<br/>
         <a href={RESOURCE_GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{
           display: 'inline-block', marginTop: 8,
           background: '#7AB85C', color: '#fff', fontWeight: 700, fontSize: 13,
@@ -1299,13 +1276,12 @@ function ModePicker({ onPick, palette }) {
 // ─── linear application form ─────────────────────────────────────────────────
 // Renders the 60 board-game questions as a yes/no form, paginated one sector
 // per page (6 pages, with a sector stepper and Back/Next; see the 2026-06-03 spec).
-// Submit maps answers back to the same levelStates shape the wheel game uses,
-// so the existing 'done' phase + ShareCard work without modification.
+// Submit just marks every sector closed; the radius fill derives from `answers`,
+// exactly like the board game — the 'done' phase + ShareCard need no special shape.
 //
-// Scoring is per-point and identical to the board game (see scoreSector):
-// 1 point per yes (up to 6 fixed + up to 4 Tier-4, capped at 4), and the
-// sector's yes count maps to a contiguous depth via cumulative bands [1,3,6,10].
-// A sector with no answers stays 'locked'.
+// Scoring is per-question and identical to the board game (see sectorFill):
+// each level's ring fills per question, in its level color; Level 4 shows the
+// count of advanced Yeses (capped at 4). totalYes (0–10) feeds the sheet.
 function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, palette }) {
   const [page, setPage] = useState(0);
   const [highlightMissing, setHighlightMissing] = useState(false);
@@ -1320,21 +1296,15 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
   const allComplete = incompleteSectors.length === 0;
   const firstIncompleteIndex = sectors.findIndex(s => !requiredAnswered(s));
 
-  // Same per-point rule as the board game: count a sector's Yes answers and
-  // map to a contiguous depth via cumulative bands (see levelStatesFromAnswers).
-  function computeLevelStates() {
-    return levelStatesFromAnswers(sectors, answers);
-  }
-
+  // Submission just marks every sector closed; scoring/fill derive from `answers`.
   function handleSubmit() {
-    const levelStates = computeLevelStates();
     const sectorCursor = {};
     const sectorClosed = {};
     sectors.forEach(s => {
       sectorCursor[s.id] = 4;
       sectorClosed[s.id] = true;
     });
-    onSubmit({ levelStates, sectorCursor, sectorClosed });
+    onSubmit({ sectorCursor, sectorClosed });
   }
 
   const totalAnswered = Object.values(answers).filter(a => a === 'yes' || a === 'no').length;
@@ -1562,7 +1532,7 @@ function FormSectorBlock({ sector, answers, setAnswer, palette, highlightMissing
             <span style={{
               fontSize: 9, fontWeight: 700, letterSpacing: '0.16em',
               textTransform: 'uppercase', color: palette.text + '88',
-            }}>Tier 4 · mark any 4+ to go deeper</span>
+            }}>Level 4 · mark any 4+ to go deeper</span>
           </div>
           {t4.map(t => (
             <YesNoRow
@@ -1774,13 +1744,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const [phase, setPhase] = useState(saved?.phase || 'pick-mode'); // pick-mode | intro | playing | done | form-intro | form
   const [camp, setCamp] = useState(saved?.camp || { campName: '', leadName: '', email: '' });
 
-  // levelStates[sectorId] = ['locked'|'open'|'green'|'failed', x4]
-  const initState = useMemo(() => {
-    const o = {};
-    sectors.forEach(s => o[s.id] = ['locked','locked','locked','locked']);
-    return o;
-  }, [sectors]);
-  const [levelStates, setLevelStates] = useState(saved?.levelStates || initState);
   const [sectorCursor, setSectorCursor] = useState(() => {
     if (saved?.sectorCursor) return saved.sectorCursor;
     const o = {}; sectors.forEach(s => o[s.id] = 0); return o; // next level index
@@ -1793,6 +1756,9 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // Both modes write this map; it drives scoring AND the backend-only granular record.
   const [answers, setAnswers] = useState(saved?.answers || {});
   const [mode, setMode] = useState(saved?.mode || null); // 'board' | 'form'
+  // Per-question fill (segment booleans per sector) — the single source for every
+  // renderer. Derived from `answers`; an untouched sector is simply all-empty.
+  const fills = useMemo(() => fillsFromAnswers(sectors, answers), [sectors, answers]);
   const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
   const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
   const [copied, setCopied] = useState(false);
@@ -1829,10 +1795,10 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     fontEmbedCss(); // warm the font cache so the Download button is snappy
     (async () => {
       const greens = {};
-      sectors.forEach(s => { greens[s.id] = levelStates[s.id].filter(x => x === 'green').length; });
+      sectors.forEach(s => { greens[s.id] = sectorFill(s, answers).totalYes; });
       const year = new Date().getFullYear();
       const resultUrl = window.location.origin + '/result/#' +
-        window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, greens });
+        window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
       const email = (camp.email || '').trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setSubmitState('error'); return; }
       setSubmitState('sending');
@@ -1866,17 +1832,16 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORAGE_VERSION,
-        phase, camp, levelStates, sectorCursor, sectorClosed, answers, mode, submittedAt,
+        phase, camp, sectorCursor, sectorClosed, answers, mode, submittedAt,
       }));
     } catch {}
-  }, [phase, camp, levelStates, sectorCursor, sectorClosed, answers, mode, submittedAt]);
+  }, [phase, camp, sectorCursor, sectorClosed, answers, mode, submittedAt]);
 
   function setFormAnswer(qid, value) {
     setAnswers(prev => ({ ...prev, [qid]: value }));
   }
 
-  function submitForm({ levelStates: ls, sectorCursor: sc, sectorClosed: scl }) {
-    setLevelStates(ls);
+  function submitForm({ sectorCursor: sc, sectorClosed: scl }) {
     setSectorCursor(sc);
     setSectorClosed(scl);
     setPhase('done');
@@ -1933,19 +1898,13 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
     const merged = { ...answers, ...sectorAns };
     setAnswers(merged);
-
-    const newLevelArr = sectorLevelStates(sector, merged);
-    setLevelStates({ ...levelStates, [sector.id]: newLevelArr });
     setSectorCursor({ ...sectorCursor, [sector.id]: 4 });
     setSectorClosed({ ...sectorClosed, [sector.id]: true });
     setActiveQuestion(null);
 
-    const greens = newLevelArr.filter(s => s === 'green').length;
-    if (greens === 4) {
-      setCelebration({ sector });
-    } else {
-      setToast({ kind: 'sector-done', sector, greens });
-    }
+    const totalYes = sectorFill(sector, merged).totalYes;
+    if (totalYes === 10) setCelebration({ sector });
+    else setToast({ kind: 'sector-done', sector, greens: totalYes });
   }
 
   function startGame(info) {
@@ -1953,10 +1912,13 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setMode('board');
     setPhase('playing');
     if (debugFill) {
-      // demo: pre-fill some greens for screenshotting
+      // demo: pre-fill a varied answer pattern for screenshotting
       const demo = {};
-      sectors.forEach((s, i) => demo[s.id] = ['green', i % 2 ? 'green' : 'failed', 'failed', 'failed']);
-      setLevelStates(demo);
+      sectors.forEach((s, i) => {
+        [].concat(...s.levels.slice(0, 3)).forEach((q, qi) => { demo[q.id] = qi <= i ? 'yes' : 'no'; });
+        (s.tier4Topics || []).slice(0, i % 4).forEach(t => { demo[t.id] = 'yes'; });
+      });
+      setAnswers(demo);
     }
   }
 
@@ -1966,10 +1928,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setPhase('form');
   }
 
-  // Wheel display: unplayed sectors are 'locked' (sandy), played sectors show
-  // their per-level result. There's no per-level "open" tinting anymore since
-  // a sector is now played as a single 10-question session.
-  const displayStates = levelStates;
+  // Wheel reads the per-question fill directly; an untouched sector is all-empty.
+  const displayStates = fills;
 
   if (phase === 'pick-mode') {
     return (
@@ -2017,11 +1977,9 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   }
 
   if (phase === 'done') {
-    const greens = {};
-    sectors.forEach(s => { greens[s.id] = levelStates[s.id].filter(x => x === 'green').length; });
     const year = new Date().getFullYear();
     const resultUrl = window.location.origin + '/result/#' +
-      window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, greens });
+      window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
     const email = (camp.email || '').trim();
     const slug = (camp.campName || 'theme-camp').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'theme-camp';
     const sent = submitState === 'done' || !!submittedAt;
@@ -2039,7 +1997,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     function handleExit() {
       clearSaved();
       autoSentRef.current = false;
-      setLevelStates(initState);
       setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
       setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
       setAnswers({});
@@ -2054,15 +2011,15 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       <div style={{ padding: '32px 20px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
         <div style={{ fontSize: 11, letterSpacing: '0.3em', fontWeight: 700, color: palette.accent, marginBottom: 8 }}>YOUR GREEN RADIUS</div>
         <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 24px', color: palette.heading, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <RadiusLogomark sectors={sectors} levelStates={levelStates} size={32}/>{camp.campName}
+          <RadiusLogomark sectors={sectors} fills={fills} size={32}/>{camp.campName}
         </h2>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <ShareCard sectors={sectors} levelStates={levelStates} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette}/>
+          <ShareCard sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette}/>
         </div>
 
         {/* offscreen SVG twin of the card — serialized to PNG by handleDownload */}
         <div aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: CARD_W, height: CARD_H, overflow: 'hidden', pointerEvents: 'none' }}>
-          <ResultCardSVG svgRef={cardSvgRef} sectors={sectors} levelStates={levelStates} campName={camp.campName} leadName={camp.leadName} year={year}/>
+          <ResultCardSVG svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year}/>
         </div>
 
         <div role="status" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
@@ -2098,8 +2055,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   }
 
   // PLAYING
-  const totalGreens = sectors.reduce((acc, s) => acc + levelStates[s.id].filter(x=>x==='green').length, 0);
-  const totalAttempted = sectors.reduce((acc, s) => acc + levelStates[s.id].filter(x=>x!=='locked').length, 0);
+  const totalGreens = sectors.reduce((acc, s) => acc + (fills[s.id].totalYes || 0), 0);
+  const totalAttempted = sectors.reduce((acc, s) => acc + (sectorClosed[s.id] ? 1 : 0), 0);
 
   return (
     <div style={{ padding: '20px 16px 32px', maxWidth: 480, margin: '0 auto' }}>
@@ -2116,7 +2073,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 9, letterSpacing: '0.25em', fontWeight: 700, color: palette.text + '99' }}>GREEN</div>
           <div style={{ fontSize: 22, fontWeight: 900, color: '#5BA84A', lineHeight: 1 }}>
-            {totalGreens}<span style={{ fontSize: 12, opacity: 0.5 }}>/24</span>
+            {totalGreens}<span style={{ fontSize: 12, opacity: 0.5 }}>/60</span>
           </div>
         </div>
       </div>
@@ -2124,7 +2081,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       {/* wheel */}
       <Wheel
         sectors={sectors}
-        levelStates={displayStates}
+        fills={displayStates}
         rotation={rotation}
         spinning={spinning}
         canSpin={!allDone}
@@ -2136,18 +2093,17 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       {/* sector legend */}
       <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
         {sectors.map(s => {
-          const greens = levelStates[s.id].filter(x => x === 'green').length;
+          const f = fills[s.id];
+          const ty = f.totalYes;
           const closed = sectorClosed[s.id];
-          const allGreen = greens === 4;
-          const anyGreen = greens > 0;
-          const accentBorder = allGreen ? '#5BA84A' : anyGreen ? '#5BA84A88' : palette.text + '22';
-          const iconColor = allGreen ? '#5BA84A' : palette.text + 'cc';
+          const accentBorder = ty === 10 ? LEVEL_COLORS[3] : ty > 0 ? LEVEL_COLORS[3] + '88' : palette.text + '22';
+          const iconColor = ty > 0 ? LEVEL_COLORS[3] : palette.text + 'cc';
           return (
             <div key={s.id} style={{
               padding: '10px 8px', borderRadius: 10,
               background: palette.card,
               border: `1.5px solid ${accentBorder}`,
-              opacity: closed && !anyGreen ? 0.55 : 1,
+              opacity: closed && ty === 0 ? 0.55 : 1,
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
             }}>
               <SectorIcon kind={s.icon} size={20} color={iconColor}/>
@@ -2155,14 +2111,15 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
                 {s.name.toUpperCase()}
               </div>
               <div style={{ display: 'flex', gap: 3 }}>
-                {[0,1,2,3].map(li => (
-                  <div key={li} style={{
-                    width: 8, height: 8, borderRadius: 2,
-                    background: levelStates[s.id][li] === 'green' ? '#5BA84A'
-                              : levelStates[s.id][li] === 'failed' ? 'rgba(60,40,30,0.18)'
-                              : 'rgba(0,0,0,0.08)',
-                  }}/>
-                ))}
+                {[0,1,2,3].map(li => {
+                  const on = (f.levels[li] || []).some(Boolean);
+                  return (
+                    <div key={li} style={{
+                      width: 8, height: 8, borderRadius: 2,
+                      background: on ? LEVEL_COLORS[li] : 'rgba(0,0,0,0.08)',
+                    }}/>
+                  );
+                })}
               </div>
             </div>
           );
@@ -2190,7 +2147,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           onClick={() => {
             if (totalAttempted === 0) return;
             if (!confirm('Reset progress and start over?')) return;
-            setLevelStates(initState);
             setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; });
             setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; });
             setAnswers({});
