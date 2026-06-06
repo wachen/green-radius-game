@@ -749,14 +749,12 @@ function Celebration({ sector, palette, onDone }) {
 // boundaries so the green area forms a single silhouette.
 function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false }) {
   const cx = size / 2, cy = size / 2;
-  // [center, L1, L2, L3, L4]
-  const RINGS = [0, 0.30, 0.50, 0.66, 0.82].map(f => f * size / 2);
+  // [hub edge, L1, L2, L3, L4] — the inner hub stays clear (total moved to the header), like the board
+  const RINGS = [0.18, 0.34, 0.52, 0.68, 0.84].map(f => f * size / 2);
   const N = sectors.length;
   const sweep = 360 / N;
   const gap = size < 120 ? 0 : 2;   // angular gap between question-segments (deg)
   const rGap = size < 120 ? 0 : 1;  // tiny radial gap between level bands (px)
-
-  const totalYes = sectors.reduce((acc, s) => acc + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
 
   const baseColor = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
   const baseStroke = dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.12)';
@@ -802,29 +800,21 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
         </g>
       )}
 
+      {/* sector glyphs seated in the L1 ring, mirroring the game board */}
       {showLabels && sectors.map((sector, si) => {
         const ang = si * sweep + sweep / 2;
-        const [x, y] = polar(cx, cy, RINGS[4] + 14, ang);
-        const rotate = ang > 180 ? ang - 270 : ang - 90;
+        const iconSz = Math.round(size * 0.058);
+        const [x, y] = polar(cx, cy, (RINGS[0] + RINGS[1]) / 2, ang);
         return (
-          <text key={sector.id} x={x} y={y}
-            textAnchor="middle" dominantBaseline="middle"
-            fontSize="9" fontWeight="700" letterSpacing="0.18em"
-            fill={dark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.5)'}
-            transform={`rotate(${rotate} ${x} ${y})`}
-          >
-            {sector.name.toUpperCase()}
-          </text>
+          <g key={sector.id} transform={`translate(${x - iconSz / 2} ${y - iconSz / 2})`}>
+            <SectorIcon kind={sector.icon} size={iconSz} color={dark ? 'rgba(255,255,255,0.92)' : '#3a2a20'}/>
+          </g>
         );
       })}
 
+      {/* the game board's hand-drawn dot hub where the spokes meet */}
       {showCenter && (
-        <text x={cx} y={cy + size*0.04} textAnchor="middle"
-          fontSize={size*0.13} fontWeight="900" fill="#fff"
-          style={{ paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.18)', strokeWidth: 0.6 }}>
-          {totalYes}
-          <tspan fontSize={size*0.055} dx="2" opacity="0.75">/60</tspan>
-        </text>
+        <circle cx={cx} cy={cy} r={size * 0.05} fill={dark ? '#ece3d3' : '#2a2620'}/>
       )}
     </svg>
   );
@@ -838,11 +828,13 @@ function RadiusLogomark({ sectors, fills, size = 32 }) {
 
 // ─── shareable card ───────────────────────────────────────────────────────────
 function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
+  const total = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
   return (
     <div style={{
       width: 360, padding: 28,
       background: 'linear-gradient(155deg, #1c1410 0%, #2a1c14 100%)',
       borderRadius: 24, color: '#fff',
+      fontFamily: "'Space Grotesk', system-ui, -apple-system, sans-serif",
       boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
       position: 'relative', overflow: 'hidden',
     }}>
@@ -850,21 +842,17 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 30%, rgba(217,136,92,0.18), transparent 60%)', pointerEvents: 'none' }}/>
 
       <div style={{ position: 'relative' }}>
-        {/* top block: large logomark left, 3-line text right */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-          <div style={{ flex: '0 0 auto' }}>
-            <RadiusLogomark sectors={sectors} fills={fills} size={84}/>
+        {/* header: eyebrow + camp name, centered (logomark + lead line removed) */}
+        <div style={{ textAlign: 'center', marginBottom: 14 }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, opacity: 0.6, marginBottom: 4 }}>
+            GREEN RADIUS · {year}
           </div>
-          <div style={{ flex: '1 1 auto', minWidth: 0, textAlign: 'left' }}>
-            <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, opacity: 0.6, marginBottom: 2 }}>
-              GREEN RADIUS · {year}
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.1, textWrap: 'balance', marginBottom: 4 }}>
-              {campName || 'Theme Camp'}
-            </div>
-            <div style={{ fontSize: 11, opacity: 0.7, lineHeight: 1.3 }}>
-              Sustainability Lead · {leadName || '—'}
-            </div>
+          <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.12, textWrap: 'balance' }}>
+            {campName || 'Theme Camp'}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <span style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em' }}>{total}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> / 60 green</span>
           </div>
         </div>
 
@@ -895,8 +883,8 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
           })}
         </div>
 
-        <div style={{ fontSize: 9, letterSpacing: '0.18em', opacity: 0.5, fontWeight: 600, textAlign: 'center' }}>
-          GREENTHEMECAMPCOMMUNITY.ORG
+        <div style={{ fontSize: 10, letterSpacing: '0.22em', opacity: 0.55, fontWeight: 700, textAlign: 'center', marginTop: 14 }}>
+          GREENRADI.US
         </div>
       </div>
       </div>
@@ -925,9 +913,10 @@ function fitCampName(name) {
   return { lines: [l1, l2], size: 18, ys: [72, 94] };
 }
 function ResultCardSVG({ sectors, fills, campName, leadName, year, svgRef }) {
-  const pad = 28, textX = 124;
+  const pad = 28;
   const name = fitCampName(campName);
-  const leadY = name.lines.length > 1 ? 112 : 100;
+  const total = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
+  const totalY = name.lines.length > 1 ? 122 : 106;
   const gridY = 440, gap = 6, cellH = 58;
   const cellW = (CARD_W - 2 * pad - 2 * gap) / 3;
   const cols = [pad, pad + cellW + gap, pad + 2 * (cellW + gap)];
@@ -948,17 +937,15 @@ function ResultCardSVG({ sectors, fills, campName, leadName, year, svgRef }) {
       <rect x="0" y="0" width={CARD_W} height={CARD_H} rx="24" fill="url(#rcBg)"/>
       <rect x="0" y="0" width={CARD_W} height={CARD_H} rx="24" fill="url(#rcGlow)"/>
 
-      <g transform={`translate(${pad}, 30)`}>
-        <RadiusLogomark sectors={sectors} fills={fills} size={80}/>
-      </g>
-      <text x={textX} y="50" fontSize="10" fontWeight="700" letterSpacing="2.4" fill="#fff" opacity="0.6">
+      <text x={CARD_W / 2} y="46" textAnchor="middle" fontSize="10" fontWeight="700" letterSpacing="2.4" fill="#fff" opacity="0.6">
         GREEN RADIUS · {year}
       </text>
       {name.lines.map((ln, i) => (
-        <text key={i} x={textX} y={name.ys[i]} fontSize={name.size} fontWeight="800" fill="#fff">{ln}</text>
+        <text key={i} x={CARD_W / 2} y={name.ys[i]} textAnchor="middle" fontSize={name.size} fontWeight="800" fill="#fff">{ln}</text>
       ))}
-      <text x={textX} y={leadY} fontSize="11" fontWeight="400" fill="#fff" opacity="0.7">
-        Sustainability Lead · {leadName || '—'}
+      <text x={CARD_W / 2} y={totalY} textAnchor="middle">
+        <tspan fontSize="30" fontWeight="900" fill="#7fc46a">{total}</tspan>
+        <tspan fontSize="13" fontWeight="700" fill="#fff" opacity="0.65"> / 60 green</tspan>
       </text>
 
       <g transform={`translate(${(CARD_W - 300) / 2}, 124)`}>
@@ -985,8 +972,8 @@ function ResultCardSVG({ sectors, fills, campName, leadName, year, svgRef }) {
         );
       })}
 
-      <text x={CARD_W / 2} y={gridY + 2 * cellH + gap + 30} textAnchor="middle" fontSize="9" fontWeight="600" letterSpacing="1.6" fill="#fff" opacity="0.5">
-        GREENTHEMECAMPCOMMUNITY.ORG
+      <text x={CARD_W / 2} y={gridY + 2 * cellH + gap + 38} textAnchor="middle" fontSize="10" fontWeight="700" letterSpacing="2" fill="#fff" opacity="0.55">
+        GREENRADI.US
       </text>
     </svg>
   );
@@ -2010,8 +1997,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     return (
       <div style={{ padding: '32px 20px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
         <div style={{ fontSize: 11, letterSpacing: '0.3em', fontWeight: 700, color: palette.accent, marginBottom: 8 }}>YOUR GREEN RADIUS</div>
-        <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 24px', color: palette.heading, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <RadiusLogomark sectors={sectors} fills={fills} size={32}/>{camp.campName}
+        <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 24px', color: palette.heading, letterSpacing: '-0.01em' }}>
+          {camp.campName}
         </h2>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
           <ShareCard sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette}/>
