@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Your Green Radius</title>
 
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
@@ -13,7 +17,7 @@
 <script type="text/babel" src="../green-radius.jsx"></script>
 <script src="../result-state.js"></script>
 </head>
-<body style="margin:0;padding:0;background:#D8CBB6;">
+<body style="margin:0;padding:0;background:#D8CBB6;font-family:'Space Grotesk',system-ui,-apple-system,sans-serif;">
 <div id="root" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#D8CBB6;padding:24px"></div>
 
 <script type="text/babel" data-presets="react">
@@ -25,9 +29,8 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 if (!data) {
   root.render(<p style={{ fontFamily: 'system-ui', color: '#3c2a1e' }}>This result link looks invalid or incomplete.</p>);
 } else {
-  const levelStates = window.ResultState.greensToLevelStates(data.greens);
   root.render(
-    <ShareCard sectors={window.SECTORS} levelStates={levelStates}
+    <ShareCard sectors={window.SECTORS} fills={data.fills}
       campName={data.campName} leadName={data.leadName} year={data.year} palette={{}} />
   );
 }

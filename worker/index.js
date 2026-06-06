@@ -24,12 +24,28 @@ async function handleComplete(request, env) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email)) return json({ error: 'bad_email' }, 400);
 
   const greens = {};
-  for (const id of SECTOR_IDS) greens[id] = Math.max(0, Math.min(4, (body.greens && body.greens[id]) | 0));
+  for (const id of SECTOR_IDS) greens[id] = Math.max(0, Math.min(10, (body.greens && body.greens[id]) | 0));
+
+  // Granular per-question answers (backend-only). Keep it bounded and clean:
+  // string keys <= 40 chars, values strictly 'yes'/'no', at most 120 entries.
+  const answers = {};
+  if (body.answers && typeof body.answers === 'object') {
+    let n = 0;
+    for (const k of Object.keys(body.answers)) {
+      if (n >= 120) break;
+      const v = body.answers[k];
+      if (typeof k === 'string' && k.length <= 40 && (v === 'yes' || v === 'no')) { answers[k] = v; n++; }
+    }
+  }
+  const source = body.mode === 'form' ? 'form' : 'board';
+  const schemaVersion = typeof body.schemaVersion === 'string' ? body.schemaVersion.slice(0, 32) : '';
+
   const resultUrl = safeResultUrl(body.resultUrl);
   const row = {
     secret: env.SHEETS_SHARED_SECRET,
     campName: body.campName, leadName: body.leadName || '', email: body.email,
-    year: Math.max(2000, Math.min(2100, body.year | 0)), greens, source: body.source === 'form' ? 'form' : 'board',
+    year: Math.max(2000, Math.min(2100, body.year | 0)), greens, source,
+    answers, schemaVersion,
     resultUrl,
   };
 

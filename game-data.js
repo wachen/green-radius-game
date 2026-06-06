@@ -322,3 +322,7 @@ window.SECTORS = [
     ]
   },
 ];
+
+// Content schema stamp — recorded with each response so historical rows stay
+// alignable if questions/topics change later. Bump when question content changes.
+window.SCHEMA_VERSION = 'frog-v12';
