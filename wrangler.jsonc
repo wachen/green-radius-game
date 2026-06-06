@@ -12,5 +12,9 @@
   },
   "compatibility_flags": [
     "nodejs_compat"
-  ]
+  ],
+  "vars": {
+    "CF_ACCESS_AUD": "REPLACE_WITH_ACCESS_AUD_TAG",
+    "CF_ACCESS_TEAM_DOMAIN": "yourteam.cloudflareaccess.com"
+  }
 }

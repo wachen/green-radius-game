@@ -5,6 +5,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/complete' && request.method === 'POST') return handleComplete(request, env);
+    if (url.pathname === '/api/admin/responses' && request.method === 'GET') return handleAdminResponses(request, env);
     return env.ASSETS.fetch(request);
   },
 };
@@ -100,4 +101,64 @@ function escAttr(s) {
 
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+// ── Admin read path: validate the Cloudflare Access JWT, then proxy the Apps Script doGet ──
+async function handleAdminResponses(request, env) {
+  const token = request.headers.get('Cf-Access-Jwt-Assertion');
+  const ok = await verifyAccessJwt(token, env);
+  if (!ok) return json({ error: 'unauthorized' }, 403);
+
+  if (!env.SHEETS_WEBAPP_URL) return json({ rows: [], count: 0, degraded: 'no_backend' });
+  const u = `${env.SHEETS_WEBAPP_URL}?mode=responses&secret=${encodeURIComponent(env.SHEETS_SHARED_SECRET || '')}`;
+  const r = await fetch(u, { redirect: 'follow' });
+  if (!r.ok) return json({ error: 'sheet_unavailable' }, 502);
+  const data = await r.json().catch(() => ({}));
+  const rows = shapeAdminRows(data.rows || []);
+  return new Response(JSON.stringify({ rows, count: rows.length }), {
+    status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+}
+
+function shapeAdminRows(raw) {
+  return raw.slice(0, 2000).map(r => {
+    let answers = {};
+    try { answers = r.answers_json ? JSON.parse(r.answers_json) : (r.answers || {}); } catch { answers = {}; }
+    return {
+      timestamp: Date.parse(r.timestamp) || 0,
+      campName: String(r.campName || ''), leadName: String(r.leadName || ''), email: String(r.email || ''),
+      year: r.year | 0, greens: r.greens || {}, total: r.total | 0,
+      source: r.source === 'form' ? 'form' : 'board', resultUrl: String(r.resultUrl || ''),
+      answers, schemaVersion: String(r.schema_version || r.schemaVersion || ''),
+    };
+  });
+}
+
+function b64urlToBytes(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '=';
+  const bin = atob(s); const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out;
+}
+
+async function verifyAccessJwt(token, env) {
+  if (!token || !env.CF_ACCESS_AUD || !env.CF_ACCESS_TEAM_DOMAIN) return false;
+  const parts = token.split('.'); if (parts.length !== 3) return false;
+  let header, payload;
+  try {
+    header = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[0])));
+    payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[1])));
+  } catch { return false; }
+  // claims
+  const now = Math.floor(Date.now() / 1000);
+  const auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+  if (!auds.includes(env.CF_ACCESS_AUD)) return false;
+  if (!payload.exp || payload.exp < now) return false;
+  // signature (RS256) against the team JWKS
+  try {
+    const certs = await fetch(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`).then(r => r.json());
+    const jwk = (certs.keys || []).find(k => k.kid === header.kid); if (!jwk) return false;
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+    const data = new TextEncoder().encode(parts[0] + '.' + parts[1]);
+    return await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64urlToBytes(parts[2]), data);
+  } catch { return false; }
 }
