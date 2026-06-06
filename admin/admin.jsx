@@ -132,5 +132,102 @@ function CommunityTally({ sectors, rows }) {
 const SecHead = ({ children }) => <div style={{ fontSize: 10.5, letterSpacing: '.16em', color: '#93a89b', fontWeight: 800, margin: '16px 0 6px' }}>{String(children).toUpperCase()}</div>;
 const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px dashed #21332a', fontSize: 13 };
 
-// Placeholder — replaced in Task 6.
-function CampsView({ rows }) { return <Centered>Camps view — {rows.length} camps</Centered>; }
+function CampsView({ sectors, rows }) {
+  const wide = useMQ('(min-width: 760px)');
+  const [q, setQ] = React.useState('');
+  const [sort, setSort] = React.useState('score');
+  const [selId, setSelId] = React.useState(null);
+  const list = React.useMemo(() => {
+    const ql = q.trim().toLowerCase();
+    let xs = rows.filter(r => !ql || (r.campName + ' ' + r.leadName + ' ' + r.email).toLowerCase().includes(ql));
+    xs = xs.slice().sort(sort === 'score' ? (a, b) => b.total - a.total : (a, b) => a.campName.localeCompare(b.campName));
+    return xs;
+  }, [rows, q, sort]);
+  const selected = list.find((r, i) => (selId == null ? i === 0 : rowKey(r) === selId)) || list[0];
+
+  const List = (
+    <div style={{ borderRight: wide ? '1px solid #26382e' : 'none' }}>
+      <div style={{ display: 'flex', gap: 6, padding: 10, borderBottom: '1px solid #26382e' }}>
+        <input data-search value={q} onChange={e => setQ(e.target.value)} placeholder="Search camps…"
+          style={{ flex: 1, ...selStyle, borderRadius: 7 }} />
+        <select value={sort} onChange={e => setSort(e.target.value)} style={selStyle}><option value="score">Score</option><option value="name">Name</option></select>
+      </div>
+      {list.map(r => (
+        <div key={rowKey(r)} data-camp-row onClick={() => setSelId(rowKey(r))}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 11px', cursor: 'pointer',
+            borderBottom: '1px solid #1a281f', background: selected && rowKey(selected) === rowKey(r) ? '#16271d' : 'transparent' }}>
+          <div style={{ flex: 1 }}><b style={{ fontSize: 13 }}>{r.campName}</b><small style={{ display: 'block', color: '#93a89b', fontSize: 10 }}>{r.leadName}</small></div>
+          <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px' }}>{r.source}</span>
+          <b style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{r.total}</b>
+        </div>
+      ))}
+      <div style={{ padding: '8px 11px', color: '#93a89b', fontSize: 10 }}>{list.length} camps · sorted by {sort}</div>
+    </div>
+  );
+
+  const Detail = selected && <CampDetail sectors={sectors} camp={selected} />;
+
+  return wide
+    ? <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', minHeight: 400 }}>{List}{Detail}</div>
+    : (selId ? <div><div onClick={() => setSelId(null)} style={{ color: '#45c483', fontWeight: 700, padding: '8px 4px', cursor: 'pointer' }}>‹ All camps</div>{Detail}</div> : List);
+}
+const rowKey = r => `${r.campName}|${r.timestamp}`;
+
+function CampDetail({ sectors, camp }) {
+  const hasAnswers = camp.answers && Object.keys(camp.answers).length > 0;
+  const fills = React.useMemo(() => hasAnswers ? fillsFromAnswers(sectors, camp.answers)
+    : approxFills(sectors, camp.greens), [sectors, camp, hasAnswers]);
+  const maxed = sectors.filter(s => (camp.greens[s.id] || 0) === 10).map(s => s.id);
+  return (
+    <div style={{ padding: '14px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+        <div><h3 style={{ margin: 0 }}>{camp.campName}</h3>
+          <p style={{ margin: '2px 0 0', color: '#93a89b', fontSize: 12 }}>{camp.leadName} · {camp.email} · {camp.source}</p></div>
+        <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+          <a data-email href={`mailto:${camp.email}`} style={{ ...btnStyle, textDecoration: 'none' }}>✉ Email</a>
+          {camp.resultUrl && <a data-result href={camp.resultUrl} target="_blank" rel="noreferrer"
+            style={{ ...btnStyle, background: 'transparent', color: '#eaf2ec', border: '1px solid #26382e' }}>↗ Green Radius result</a>}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center', margin: '12px 0' }}>
+        <RadialBadge sectors={sectors} fills={fills} size={128} dark showLabels={false} />
+        <div style={{ fontSize: 13, color: '#cfe0d4' }}><b style={{ color: '#fff' }}>{camp.total}/60</b> total{maxed.length ? ` · ${maxed.length} maxed` : ''}</div>
+      </div>
+      {!hasAnswers && <div style={{ fontSize: 12, color: '#93a89b' }}>Per-answer detail appears once granular capture is live.</div>}
+      {hasAnswers && sectors.map(s => {
+        const ids = [].concat(...s.levels.slice(0, 3)).map(qq => qq.id);
+        const picks = (s.tier4Topics || []).filter(t => camp.answers[t.id] === 'yes');
+        return (
+          <div key={s.id} style={{ marginTop: 10 }}>
+            <div style={{ display: 'flex', gap: 6, fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+              {s.name} <span style={{ color: '#93a89b', fontWeight: 600 }}>{camp.greens[s.id] || 0}/10</span>
+              {maxed.includes(s.id) && <span style={{ color: '#e8c15a' }}>★</span>}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {ids.map(id => (
+                <span key={id} data-token style={{ fontSize: 10.5, padding: '2px 7px', borderRadius: 6,
+                  border: '1px solid ' + (camp.answers[id] === 'yes' ? '#2e5b43' : '#26382e'),
+                  background: camp.answers[id] === 'yes' ? '#15291e' : 'transparent',
+                  color: camp.answers[id] === 'yes' ? '#cdebd8' : '#93a89b' }}>
+                  {camp.answers[id] === 'yes' ? '✓ ' : '✕ '}{id}</span>
+              ))}
+            </div>
+            {picks.length > 0 && <div style={{ marginTop: 5, fontSize: 11, color: '#93a89b' }}>Level 4: {picks.map(t => t.title).join(', ')}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Approximate radius when a camp has no per-answer data: fill totalYes contiguously per sector.
+function approxFills(sectors, greens) {
+  const out = {};
+  sectors.forEach(s => {
+    let n = (greens && greens[s.id]) || 0;
+    const levels = [0, 1, 2].map(li => (s.levels[li] || []).map(() => { const on = n > 0; if (on) n--; return on; }));
+    levels[3] = [0, 1, 2, 3].map(() => { const on = n > 0; if (on) n--; return on; });
+    out[s.id] = { levels, totalYes: (greens && greens[s.id]) || 0, played: ((greens && greens[s.id]) || 0) > 0 };
+  });
+  return out;
+}
