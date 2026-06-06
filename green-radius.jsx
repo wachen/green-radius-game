@@ -812,9 +812,12 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
         );
       })}
 
-      {/* the game board's hand-drawn dot hub where the spokes meet */}
+      {/* the game board's hand-drawn dot hub: a black dot on a small paper medallion */}
       {showCenter && (
-        <circle cx={cx} cy={cy} r={size * 0.065} fill={dark ? '#f6efe3' : '#2a2620'}/>
+        <g>
+          <circle cx={cx} cy={cy} r={size * 0.04} fill="#f3ece0"/>
+          <circle cx={cx} cy={cy} r={size * 0.024} fill="#2a2620"/>
+        </g>
       )}
     </svg>
   );
