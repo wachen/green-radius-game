@@ -25,7 +25,7 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
 ## End-to-end data flow
 
 The game and the result-capture backend are wired through one shared shape: a
-per-sector **green count** (`0–4`).
+per-sector **green count** (`0–10`, total Yes).
 
 ```
 play game / form  →  done screen  ─┬─►  result-state.encode()  →  /result/#<hash>   (share link, client-only)
@@ -116,6 +116,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   (`window.SECTORS` in `game-data.js`, `window.ResultState` in `result-state.js`).
   Mounting a component via `window.ShareCard` → `undefined` → renders nothing.
   *(This was the blank-`/result/` bug fixed in #19.)*
+- **`/result/` must load the same web fonts as `index.html`.** `ShareCard` inherits
+  its font (`Space Grotesk`), so the Google-Fonts `<link>` lives in **both**
+  `index.html` and `result/index.html`; drop it from `result/index.html` and the
+  shared card silently renders in a serif fallback.
 - **`localStorage` versioning.** Bump `STORAGE_VERSION` whenever the saved shape
   changes; `loadSaved` drops any save whose `version` doesn't match.
 - **No build, no tests, no CI.** The only compile gate is
