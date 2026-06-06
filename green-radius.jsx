@@ -747,7 +747,8 @@ function Celebration({ sector, palette, onDone }) {
 // No gaps between sectors — a sector reads as a continuous radial wedge whose
 // outer reach equals its scored depth (contiguous green prefix). Adjacent sectors share
 // boundaries so the green area forms a single silhouette.
-function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false }) {
+function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false,
+                       intensities = null, onSelectSegment = null, selected = null, centerLabel = null }) {
   const cx = size / 2, cy = size / 2;
   // [hub edge, L1, L2, L3, L4] — the inner hub stays clear (total moved to the header), like the board
   const RINGS = [0.18, 0.34, 0.52, 0.68, 0.84].map(f => f * size / 2);
@@ -766,21 +767,29 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
         <circle cx={cx} cy={cy} r={RINGS[4]} fill={baseColor} stroke={baseStroke} strokeWidth={1}/>
       )}
 
-      {/* per-question segments: each sector × level split into one cell per question */}
+      {/* per-question segments: boolean fills, or graded opacity in aggregate mode */}
       {sectors.map((sector, si) => {
         const a0 = si * sweep, a1 = (si + 1) * sweep;
-        const lv = (fills[sector.id] && fills[sector.id].levels) || [[], [], [], []];
+        const agg = intensities && intensities[sector.id];
+        const lv = agg ? agg.levels : ((fills[sector.id] && fills[sector.id].levels) || [[], [], [], []]);
         return [0, 1, 2, 3].map(li => {
           const rIn = RINGS[li] + (li > 0 ? rGap : 0);
           const rOut = RINGS[li + 1];
           const cells = lv[li] || [];
-          return segAngles(a0, a1, cells.length || 1, gap).map(([s0, s1], qi) => (
-            <path key={`${sector.id}-${li}-${qi}`}
-              d={arcPath(cx, cy, rIn, rOut, s0, s1)}
-              fill={cells[qi] ? LEVEL_COLORS[li] : baseColor}
-              stroke={baseStroke} strokeWidth={0.5}
-            />
-          ));
+          return segAngles(a0, a1, cells.length || 1, gap).map(([s0, s1], qi) => {
+            const isSel = selected && selected.sector === sector.id && selected.level === li && selected.qi === qi;
+            const fillCol = agg ? LEVEL_COLORS[li] : (cells[qi] ? LEVEL_COLORS[li] : baseColor);
+            const fillOp = agg ? Math.max(0.06, cells[qi] || 0) : 1;
+            return (
+              <path key={`${sector.id}-${li}-${qi}`}
+                d={arcPath(cx, cy, rIn, rOut, s0, s1)}
+                fill={fillCol} fillOpacity={fillOp}
+                stroke={isSel ? '#e8c15a' : baseStroke} strokeWidth={isSel ? 1.5 : 0.5}
+                style={onSelectSegment ? { cursor: 'pointer' } : undefined}
+                onClick={onSelectSegment ? () => onSelectSegment(sector.id, li, qi) : undefined}
+              />
+            );
+          });
         });
       })}
 
@@ -812,12 +821,18 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
         );
       })}
 
-      {/* the game board's hand-drawn dot hub: a black dot on a small paper medallion */}
+      {/* center: a numeric label override (aggregate mode) or the board's hand-drawn dot hub */}
       {showCenter && (
-        <g>
-          <circle cx={cx} cy={cy} r={size * 0.04} fill="#f3ece0"/>
-          <circle cx={cx} cy={cy} r={size * 0.024} fill="#2a2620"/>
-        </g>
+        centerLabel != null ? (
+          <text x={cx} y={cy + size * 0.045} textAnchor="middle" fontSize={size * 0.13} fontWeight="900"
+            fill={dark ? '#fff' : '#2a2620'}
+            style={{ paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.18)', strokeWidth: 0.6 }}>{centerLabel}</text>
+        ) : (
+          <g>
+            <circle cx={cx} cy={cy} r={size * 0.04} fill="#f3ece0"/>
+            <circle cx={cx} cy={cy} r={size * 0.024} fill="#2a2620"/>
+          </g>
+        )
       )}
     </svg>
   );
