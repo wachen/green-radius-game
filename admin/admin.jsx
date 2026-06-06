@@ -87,6 +87,7 @@ function CommunityTally({ sectors, rows }) {
     <div style={{ textAlign: 'center', filter: 'drop-shadow(0 0 22px rgba(69,196,131,.3))' }}>
       <RadialBadge sectors={sectors} fills={{}} size={wide ? 300 : 264} dark
         intensities={agg.intensities} centerLabel={agg.hasAnswers ? `${pct}%` : `${agg.totalYes}`}
+        selected={sel}
         onSelectSegment={agg.hasAnswers ? (sector, level, qi) => setSel({ sector, level, qi }) : null} />
       <div style={{ fontSize: 13, color: '#cfe0d4', marginTop: 6 }}>
         <b style={{ color: '#fff' }}>{agg.totalYes}</b> of {agg.totalPossible} green choices · <b style={{ color: '#fff' }}>{agg.count}</b> camps · +{agg.momentum.thisWeek} this week
