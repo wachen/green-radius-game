@@ -88,13 +88,16 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 
 - **Google Apps Script** (owner-side, *container-bound* to the master
   spreadsheet). `doPost` verifies a shared secret, then `appendRow` to the
-  **`2026 Results`** tab (now 16 cols: Timestamp · Camp · Lead · Email · Year · 6
-  sectors · Total · Source · Result URL · **answers_json** · **schema_version**).
+  **`2026 Results`** tab (16 cols: Timestamp · Camp · Lead · Email · Year · 6
+  sectors · Total · Source · Result URL · **Answers JSON** · **Schema Version**).
   The Worker sends `answers` (the full `{qid:'yes'|'no'}` map) + `schemaVersion`;
-  the owner-side script must add those two columns and append them — a manual,
-  external change (see `docs/superpowers/specs/2026-06-04-…-design.md`). Quirks: a `/exec` POST returns
+  these land in the last two columns (`Answers JSON` = `JSON.stringify(answers)`,
+  `Schema Version` = the stamp), and the 6 per-sector columns + Total now carry
+  0–10 / 0–60. A read-only **`doGet`** (added for the admin viewer) returns the
+  rows to the Worker. See `docs/admin-setup.md` for the `doGet` source and the
+  Cloudflare Access setup. Quirks: a `/exec` request returns
   **302 → script.googleusercontent.com**; Cloudflare's `fetch` follows it
-  correctly (plain `curl` mishandles it). One `doPost` per project, and
+  correctly (plain `curl` mishandles it). One `doPost`/`doGet` per project, and
   `getActiveSpreadsheet()` requires a container-bound script.
 - **Resend** (email). Domain `greenradi.us` is verified (SPF/DKIM/DMARC). Use the
   dedicated **`reply_to` field** — a `headers: {"Reply-To": …}` map is silently
@@ -106,6 +109,15 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   `SHEETS_WEBAPP_URL`, `SHEETS_SHARED_SECRET`, `RESEND_API_KEY` — are Worker secrets
   (dashboard in prod; `.dev.vars` locally). **HSTS preload is active on
   `greenradi.us`** — the site must never go offline.
+- **Admin viewer read path.** `GET /api/admin/responses` (Worker) is gated by
+  **Cloudflare Access** (edge, email allowlist on `/admin*` + `/api/admin*`) and
+  additionally validates the Access JWT (`Cf-Access-Jwt-Assertion`, RS256 vs. the
+  team JWKS, `aud === CF_ACCESS_AUD`). It proxies the Apps Script `doGet` (same
+  `/exec`, shared secret) and returns sheet rows as JSON; the `/admin/` page
+  (`admin/index.html` + `admin/admin.jsx`, reusing `RadialBadge` + `fillsFromAnswers`
+  + `window.AdminAggregate`) shapes everything client-side. Read-only; the
+  `CF_ACCESS_AUD`/`CF_ACCESS_TEAM_DOMAIN` vars live in `wrangler.jsonc`. See
+  `docs/admin-setup.md`.
 
 ## Gotchas (hard-won)
 
