@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Green Radius — Admin</title>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="../game-data.js"></script>
+<script type="text/babel" src="../green-radius.jsx"></script>
+<script src="./aggregate.js"></script>
+<script type="text/babel" src="./admin.jsx"></script>
+</head>
+<body style="margin:0;background:#0e1712;color:#eaf2ec;font-family:system-ui,sans-serif">
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+  ReactDOM.createRoot(document.getElementById('root')).render(<AdminApp sectors={window.SECTORS} />);
+</script>
+</body>
+</html>
