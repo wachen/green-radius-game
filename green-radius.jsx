@@ -814,7 +814,7 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
 
       {/* the game board's hand-drawn dot hub where the spokes meet */}
       {showCenter && (
-        <circle cx={cx} cy={cy} r={size * 0.05} fill={dark ? '#ece3d3' : '#2a2620'}/>
+        <circle cx={cx} cy={cy} r={size * 0.065} fill={dark ? '#f6efe3' : '#2a2620'}/>
       )}
     </svg>
   );
