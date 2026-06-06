@@ -11,8 +11,8 @@ collective progress and **(D) review camp submissions** one at a time. Two tabs 
 `greenradi.us/admin/`, behind Cloudflare Access, reusing the game's components and the single
 `window.SECTORS` schema:
 
-- **Together** — the community tally (aggregate).
-- **City** — per-camp review (the camps that make up Black Rock City).
+- **City** — the community tally (aggregate).
+- **Camps** — per-camp review (the camps that make up Black Rock City).
 
 ## Audience & priorities
 
@@ -51,7 +51,7 @@ Browser /admin/  ──fetch──▶  Worker  GET /api/admin/responses
         │                      │  2. GET Apps Script doGet (shared secret, server-to-server)
         │                      │  3. return { rows:[…] } as JSON (no-store)
         └──────────────────────┘
-Browser: compute aggregates (Together) + render City list/detail — all client-side, one fetch.
+Browser: compute aggregates (City) + render Camps list/detail — all client-side, one fetch.
 ```
 
 The static `/admin/` assets are gated by Access at the edge; the Worker additionally validates the
@@ -63,8 +63,8 @@ JWT on the API because the response carries PII (emails).
   `green-radius.jsx` (for `RadialBadge`/`ShareCard` and the `sectorFill`/`fillsFromAnswers`
   helpers), and `admin/admin.jsx`; mounts `<AdminApp/>`. Mirrors `result/index.html`. (No
   `result-state.js`: the result link uses each row's stored `resultUrl`.)
-- **Create** `admin/admin.jsx` — the admin UI (text/babel): shell + tabs, the Together view, the
-  City view, the data hook, and pure aggregation helpers.
+- **Create** `admin/admin.jsx` — the admin UI (text/babel): shell + tabs, the City (aggregate)
+  view, the Camps view, the data hook, and pure aggregation helpers.
 - **Modify** `green-radius.jsx` — extend `RadialBadge` with two **optional, backward-compatible**
   capabilities (see below): an aggregate "heatmap" mode and click interactivity.
 - **Modify** `worker/index.js` — add `GET /api/admin/responses` (JWT verify + doGet proxy).
@@ -74,16 +74,16 @@ JWT on the API because the response carries PII (emails).
 
 ## Components
 
-- **`AdminApp`** — shell: header (brand, year filter defaulting to 2026, `Together | City` tabs),
+- **`AdminApp`** — shell: header (brand, year filter defaulting to 2026, `City | Camps` tabs),
   a `useResponses()` hook that fetches once and holds rows, tab routing, and loading / error /
   empty states. Owns the year + source filters (applied client-side).
-- **`CommunityTally`** (PII-free, `/stats/`-reusable) — the **Together** view. Renders the
+- **`CommunityTally`** (PII-free, `/stats/`-reusable) — the **City** view. Renders the
   collective `RadialBadge` (aggregate mode) with tap-through, the **Reaching Furthest** leaderboard,
   **Sector Standings**, the headline tally, and the momentum stat. Takes already-computed aggregates
   as props (no fetching, no PII beyond camp names — see note).
   - *`/stats/` note:* the **leaderboard names camps**, so it is a separable sub-piece that a public
     page can hide or anonymize; the radius + standings + tally are public-safe as-is.
-- **`CityView`** — per-camp review. A searchable / sortable list (+ source filter) → a detail panel:
+- **`CampsView`** — per-camp review. A searchable / sortable list (+ source filter) → a detail panel:
   the camp's own `RadialBadge` (boolean mode) + total, every answer as compact ✓/✗ tokens grouped by
   sector (gold ★ on maxed sectors), Level-4 picked topics named, and actions **Email** (mailto) +
   **Green Radius result link** (their `/result/#…` page — the `resultUrl` stored on the row).
@@ -97,9 +97,9 @@ Today `RadialBadge` renders one camp's boolean per-question fills in the level c
 
 1. **Aggregate / heatmap mode** — accept a per-segment **intensity (0–1)**; render each segment in
    its level color at opacity ∝ intensity. Used by the collective radius. Boolean mode is unchanged
-   and still used by City detail (a single camp) and `result/`.
+   and still used by Camps detail (a single camp) and `result/`.
 2. **Interactivity** — optional `onSelectSector` / `onSelectSegment` callbacks + a highlighted slice,
-   for the Together tap-through (overview → sector → question). Non-interactive by default.
+   for the City tap-through (overview → sector → question). Non-interactive by default.
 
 All new props are optional, so `result/index.html` and the game render exactly as before.
 
@@ -153,9 +153,9 @@ keeping the web-app access setting unchanged from `doPost`; the shared secret + 
 
 Mobile-first; desktop reflows to **denser**, not bigger.
 
-- **Together:** mobile = circle then stacked text with tap-to-reveal question detail; desktop =
+- **City:** mobile = circle then stacked text with tap-to-reveal question detail; desktop =
   circle beside an all-visible stats panel (less tapping).
-- **City:** mobile = list → full-screen detail (back); desktop = two-pane (list + detail, mail-client
+- **Camps:** mobile = list → full-screen detail (back); desktop = two-pane (list + detail, mail-client
   style).
 - Layout switches via CSS media queries / a width hook in `admin.jsx`.
 
@@ -166,10 +166,10 @@ Mobile-first; desktop reflows to **denser**, not bigger.
 - **403** (defensive; shouldn't occur behind Access): "Not authorized."
 - **No responses for the year:** empty state ("No camps yet for 2026").
 - **Granular data absent** (before PR #32 + the Apps Script `doPost` update):
-  - *City detail* — radius (an approximate contiguous fill from the sector totals when `answers`
+  - *Camps detail* — radius (an approximate contiguous fill from the sector totals when `answers`
     are absent), scores, metadata, and contact all render; the ✓/✗ token grid is replaced by
     "Per-answer detail appears once granular capture is live."
-  - *Together* — leaderboard, Sector Standings, and the tally render from `greens`; the per-question
+  - *City* — leaderboard, Sector Standings, and the tally render from `greens`; the per-question
     Yes-rate detail and the radius heatmap shading show an "awaiting data" treatment (uniform shading
     + note).
 - **Mixed schema** (legacy `greens` 0–4 rows vs. post-#32 0–10): the viewer targets the **0–10**
@@ -206,8 +206,8 @@ Mobile-first; desktop reflows to **denser**, not bigger.
 - **Worker:** JWT verification unit (valid passes; bad `aud` / expired / missing → 403); doGet proxy
   shaping (maps columns, parses `answers_json`, tolerates blanks).
 - **Playwright (bun + chromium):** load `/admin/` with a **mocked** `/api/admin/responses`
-  (sample rows, with and without `answers_json`) → Together aggregates correct + tap-through works;
-  City search/sort + detail (radius, ✓/✗ tokens, Email mailto href, result-link href); test at
+  (sample rows, with and without `answers_json`) → City aggregates correct + tap-through works;
+  Camps search/sort + detail (radius, ✓/✗ tokens, Email mailto href, result-link href); test at
   desktop **and** mobile viewports; assert no page errors.
 
 ## Open questions / assumptions
