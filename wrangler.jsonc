@@ -14,7 +14,7 @@
     "nodejs_compat"
   ],
   "vars": {
-    "CF_ACCESS_AUD": "REPLACE_WITH_ACCESS_AUD_TAG",
-    "CF_ACCESS_TEAM_DOMAIN": "yourteam.cloudflareaccess.com"
+    "CF_ACCESS_AUD": "c30dd9d3b7e715f2ceb6d5064b6225916a4ba3e17c426df217d8cfc1324fdae3",
+    "CF_ACCESS_TEAM_DOMAIN": "cool-night-a114.cloudflareaccess.com"
   }
 }

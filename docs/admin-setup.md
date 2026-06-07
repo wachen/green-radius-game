@@ -40,13 +40,27 @@ deployments → edit → New version) — same `/exec` URL, same secret.
 
 ## 2. Cloudflare Access (gates the page)
 
-1. Zero Trust → Access → Applications → **Add → Self-hosted**. Domain `greenradi.us`,
-   paths `/admin` and `/api/admin`.
-2. **Policy:** Allow → Emails → the GTCC team addresses (login via Google or one-time PIN).
-3. Copy the application **Audience (AUD)** tag and your team domain
-   (`<team>.cloudflareaccess.com`).
-4. Put them in `wrangler.jsonc` `vars` (`CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`) and
-   deploy. They are **not** secrets.
+Zero Trust → Access → **Applications → Add an application → Self-hosted**. The current
+dashboard uses a **Destinations** model (one app can have up to 5; they share one policy):
+
+1. **Destinations** — add two *Public hostname* destinations on the same app. Leave
+   Subdomain blank for both:
+   - Domain `greenradi.us`, Path `admin`  → protects `/admin` and everything under it.
+   - Domain `greenradi.us`, Path `api/admin`  → protects the Worker read route.
+
+   ⚠️ **Never leave Path empty** — an empty path gates the *entire* site (the game,
+   `/result/`, everything), which would break public play. Browser-rendered SSH/VNC/RDP
+   stay **off**.
+2. **Identity** — "Accept all available identity providers" is fine; the built-in
+   **One-time PIN** (email code) works with no external IdP to configure.
+3. **Policy** — Action **Allow**, Include → **Emails** → the specific GTCC admin
+   addresses (do *not* use "Everyone"). Session duration ~24h.
+4. After the app is created, open it (**Configure**) and copy the **Application Audience
+   (AUD)** tag and your **team domain** (`<team>.cloudflareaccess.com`, bare host — no
+   `https://`, no trailing slash).
+5. Put both into `wrangler.jsonc` `vars` (`CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`) and
+   deploy. They are **not** secrets (they only let the Worker *verify* a token, never mint
+   one), so committing them is fine.
 
 Without these, the Worker returns 403 (Access not configured) and the page won't
 load — by design. The viewer is also graceful: until `Answers JSON` has data, the
