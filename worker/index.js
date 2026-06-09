@@ -135,7 +135,11 @@ async function handleAdminResponses(request, env) {
   const r = await fetch(u, { redirect: 'follow' });
   if (!r.ok) return json({ error: 'sheet_unavailable' }, 502);
   const data = await r.json().catch(() => ({}));
-  const rows = shapeAdminRows(data.rows || []);
+  // A 200 with a non-array payload means the Apps Script returned an HTML error/
+  // login page or {ok:false,...} (e.g. a rotated secret) — treat it as a failure
+  // so the admin UI shows a retryable error instead of a misleading "No camps yet".
+  if (!Array.isArray(data.rows)) return json({ error: 'sheet_bad_payload' }, 502);
+  const rows = shapeAdminRows(data.rows);
   return new Response(JSON.stringify({ rows, count: rows.length }), {
     status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });

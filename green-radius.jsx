@@ -3,6 +3,30 @@
 
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
+// Shared modal a11y: lock background scroll while open, and trap Tab focus inside
+// the dialog so keyboard/SR users can't wander onto the obscured page behind it.
+function useModalA11y(ref) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const onKey = (e) => {
+      if (e.key !== 'Tab') return;
+      const f = node.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex="-1"])');
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    node.addEventListener('keydown', onKey);
+    return () => node.removeEventListener('keydown', onKey);
+  }, [ref]);
+}
+
 // ─── persistence ──────────────────────────────────────────────────────────────
 // Saves the in-progress game so a refresh resumes where you left off.
 // Bump STORAGE_VERSION when the saved shape changes so old saves are discarded
@@ -250,6 +274,8 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
 
       <svg
         width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`}
+        role="img"
+        aria-label={`Green radius wheel. ${sectors.map(s => `${s.name} ${(fills[s.id] && fills[s.id].totalYes) || 0} of 10`).join(', ')}.`}
         style={{
           display: 'block',
           transform: `rotate(${rotation}deg)`,
@@ -392,6 +418,7 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
   const [pickedTopicIds, setPickedTopicIds] = useState([]); // tier 4 only
   const [topicId, setTopicId] = useState(''); // tier 4 dropdown selection
   const cardRef = useRef(null);
+  useModalA11y(cardRef); // scroll-lock + Tab focus trap
   // Move focus into the dialog on open. The Spin button the player just pressed
   // gets disabled as the modal mounts, which otherwise drops focus to <body> and
   // strands keyboard / screen-reader users. aria-live on the question (below)
@@ -526,6 +553,7 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
             <select
               value={topicId}
               onChange={e => setTopicId(e.target.value)}
+              aria-label="Pick an advanced topic"
               style={{
                 width: '100%', padding: '14px 14px', borderRadius: 12,
                 border: `1.5px solid ${palette.text}22`,
@@ -650,7 +678,7 @@ function ResultToast({ kind, sector, greens, palette, onClose }) {
   const anyGreen = isDone && greens > 0;
 
   return (
-    <div style={{
+    <div role="status" aria-live="polite" style={{
       position: 'fixed', inset: 0, zIndex: 9, pointerEvents: 'none',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       animation: 'qm-fade 0.25s ease',
@@ -752,9 +780,10 @@ function Celebration({ sector, palette, onDone }) {
 
 // ─── radial badge (final result) ──────────────────────────────────────────────
 // Grid of green ring-cells: each sector shows its 4 levels as concentric arcs.
-// No gaps between sectors — a sector reads as a continuous radial wedge whose
-// outer reach equals its scored depth (contiguous green prefix). Adjacent sectors share
-// boundaries so the green area forms a single silhouette.
+// Fill is per-question: each level's ring lights one segment per Yes in that
+// level's color, gaps allowed (an early No just leaves its segment empty, no
+// compensation). Adjacent sectors share boundaries so the lit area still reads
+// as one silhouette.
 function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false,
                        intensities = null, onSelectSegment = null, selected = null, centerLabel = null }) {
   const cx = size / 2, cy = size / 2;
@@ -1015,7 +1044,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How do I play?',
-    a: 'Spin the wheel to draw a sector, then answer its yes/no questions across four levels from easiest to hardest. Every "yes" earns a point, and your point total sets how far that sector reaches — so a single "no" early on no longer stops you; later "yes" answers make up for it. Six spins (one per sector) complete your Green Radius.',
+    a: 'Spin the wheel to draw a sector, then answer its yes/no questions across four levels from easiest to hardest. Every yes lights its own segment of that sector, so an early no never blocks later progress, and your score is simply how many segments you light. Six spins (one per sector) complete your Green Radius.',
   },
   {
     q: 'Do I need to both play the game and fill out the form?',
@@ -1079,6 +1108,8 @@ function FaqButton({ onClick, palette, btnRef, expanded }) {
 
 function FaqModal({ onClose, palette }) {
   const closeRef = useRef(null);
+  const dialogRef = useRef(null);
+  useModalA11y(dialogRef); // scroll-lock + Tab focus trap
   // Focus the close button once on open; keep the Escape listener in its own
   // effect so a changing onClose can't re-trigger the focus.
   useEffect(() => { closeRef.current?.focus(); }, []);
@@ -1100,6 +1131,7 @@ function FaqModal({ onClose, palette }) {
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog" aria-modal="true" aria-labelledby="faq-title"
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -1121,7 +1153,7 @@ function FaqModal({ onClose, palette }) {
           <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3, padding: '0 30px' }}>Frequently Asked Questions</div>
           <button
             ref={closeRef} onClick={onClose} aria-label="Close"
-            style={{ position: 'absolute', top: 16, right: 0, border: 'none', background: palette.text + '0f', width: 30, height: 30, borderRadius: '50%', fontSize: 14, cursor: 'pointer', color: palette.text, lineHeight: 1 }}
+            style={{ position: 'absolute', top: 12, right: 0, border: 'none', background: palette.text + '0f', width: 40, height: 40, borderRadius: '50%', fontSize: 15, cursor: 'pointer', color: palette.text, lineHeight: 1 }}
           >✕</button>
         </div>
 
@@ -1246,6 +1278,7 @@ function ModePicker({ onPick, palette }) {
           href={BOARD_GAME_PDF_URL}
           download
           style={{
+            display: 'inline-block', padding: '10px 4px',
             color: palette.text + '99', fontSize: 11, fontWeight: 600,
             letterSpacing: '0.12em', textTransform: 'uppercase',
             textDecoration: 'underline',
@@ -1257,6 +1290,7 @@ function ModePicker({ onPick, palette }) {
           href={HOW_TO_PLAY_PDF_URL}
           download
           style={{
+            display: 'inline-block', padding: '10px 4px',
             color: palette.text + '99', fontSize: 11, fontWeight: 600,
             letterSpacing: '0.12em', textTransform: 'uppercase',
             textDecoration: 'underline',
@@ -1565,7 +1599,7 @@ function YesNoRow({ qid, text, subtext, answer, setAnswer, palette, missing }) {
     border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
     letterSpacing: '0.12em', textTransform: 'uppercase',
     padding: '8px 14px', borderRadius: 8, fontFamily: 'inherit',
-    minWidth: 56,
+    minWidth: 56, minHeight: 44, // WCAG 2.5.5 touch target (pressed up to 60x/game)
   };
   return (
     <div style={{
@@ -1723,13 +1757,15 @@ function Field({ label, value, onChange, placeholder, palette, required, invalid
   return (
     <label style={{ display: 'block' }}>
       <div style={{ fontSize: 10, letterSpacing: '0.15em', fontWeight: 700, color: palette.text + '99', marginBottom: 4 }}>
-        {label.toUpperCase()}{required && <span style={{ color: palette.accentDark, marginLeft: 3 }}>*</span>}
+        {label.toUpperCase()}{required && <span aria-hidden="true" style={{ color: palette.accentDark, marginLeft: 3 }}>*</span>}
       </div>
       <input
         type={type || 'text'}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
+        required={required}
+        aria-invalid={invalid || undefined}
         inputMode={isEmail ? 'email' : undefined}
         autoCapitalize={isEmail ? 'none' : undefined}
         autoCorrect={isEmail ? 'off' : undefined}
@@ -1779,6 +1815,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const cardSvgRef = useRef(null);   // offscreen ResultCardSVG, serialized on Download
   const autoSentRef = useRef(false); // guards the one-shot auto-email on the done screen
   const submitGenRef = useRef(0);    // bumped on Exit/new game so a stale in-flight POST can't write back
+  const spinTimerRef = useRef(null); // the spin->open-modal timeout; cleared on reset so it can't fire into the next game
 
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -1901,16 +1938,17 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
     const reduceMotion = window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    setTimeout(() => {
+    clearTimeout(spinTimerRef.current);
+    spinTimerRef.current = setTimeout(() => {
       setSpinning(false);
       setActiveQuestion({ sector: target });
     }, reduceMotion ? 500 : 4300);
   }, [sectors, sectorClosed, rotation]);
 
   // The player answered every question of a sector. Build the per-question
-  // answer map (T1–T3 by question id; Tier-4 keyed by the picked topic id),
-  // merge it into the shared `answers` state, and score via cumulative bands —
-  // a single early No no longer zeroes the sector; later Yes answers compensate.
+  // answer map (T1–T3 by question id; Tier-4 keyed by the picked topic id) and
+  // merge it into the shared `answers` state. Scoring is per-question: each Yes
+  // lights its own segment, gaps allowed, so totalYes is just the Yes count (0–10).
   function handleAnswers(answersByLevel, pickedTopicIds = []) {
     const { sector } = activeQuestion;
     const sectorAns = {};
