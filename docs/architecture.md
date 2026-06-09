@@ -60,9 +60,13 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
    - **`POST /api/complete`** — `{campName, email, year, greens, mode, answers,
      schemaVersion, resultUrl}`. `greens` is now 0–10 per sector; `answers` (the full
      map) is backend-only (→ sheet `answers_json`).
-4. **Worker** (`worker/index.js`) validates (origin check, body-size cap,
-   honeypot, required `campName`+`email`, email regex), then does two things
-   **independently, best-effort, in parallel**, and returns `{sheet, email}`.
+4. **Worker** (`worker/index.js`) validates (**fail-closed** origin check —
+   absent/foreign Origin is rejected — body-size cap, honeypot, required
+   `campName`+`email`, email regex, per-field length caps, and
+   spreadsheet-formula sanitization of the name/email cells via `sheetCell`),
+   then does two things **independently, best-effort, in parallel**, and returns
+   `{sheet, email}`. NOTE: these gates only deter casual scripted abuse; the
+   actual rate-limit is a Cloudflare WAF rule (owner-side, not in-repo).
 5. **`/result/`** (`result/index.html`) decodes the hash to `fills` and renders
    `<ShareCard fills=… >` read-only (legacy v1 `greens` links fall back to a
    contiguous fill).
@@ -84,6 +88,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 - **`safeResultUrl`** pins the emailed link to host `greenradi.us`/`localhost` +
   path `/result/` and escapes the href — don't loosen it (anti-XSS/phishing in the
   outbound email).
+- **`sheetCell` / length caps** neutralize submitted free text before it reaches
+  the sheet: campName/leadName ≤ 80, email ≤ 254, and any value starting with
+  `= + - @` (a Google Sheets formula trigger) gets a leading `'`. Keep names
+  flowing through `sheetCell` — it's the anti-formula-injection guard.
 
 ## External integrations
 
@@ -110,6 +118,18 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   `SHEETS_WEBAPP_URL`, `SHEETS_SHARED_SECRET`, `RESEND_API_KEY` — are Worker secrets
   (dashboard in prod; `.dev.vars` locally). **HSTS preload is active on
   `greenradi.us`** — the site must never go offline.
+- **`.assetsignore` gates what is served.** Because `assets.directory = "."`, the
+  whole repo root would otherwise be public. `.assetsignore` (NOT `.gitignore` —
+  wrangler ignores `.gitignore` for assets) excludes `.git`, `.dev.vars*`,
+  `.claude/`, `.remember/`, `.superpowers/`, and editor junk, so neither the
+  git-checkout deploy nor a local `wrangler deploy` can publish history or
+  secrets. After any deploy, sanity-check `curl -sI https://greenradi.us/.git/config`
+  returns 404.
+- **CDN scripts are SRI-pinned.** React/ReactDOM/`@babel/standalone` load from
+  unpkg with `integrity="sha384-…"` in all three HTML entry points. If you bump a
+  version, recompute the hash (`curl -sL <url> | openssl dgst -sha384 -binary |
+  openssl base64 -A`) or the script silently fails to load — a wrong/stale hash
+  blanks the page.
 - **Admin viewer read path.** `GET /api/admin/responses` (Worker) is gated by
   **Cloudflare Access** (edge, email allowlist on `/admin*` + `/api/admin*`) and
   additionally validates the Access JWT (`Cf-Access-Jwt-Assertion`, RS256 vs. the

@@ -342,7 +342,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
           position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
           width: 96, height: 96, borderRadius: '50%', border: 'none',
           background: spinning ? palette.hub : palette.accent,
-          color: palette.bg,
+          color: spinning ? palette.bg : '#2a2620', // dark label on the green passes WCAG AA (8.8:1); light on the dark hub while spinning
           fontSize: 13, fontWeight: 800, letterSpacing: '0.12em',
           textTransform: 'uppercase',
           cursor: canSpin && !spinning ? 'pointer' : 'default',
@@ -391,6 +391,12 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
   const [answersByLevel, setAnswersByLevel] = useState([[], [], [], []]);
   const [pickedTopicIds, setPickedTopicIds] = useState([]); // tier 4 only
   const [topicId, setTopicId] = useState(''); // tier 4 dropdown selection
+  const cardRef = useRef(null);
+  // Move focus into the dialog on open. The Spin button the player just pressed
+  // gets disabled as the modal mounts, which otherwise drops focus to <body> and
+  // strands keyboard / screen-reader users. aria-live on the question (below)
+  // announces each new question as the player advances.
+  useEffect(() => { cardRef.current?.focus(); }, []);
 
   const isTier4 = level === 3;
   const questions = sector.levels[level] || [];
@@ -437,7 +443,9 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
       animation: 'qm-fade 0.25s ease',
       overflowY: 'auto',
     }}>
-      <div style={{
+      <div
+        ref={cardRef} role="dialog" aria-modal="true" aria-labelledby="qm-tag" tabIndex={-1}
+        style={{
         background: palette.card,
         color: palette.text,
         borderRadius: 24,
@@ -448,8 +456,8 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
         animation: 'qm-up 0.3s cubic-bezier(0.2,0.8,0.2,1)',
         maxHeight: '92vh', overflowY: 'auto',
       }}>
-        {/* sector tag */}
-        <div style={{
+        {/* sector tag — also the dialog's accessible name (aria-labelledby) */}
+        <div id="qm-tag" style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
           background: '#3a2a20', color: '#f0eee9',
           padding: '6px 12px', borderRadius: 999,
@@ -550,9 +558,9 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
           </div>
         )}
 
-        {/* Question content */}
+        {/* Question content — aria-live so each new question is announced as the player advances */}
         {q && (
-          <>
+          <div aria-live="polite" aria-atomic="true">
             <div style={{
               fontSize: 11, letterSpacing: '0.15em', fontWeight: 700,
               color: '#5BA84A', marginBottom: 6,
@@ -612,7 +620,7 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
                 style={{
                   flex: 1, padding: '14px 0', borderRadius: 14,
                   border: 'none',
-                  background: '#5BA84A', color: '#fff',
+                  background: '#5BA84A', color: '#2a2620', // dark label passes AA (~5:1); white was 2.94:1
                   fontSize: 15, fontWeight: 700, letterSpacing: '0.05em',
                   cursor: 'pointer',
                   textTransform: 'uppercase',
@@ -620,7 +628,7 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
                 }}
               >Yes</button>
             </div>
-          </>
+          </div>
         )}
 
         <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: palette.text + '99' }}>
@@ -1030,7 +1038,7 @@ const FAQ_ITEMS = [
         Dig into the full guidance for every area and level in the Green Theme Camp Community's Resource Guide.<br/>
         <a href={RESOURCE_GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{
           display: 'inline-block', marginTop: 8,
-          background: '#7AB85C', color: '#fff', fontWeight: 700, fontSize: 13,
+          background: '#7AB85C', color: '#2a2620', fontWeight: 700, fontSize: 13,
           padding: '8px 13px', borderRadius: 11, boxShadow: '0 4px 0 #558040',
           textDecoration: 'none',
         }}>Open the Resource Guide →</a>
@@ -1172,7 +1180,7 @@ function ModePicker({ onPick, palette }) {
         aria-label="Play the game in board game mode"
         style={{
           ...tileBase,
-          background: palette.accent, color: '#fff',
+          background: palette.accent, color: '#2a2620',
           boxShadow: `0 5px 0 ${palette.accentDark}`,
         }}
       >
@@ -1422,7 +1430,7 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
               letterSpacing: '0.1em', textTransform: 'uppercase', minHeight: 52,
               cursor: !allComplete ? 'default' : 'pointer',
               background: !allComplete ? palette.text + '33' : palette.accent,
-              color: '#fff',
+              color: !allComplete ? palette.text + 'aa' : '#2a2620',
               boxShadow: !allComplete ? 'none' : `0 4px 0 ${palette.accentDark}`,
             }}
           >Submit →</button>
@@ -1665,7 +1673,7 @@ function Intro({ onStart, onBack, palette, description }) {
           width: '100%', padding: '16px', borderRadius: 14,
           border: 'none',
           background: palette.accent,
-          color: '#fff',
+          color: '#2a2620',
           fontSize: 14, fontWeight: 800, letterSpacing: '0.15em',
           textTransform: 'uppercase', cursor: 'pointer',
           boxShadow: `0 4px 0 ${palette.accentDark}`,
@@ -1766,9 +1774,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const fills = useMemo(() => fillsFromAnswers(sectors, answers), [sectors, answers]);
   const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
   const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
+  const [submitResult, setSubmitResult] = useState(null); // { sheet:'ok'|'err', email:'sent'|'err' } from the last POST
   const [copied, setCopied] = useState(false);
   const cardSvgRef = useRef(null);   // offscreen ResultCardSVG, serialized on Download
   const autoSentRef = useRef(false); // guards the one-shot auto-email on the done screen
+  const submitGenRef = useRef(0);    // bumped on Exit/new game so a stale in-flight POST can't write back
 
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -1789,13 +1799,12 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     }
   }, [phase, allDone, celebration]);
 
-  // On the result screen, email the player their card once — using the address
-  // captured at start (camp.email). submittedAt (persisted) prevents re-sending
-  // across reloads; autoSentRef guards against a double-fire within a session.
-  useEffect(() => {
-    if (phase !== 'done') return;
-    if (submittedAt) { setSubmitState('done'); return; }
-    if (autoSentRef.current) return;
+  // POST the result: append the row + email the card. The Worker reports the two
+  // outcomes independently ({sheet, email}), so we keep them separate and tell the
+  // player the truth rather than collapsing both into "sent". A generation token
+  // (submitGenRef) voids a stale in-flight request if the player exits mid-send.
+  const runSubmit = useCallback(() => {
+    const gen = ++submitGenRef.current;
     autoSentRef.current = true;
     fontEmbedCss(); // warm the font cache so the Download button is snappy
     (async () => {
@@ -1805,7 +1814,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       const resultUrl = window.location.origin + '/result/#' +
         window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
       const email = (camp.email || '').trim();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setSubmitState('error'); return; }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { if (gen === submitGenRef.current) setSubmitState('error'); return; }
       setSubmitState('sending');
       try {
         const res = await fetch('/api/complete', {
@@ -1820,11 +1829,26 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           }),
         });
         const j = await res.json();
-        if (j.email === 'sent' || j.sheet === 'ok') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); }
+        if (gen !== submitGenRef.current) return; // stale: player exited or started over
+        setSubmitResult({ sheet: j.sheet, email: j.email });
+        // "done" = at least one channel landed, so we stop auto-retrying on reload.
+        // The per-channel copy + the Try-again button surface any partial failure.
+        if (j.sheet === 'ok' || j.email === 'sent') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); }
         else setSubmitState('error');
-      } catch { setSubmitState('error'); }
+      } catch {
+        if (gen === submitGenRef.current) setSubmitState('error');
+      }
     })();
-  }, [phase, submittedAt]);
+  }, [sectors, answers, camp, fills, mode]);
+
+  // Fire the submit once when the done screen first appears. submittedAt (persisted)
+  // prevents re-sending across reloads; autoSentRef guards a double-fire in-session.
+  useEffect(() => {
+    if (phase !== 'done') return;
+    if (submittedAt) { setSubmitState('done'); return; }
+    if (autoSentRef.current) return;
+    runSubmit();
+  }, [phase, submittedAt, runSubmit]);
 
   // Persist on every meaningful state change. On the mode-picker / intro screens
   // there's nothing in flight, so clear the slot — that way "Exit" (→ pick-mode)
@@ -1987,7 +2011,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
     const email = (camp.email || '').trim();
     const slug = (camp.campName || 'theme-camp').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'theme-camp';
-    const sent = submitState === 'done' || !!submittedAt;
+    const needsRetry = submitState === 'error' || (submitResult && submitResult.email !== 'sent');
 
     async function handleShare() {
       try {
@@ -1999,7 +2023,16 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       if (!cardSvgRef.current) return;
       try { await downloadSvgAsPng(cardSvgRef.current, `green-radius-${slug}.png`); } catch {}
     }
+    function handleRetry() {
+      setSubmitResult(null);
+      runSubmit(); // bumps the generation token, re-runs the POST
+    }
     function handleExit() {
+      // Nothing landed yet (offline / total failure) and Exit wipes the save —
+      // confirm first so a stray tap can't destroy the only copy of the result.
+      const safe = submitState === 'done' || !!submittedAt;
+      if (!safe && !confirm("Your results haven't been emailed yet. Exit and discard them?")) return;
+      submitGenRef.current++; // void any in-flight POST so it can't write back after reset
       clearSaved();
       autoSentRef.current = false;
       setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
@@ -2009,6 +2042,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setCamp({ campName: '', leadName: '', email: '' });
       setSubmittedAt(null);
       setSubmitState('idle');
+      setSubmitResult(null);
       setPhase('pick-mode');
     }
 
@@ -2027,18 +2061,20 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           <ResultCardSVG svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year}/>
         </div>
 
-        <div role="status" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
-          {sent
-            ? <>Thank you for participating! Your results were sent to <strong>{email}</strong> (please check spam).</>
+        <div role="status" aria-live="polite" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
+          {submitState === 'sending'
+            ? <>Thank you for participating! Emailing your results to <strong>{email}</strong>…</>
             : submitState === 'error'
-              ? <>Thank you for participating! We couldn't email your results just now — you can still download your card or copy the share link below.</>
-              : <>Thank you for participating! Emailing your results to <strong>{email}</strong>…</>}
+              ? <>Thank you for participating! We couldn't reach the server just now. Your card is safe: download it or copy the share link below, then tap Try again.</>
+              : submitResult && submitResult.email !== 'sent'
+                ? <>Thank you for participating! You're counted in the community tally, but we couldn't email your card just now. Download it or copy the share link below.</>
+                : <>Thank you for participating! Your results were sent to <strong>{email}</strong> (please check spam).</>}
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={handleDownload}
             style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
-              background: palette.accent, color: '#fff', fontSize: 13, fontWeight: 800,
+              background: palette.accent, color: '#2a2620', fontSize: 13, fontWeight: 800,
               letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
               boxShadow: `0 3px 0 ${palette.accentDark}` }}>
             ⬇ Download
@@ -2050,6 +2086,16 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             {copied ? 'Link copied!' : '🔗 Share link'}
           </button>
         </div>
+
+        {needsRetry && (
+          <button onClick={handleRetry} disabled={submitState === 'sending'}
+            style={{ marginTop: 12, width: '100%', padding: '12px 0', borderRadius: 12,
+              border: `1.5px solid ${palette.text}33`, background: 'transparent', color: palette.text,
+              fontSize: 13, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
+              cursor: submitState === 'sending' ? 'default' : 'pointer', opacity: submitState === 'sending' ? 0.6 : 1 }}>
+            {submitState === 'sending' ? 'Sending…' : '↻ Try again'}
+          </button>
+        )}
 
         <button onClick={handleExit}
           style={{ marginTop: 16, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>

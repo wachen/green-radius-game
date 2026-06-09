@@ -1,0 +1,35 @@
+# Files that must NOT be published as static assets.
+# wrangler's asset uploader does NOT honor .gitignore — only THIS file. Because
+# `assets.directory = "."` (wrangler.jsonc) serves the whole repo root, anything
+# left out of here is reachable at https://greenradi.us/<path>.
+#
+# Two things this prevents:
+#   1. Serving the build checkout's .git/ (full history was downloadable live).
+#   2. A local `npx wrangler deploy` publishing .dev.vars secrets + local state.
+# After changing this, verify: `curl -so /dev/null -w '%{http_code}' https://greenradi.us/.git/config` → 404
+
+# Version control internals
+.git
+.gitignore
+.gitattributes
+
+# Secrets and local env (never serve — these hold the live API keys locally)
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.env
+.env.*
+
+# Local tooling / agent state (gitignored, but belt-and-suspenders for local deploys)
+.claude
+.remember
+.superpowers
+.wrangler
+.vercel
+
+# Editor / OS junk
+.DS_Store
+.vscode
+.idea
+node_modules
+*.log
