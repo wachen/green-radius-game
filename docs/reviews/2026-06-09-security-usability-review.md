@@ -160,15 +160,17 @@ text swapped with no live region.
   question on open and on each step, and the prompt is wrapped in an
   `aria-live="polite"` region.
 
-### A2 — Primary CTAs fail WCAG AA contrast · HIGH · ✅(buttons)/⏭️(text links)
-Spin label was **1.96:1**; white-on-green CTAs (Yes 2.94:1; Start/Download/
+### A2 — Primary CTAs fail WCAG AA contrast · HIGH · ⏭️
+Spin label is **1.96:1**; white-on-green CTAs (Yes 2.94:1; Start/Download/
 Submit/mode-tile/FAQ-resource ~2.38:1). Doubly bad in desert sun.
-- ✅ All green-fill CTA labels switched to near-black (`#2a2620`), which passes
-  AA on the existing greens (Spin 8.8:1, Yes ~5.0:1) without changing the fills
-  or the 3-D shadows. **Preview on the branch** before merging — it's a
-  deliberate dark-on-green look.
-- ⏭️ Green *text links* on white (STEP codes, resource links ~2.82:1) still fail
-  for small text; deferred to a previewed palette-legibility pass.
+- A dark-on-green label fix was tried in PR #35 but **reverted** — the dark
+  labels didn't read well, so the green buttons keep their white labels and the
+  contrast gap is still open.
+- ⏭️ Deferred to a **previewed palette-legibility pass**: keep white labels and
+  instead darken the green button *fills* (e.g. `#558040`/`#4d7a3a`, which pass
+  AA with white text) rather than darkening the text. Same pass covers the green
+  *text links* on white (STEP codes, resource links ~2.82:1). The focus-ring fix
+  (A3) and the modal dialog semantics (A1) shipped and are unaffected.
 
 ### A3 — Focus ring green-on-beige at 1.96:1 · MEDIUM · ✅
 The only focus styling was a `#7AB85C` outline, invisible on the beige bg.

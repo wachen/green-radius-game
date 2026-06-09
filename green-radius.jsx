@@ -342,7 +342,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
           position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
           width: 96, height: 96, borderRadius: '50%', border: 'none',
           background: spinning ? palette.hub : palette.accent,
-          color: spinning ? palette.bg : '#2a2620', // dark label on the green passes WCAG AA (8.8:1); light on the dark hub while spinning
+          color: palette.bg,
           fontSize: 13, fontWeight: 800, letterSpacing: '0.12em',
           textTransform: 'uppercase',
           cursor: canSpin && !spinning ? 'pointer' : 'default',
@@ -620,7 +620,7 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
                 style={{
                   flex: 1, padding: '14px 0', borderRadius: 14,
                   border: 'none',
-                  background: '#5BA84A', color: '#2a2620', // dark label passes AA (~5:1); white was 2.94:1
+                  background: '#5BA84A', color: '#fff',
                   fontSize: 15, fontWeight: 700, letterSpacing: '0.05em',
                   cursor: 'pointer',
                   textTransform: 'uppercase',
@@ -1038,7 +1038,7 @@ const FAQ_ITEMS = [
         Dig into the full guidance for every area and level in the Green Theme Camp Community's Resource Guide.<br/>
         <a href={RESOURCE_GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{
           display: 'inline-block', marginTop: 8,
-          background: '#7AB85C', color: '#2a2620', fontWeight: 700, fontSize: 13,
+          background: '#7AB85C', color: '#fff', fontWeight: 700, fontSize: 13,
           padding: '8px 13px', borderRadius: 11, boxShadow: '0 4px 0 #558040',
           textDecoration: 'none',
         }}>Open the Resource Guide →</a>
@@ -1180,7 +1180,7 @@ function ModePicker({ onPick, palette }) {
         aria-label="Play the game in board game mode"
         style={{
           ...tileBase,
-          background: palette.accent, color: '#2a2620',
+          background: palette.accent, color: '#fff',
           boxShadow: `0 5px 0 ${palette.accentDark}`,
         }}
       >
@@ -1430,7 +1430,7 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
               letterSpacing: '0.1em', textTransform: 'uppercase', minHeight: 52,
               cursor: !allComplete ? 'default' : 'pointer',
               background: !allComplete ? palette.text + '33' : palette.accent,
-              color: !allComplete ? palette.text + 'aa' : '#2a2620',
+              color: '#fff',
               boxShadow: !allComplete ? 'none' : `0 4px 0 ${palette.accentDark}`,
             }}
           >Submit →</button>
@@ -1673,7 +1673,7 @@ function Intro({ onStart, onBack, palette, description }) {
           width: '100%', padding: '16px', borderRadius: 14,
           border: 'none',
           background: palette.accent,
-          color: '#2a2620',
+          color: '#fff',
           fontSize: 14, fontWeight: 800, letterSpacing: '0.15em',
           textTransform: 'uppercase', cursor: 'pointer',
           boxShadow: `0 4px 0 ${palette.accentDark}`,
@@ -2074,7 +2074,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={handleDownload}
             style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
-              background: palette.accent, color: '#2a2620', fontSize: 13, fontWeight: 800,
+              background: palette.accent, color: '#fff', fontSize: 13, fontWeight: 800,
               letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
               boxShadow: `0 3px 0 ${palette.accentDark}` }}>
             ⬇ Download
