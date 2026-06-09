@@ -1887,21 +1887,21 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     runSubmit();
   }, [phase, submittedAt, runSubmit]);
 
-  // Persist on every meaningful state change. On the mode-picker / intro screens
-  // there's nothing in flight, so clear the slot — that way "Exit" (→ pick-mode)
-  // wipes the save, as does starting fresh from the intro.
+  // Persist only on the in-progress phases (playing / form / done). On the
+  // navigation screens (pick-mode / intro / form-intro) we do NOTHING — neither
+  // write nor clear — so tapping "✕ Close" to step back keeps the autosave the
+  // form promised. Clearing is now explicit: Exit and Reset call clearSaved().
+  // (activeSectorId lets a refresh mid-sector reopen that sector — see resume.)
   useEffect(() => {
-    if (phase === 'intro' || phase === 'form-intro' || phase === 'pick-mode') {
-      clearSaved();
-      return;
-    }
+    if (phase !== 'playing' && phase !== 'form' && phase !== 'done') return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORAGE_VERSION,
         phase, camp, sectorCursor, sectorClosed, answers, mode, submittedAt,
+        activeSectorId: (activeQuestion && activeQuestion.sector && activeQuestion.sector.id) || null,
       }));
     } catch {}
-  }, [phase, camp, sectorCursor, sectorClosed, answers, mode, submittedAt]);
+  }, [phase, camp, sectorCursor, sectorClosed, answers, mode, submittedAt, activeQuestion]);
 
   function setFormAnswer(qid, value) {
     setAnswers(prev => ({ ...prev, [qid]: value }));
@@ -1974,7 +1974,26 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     else setToast({ kind: 'sector-done', sector, greens: totalYes });
   }
 
+  // Wipe in-progress state for a clean start. Called when entering a DIFFERENT
+  // mode than the answers belong to, so a part-filled form can't bleed into a
+  // board game (sectorFill counts any Yes in the shared map) — but re-entering
+  // the same mode keeps the answers so an in-session resume still works.
+  function freshProgress() {
+    clearTimeout(spinTimerRef.current);
+    setSpinning(false);
+    setActiveQuestion(null);
+    setAnswers({});
+    setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
+    setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
+    setSubmittedAt(null);
+    setSubmitState('idle');
+    setSubmitResult(null);
+    autoSentRef.current = false;
+    submitGenRef.current++;
+  }
+
   function startGame(info) {
+    if (mode !== 'board') freshProgress();
     setCamp(info);
     setMode('board');
     setPhase('playing');
@@ -1990,6 +2009,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   }
 
   function startForm(info) {
+    if (mode !== 'form') freshProgress();
     setCamp(info);
     setMode('form');
     setPhase('form');
@@ -2236,9 +2256,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           onClick={() => {
             if (totalAttempted === 0) return;
             if (!confirm('Reset progress and start over?')) return;
-            setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; });
-            setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; });
-            setAnswers({});
+            freshProgress();
+            clearSaved(); // explicit now that the persist effect no longer auto-clears on pick-mode
             setMode(null);
             setPhase('pick-mode');
           }}
