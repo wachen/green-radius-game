@@ -41,10 +41,11 @@ To "test" a change: run the parse gate, then load it in a browser and play throu
 Full map is in `docs/architecture.md`; the essentials:
 
 - **Entry:** `index.html` loads React + `@babel/standalone`, defines `PALETTE`, and mounts `<GreenRadiusGame variant="flat-playa" palette={PALETTE}/>`.
-- **The whole game UI is one file:** `green-radius.jsx` (~1850 lines) — wheel, question modal, form mode, result/share card, done+email screen, home FAQ modal. Components reference each other by **bare name** within a shared Babel scope (see gotcha below).
+- **The whole game UI is one file:** `green-radius.jsx` (~2200 lines) — wheel, question modal, form mode, result/share card, done+email screen, home FAQ modal. Components reference each other by **bare name** within a shared Babel scope (see gotcha below).
 - **Two plain scripts create the only real globals:** `game-data.js` → `window.SECTORS` (6 sectors × 4 tiers of Yes/No content), `result-state.js` → `window.ResultState` (encode/decode a result to/from the URL hash).
-- **One Worker, one dynamic route:** `worker/index.js` handles `POST /api/complete` and serves everything else as static assets (`ASSETS` binding, `wrangler.jsonc`). The completion does two things best-effort in parallel — append a row to a Google Sheet (via an Apps Script web app) and email the player their result link (via Resend) — and returns `{ sheet, email }`.
+- **One Worker, two dynamic routes:** `worker/index.js` handles `POST /api/complete` and `GET /api/admin/responses`, and serves everything else as static assets (`ASSETS` binding, `wrangler.jsonc`). `/api/complete` does two things best-effort in parallel — append a row to a Google Sheet (via an Apps Script web app) and email the player their result link (via Resend) — and returns `{ sheet, email }`.
 - **Shareable result page:** `result/index.html` decodes the URL hash client-side and renders a read-only `<ShareCard>`. Works even with the Worker down.
+- **Admin viewer (internal):** `admin/` (`index.html` + `admin.jsx` + `aggregate.js`) is a read-only response viewer (City + Camps tabs) at `/admin/`, gated by **Cloudflare Access**; the Worker re-validates the Access JWT on `GET /api/admin/responses` before proxying the Apps Script `doGet`. Reuses `RadialBadge` like `result/` does. See `docs/admin-setup.md`.
 
 ## Conventions & gotchas that will bite you
 

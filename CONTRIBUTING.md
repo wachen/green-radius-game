@@ -31,7 +31,8 @@ No build step — the browser compiles the JSX in place via `@babel/standalone`.
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content (BLAST framework) |
 | `result-state.js`  | `window.ResultState` — encode/decode a result into the URL hash       |
 | `result/`          | Stateless shareable result page (renders a card from the hash)        |
-| `worker/index.js`  | Cloudflare Worker — `POST /api/complete`; all else served as static assets |
+| `admin/`           | Internal, Cloudflare Access–gated response viewer (City + Camps tabs); read-only |
+| `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses`; all else served as static assets |
 | `wrangler.jsonc`   | Worker + static-assets config                                         |
 | `_headers`         | Static-asset response headers (incl. HSTS)                            |
 | `downloads/`       | Printable board-game + how-to-play PDFs                               |
