@@ -16,9 +16,10 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
 - **No-build static app.** `index.html` loads React 18 + ReactDOM (UMD CDN) +
   `@babel/standalone`, which compiles the JSX *in the browser*, then mounts
   `<GreenRadiusGame/>`.
-- **One small Cloudflare Worker.** `worker/index.js` handles exactly one dynamic
-  route — `POST /api/complete` — and serves everything else as static assets (the
-  `ASSETS` binding in `wrangler.jsonc`, directory `.`).
+- **One small Cloudflare Worker.** `worker/index.js` handles two dynamic routes —
+  `POST /api/complete` (result capture) and the Access-gated
+  `GET /api/admin/responses` (admin viewer read path) — and serves everything else
+  as static assets (the `ASSETS` binding in `wrangler.jsonc`, directory `.`).
 - **Deploy = merge to `main`.** Cloudflare Workers + Static Assets auto-deploys
   `main` to https://greenradi.us. No staging environment.
 
