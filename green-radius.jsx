@@ -40,20 +40,67 @@ const HOW_TO_PLAY_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green
 const RESOURCE_GUIDE_URL = 'https://www.greenthemecampcommunity.org/resource-guide';
 const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 
+// Every valid question id in the current game (Levels 1–3 by question id +
+// Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
+function validQidSet(sectors) {
+  const set = new Set();
+  sectors.forEach(s => {
+    s.levels.slice(0, 3).forEach(level => (level || []).forEach(q => set.add(q.id)));
+    (s.tier4Topics || []).forEach(t => set.add(t.id));
+  });
+  return set;
+}
+
+function isCurrentShape(data, sectors) {
+  return data.version === STORAGE_VERSION && data.answers && typeof data.answers === 'object' &&
+    sectors.every(s =>
+      typeof (data.sectorCursor && data.sectorCursor[s.id]) === 'number' &&
+      typeof (data.sectorClosed && data.sectorClosed[s.id]) === 'boolean'
+    );
+}
+
+// Turn any saved blob into something usable. A current-shape save passes through.
+// An OLDER save is SALVAGED instead of silently discarded on a version bump (the
+// qid -> 'yes'/'no' answer map has been the stable contract): keep the camp + the
+// answers whose question ids still exist, recompute per-sector progress, and flag
+// `salvaged` so the UI can say so. A completed ('done') save or an unrecognizable
+// one returns null.
+function migrateSaved(data, sectors) {
+  if (!data || typeof data !== 'object') return null;
+  if (isCurrentShape(data, sectors)) return data;
+  if (data.phase === 'done') return null;            // result already captured; don't resurrect
+  if (!data.answers || typeof data.answers !== 'object') return null;
+
+  const valid = validQidSet(sectors);
+  const answers = {};
+  for (const k of Object.keys(data.answers)) {
+    const v = data.answers[k];
+    if (valid.has(k) && (v === 'yes' || v === 'no')) answers[k] = v;
+  }
+  const sectorClosed = {}, sectorCursor = {};
+  sectors.forEach(s => {
+    const fixed = s.levels.slice(0, 3).reduce((a, lvl) => a.concat(lvl || []), []);
+    const done = fixed.length > 0 && fixed.every(q => answers[q.id] === 'yes' || answers[q.id] === 'no');
+    sectorClosed[s.id] = done;
+    sectorCursor[s.id] = done ? 4 : 0;
+  });
+  const camp = (data.camp && typeof data.camp === 'object')
+    ? { campName: data.camp.campName || '', leadName: data.camp.leadName || '', email: data.camp.email || '' }
+    : { campName: '', leadName: '', email: '' };
+  const mode = data.mode === 'form' ? 'form' : 'board';
+  return {
+    version: STORAGE_VERSION,
+    phase: mode === 'form' ? 'form' : 'playing',
+    camp, sectorCursor, sectorClosed, answers, mode,
+    submittedAt: null, salvaged: true,
+  };
+}
+
 function loadSaved(sectors) {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (data.version !== STORAGE_VERSION) return null;
-    // Schema sanity: every current sector id must be present and well-typed
-    // in the saved arrays. If sectors changed, drop the save instead of
-    // mixing shapes — better to start fresh than glitch.
-    const ok = data.answers && typeof data.answers === 'object' && sectors.every(s =>
-      typeof data.sectorCursor?.[s.id] === 'number' &&
-      typeof data.sectorClosed?.[s.id] === 'boolean'
-    );
-    return ok ? data : null;
+    return migrateSaved(JSON.parse(raw), sectors);
   } catch {
     return null;
   }
@@ -407,14 +454,34 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
 // tier 2 (2q) → tier 3 (3q) → tier 4 (4 picks). The user always answers all
 // 10 — failures don't end the sector early. Final scoring (which levels go
 // green) is computed by the caller from the returned answersByLevel.
-function QuestionModal({ sector, onComplete, palette, variant }) {
+// Where to reopen a partly-answered sector: the first Level 1–3 question without
+// an answer, with the already-answered ones seeded so the progress dots show them.
+// If all six fixed questions are answered, reopen at the (optional) Tier 4.
+function resumePosition(sector, answers) {
+  const answersByLevel = [[], [], [], []];
+  for (let li = 0; li < 3; li++) {
+    const qs = sector.levels[li] || [];
+    for (let i = 0; i < qs.length; i++) {
+      const a = answers[qs[i].id];
+      if (a === 'yes' || a === 'no') answersByLevel[li].push(a === 'yes');
+      else return { level: li, idx: i, answersByLevel };
+    }
+  }
+  return { level: 3, idx: 0, answersByLevel };
+}
+
+function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette, variant }) {
   const tierLabels = ['Start Here', 'Beginner', 'Intermediate', 'Advanced'];
   const levelSizes = [1, 2, 3, 4];
   const tier4Topics = sector.tier4Topics || [];
 
-  const [level, setLevel] = useState(0);
-  const [idx, setIdx] = useState(0);
-  const [answersByLevel, setAnswersByLevel] = useState([[], [], [], []]);
+  // Resume at the first unanswered Level 1–3 question (a refresh/back-swipe
+  // mid-sector no longer loses the answers already given). Computed once on mount.
+  const initial = useRef(null);
+  if (!initial.current) initial.current = resumePosition(sector, existingAnswers || {});
+  const [level, setLevel] = useState(initial.current.level);
+  const [idx, setIdx] = useState(initial.current.idx);
+  const [answersByLevel, setAnswersByLevel] = useState(initial.current.answersByLevel);
   const [pickedTopicIds, setPickedTopicIds] = useState([]); // tier 4 only
   const [topicId, setTopicId] = useState(''); // tier 4 dropdown selection
   const cardRef = useRef(null);
@@ -438,6 +505,10 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
     : questions[idx];
 
   function answer(yes) {
+    // Persist each Level 1–3 answer to the shared map immediately so a refresh
+    // mid-sector resumes at the next question instead of losing the run. (Tier 4
+    // is optional and restarts on resume, so it stays modal-local.)
+    if (!isTier4 && q && onAnswer) onAnswer(q.id, yes ? 'yes' : 'no');
     const nextAnswers = answersByLevel.map((a, li) => li === level ? [...a, yes] : a);
     setAnswersByLevel(nextAnswers);
     const nextPicks = isTier4 ? [...pickedTopicIds, topicId] : pickedTopicIds;
@@ -1783,6 +1854,23 @@ function Field({ label, value, onChange, placeholder, palette, required, invalid
   );
 }
 
+// Shown once when a save from an older version was salvaged, so the shift isn't silent.
+function RestoredBanner({ onDismiss }) {
+  return (
+    <div role="status" style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      background: '#FEF3C7', color: '#5b4a16', border: '1px solid #F4D67A',
+      borderRadius: 10, padding: '10px 12px', margin: '12px 16px 0', fontSize: 12.5, lineHeight: 1.4,
+    }}>
+      <span style={{ flex: 1 }}>We updated the game and restored your saved answers. Some progress may have shifted.</span>
+      <button onClick={onDismiss} aria-label="Dismiss" style={{
+        border: 'none', background: 'transparent', cursor: 'pointer',
+        color: '#5b4a16', fontSize: 16, lineHeight: 1, minWidth: 32, minHeight: 32,
+      }}>✕</button>
+    </div>
+  );
+}
+
 // ─── main game ────────────────────────────────────────────────────────────────
 function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }) {
   const sectors = window.SECTORS;
@@ -1816,10 +1904,18 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const autoSentRef = useRef(false); // guards the one-shot auto-email on the done screen
   const submitGenRef = useRef(0);    // bumped on Exit/new game so a stale in-flight POST can't write back
   const spinTimerRef = useRef(null); // the spin->open-modal timeout; cleared on reset so it can't fire into the next game
+  const [restored, setRestored] = useState(saved?.salvaged || false); // a save from an older version was salvaged
 
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
-  const [activeQuestion, setActiveQuestion] = useState(null); // { sector }
+  const [activeQuestion, setActiveQuestion] = useState(() => {
+    // Reopen the in-progress sector after a refresh/back-swipe mid-sector.
+    const id = saved && saved.activeSectorId;
+    if (!id) return null;
+    const s = sectors.find(x => x.id === id);
+    const closed = saved.sectorClosed && saved.sectorClosed[id];
+    return s && !closed ? { sector: s } : null;
+  }); // { sector }
   const [toast, setToast] = useState(null);
   const [celebration, setCelebration] = useState(null); // { sector }
 
@@ -2040,15 +2136,18 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   if (phase === 'form') {
     return (
-      <LinearForm
-        sectors={sectors}
-        answers={answers}
-        setAnswer={setFormAnswer}
-        onSubmit={submitForm}
-        onBack={() => setPhase('pick-mode')}
-        onClear={() => setAnswers({})}
-        palette={palette}
-      />
+      <>
+        {restored && <RestoredBanner onDismiss={() => setRestored(false)} />}
+        <LinearForm
+          sectors={sectors}
+          answers={answers}
+          setAnswer={setFormAnswer}
+          onSubmit={submitForm}
+          onBack={() => setPhase('pick-mode')}
+          onClear={() => setAnswers({})}
+          palette={palette}
+        />
+      </>
     );
   }
 
@@ -2169,6 +2268,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   return (
     <div style={{ padding: '20px 16px 32px', maxWidth: 480, margin: '0 auto' }}>
+      {restored && <div style={{ margin: '0 0 12px' }}><RestoredBanner onDismiss={() => setRestored(false)} /></div>}
       {/* header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
@@ -2278,6 +2378,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <QuestionModal
           sector={activeQuestion.sector}
           onComplete={handleAnswers}
+          onAnswer={(qid, v) => setAnswers(a => ({ ...a, [qid]: v }))}
+          existingAnswers={answers}
           palette={palette}
           variant={variant}
         />
