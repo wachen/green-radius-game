@@ -92,6 +92,11 @@ function CommunityTally({ sectors, rows }) {
       <div style={{ fontSize: 13, color: '#cfe0d4', marginTop: 6 }}>
         <b style={{ color: '#fff' }}>{agg.totalYes}</b> of {agg.totalPossible} green choices · <b style={{ color: '#fff' }}>{agg.count}</b> camps · +{agg.momentum.thisWeek} this week
       </div>
+      {agg.legacyCount > 0 && (
+        <div style={{ fontSize: 11, color: '#7f988a', marginTop: 4 }}>
+          {agg.legacyCount} older {agg.legacyCount === 1 ? 'response' : 'responses'} on the old 0 to 4 scale excluded from the tally.
+        </div>
+      )}
       {!agg.hasAnswers && <div style={{ fontSize: 11, color: '#7f988a', marginTop: 4 }}>Per-question detail appears once granular capture is live.</div>}
       {detail && (
         <div data-segment-detail style={{ background: '#13201a', border: '1px solid #26382e', borderLeft: '3px solid #45c483',
@@ -153,15 +158,20 @@ function CampsView({ sectors, rows }) {
           style={{ flex: 1, ...selStyle, borderRadius: 7 }} />
         <select value={sort} onChange={e => setSort(e.target.value)} style={selStyle}><option value="score">Score</option><option value="name">Name</option></select>
       </div>
-      {list.map(r => (
-        <div key={rowKey(r)} data-camp-row onClick={() => setSelId(rowKey(r))}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 11px', cursor: 'pointer',
-            borderBottom: '1px solid #1a281f', background: selected && rowKey(selected) === rowKey(r) ? '#16271d' : 'transparent' }}>
-          <div style={{ flex: 1 }}><b style={{ fontSize: 13 }}>{r.campName}</b><small style={{ display: 'block', color: '#93a89b', fontSize: 10 }}>{r.leadName}</small></div>
-          <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px' }}>{r.source}</span>
-          <b style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{r.total}</b>
-        </div>
-      ))}
+      {list.map(r => {
+        const legacy = A.isLegacy(r);
+        return (
+          <button key={rowKey(r)} type="button" data-camp-row onClick={() => setSelId(rowKey(r))}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 11px', cursor: 'pointer',
+              width: '100%', textAlign: 'left', font: 'inherit', color: 'inherit', border: 'none',
+              borderBottom: '1px solid #1a281f', background: selected && rowKey(selected) === rowKey(r) ? '#16271d' : 'transparent' }}>
+            <div style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.campName}</b><small style={{ display: 'block', color: '#93a89b', fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.leadName}</small></div>
+            {legacy && <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap' }}>old scale</span>}
+            <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap' }}>{r.source}</span>
+            <b style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{legacy ? `${r.total}/24` : r.total}</b>
+          </button>
+        );
+      })}
       <div style={{ padding: '8px 11px', color: '#93a89b', fontSize: 10 }}>{list.length} camps · sorted by {sort}</div>
     </div>
   );
@@ -170,15 +180,16 @@ function CampsView({ sectors, rows }) {
 
   return wide
     ? <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', minHeight: 400 }}>{List}{Detail}</div>
-    : (selId ? <div><div onClick={() => setSelId(null)} style={{ color: '#45c483', fontWeight: 700, padding: '8px 4px', cursor: 'pointer' }}>‹ All camps</div>{Detail}</div> : List);
+    : (selId ? <div><button type="button" onClick={() => setSelId(null)} style={{ background: 'none', border: 'none', font: 'inherit', fontSize: 13, color: '#45c483', fontWeight: 700, padding: '8px 4px', cursor: 'pointer' }}>‹ All camps</button>{Detail}</div> : List);
 }
 const rowKey = r => `${r.campName}|${r.timestamp}`;
 
 function CampDetail({ sectors, camp }) {
   const hasAnswers = camp.answers && Object.keys(camp.answers).length > 0;
+  const legacy = A.isLegacy(camp);
   const fills = React.useMemo(() => hasAnswers ? fillsFromAnswers(sectors, camp.answers)
-    : approxFills(sectors, camp.greens), [sectors, camp, hasAnswers]);
-  const maxed = sectors.filter(s => (camp.greens[s.id] || 0) === 10).map(s => s.id);
+    : (legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens)), [sectors, camp, hasAnswers, legacy]);
+  const maxed = legacy ? [] : sectors.filter(s => (camp.greens[s.id] || 0) === 10).map(s => s.id);
   return (
     <div style={{ padding: '14px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
@@ -192,33 +203,50 @@ function CampDetail({ sectors, camp }) {
       </div>
       <div style={{ display: 'flex', gap: 16, alignItems: 'center', margin: '12px 0' }}>
         <RadialBadge sectors={sectors} fills={fills} size={128} dark showLabels={false} />
-        <div style={{ fontSize: 13, color: '#cfe0d4' }}><b style={{ color: '#fff' }}>{camp.total}/60</b> total{maxed.length ? ` · ${maxed.length} maxed` : ''}</div>
+        <div style={{ fontSize: 13, color: '#cfe0d4' }}>
+          <b style={{ color: '#fff' }}>{camp.total}/{legacy ? 24 : 60}</b> total{maxed.length ? ` · ${maxed.length} maxed` : ''}
+          {legacy && <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px', marginLeft: 6 }}>old scale</span>}
+        </div>
       </div>
-      {!hasAnswers && <div style={{ fontSize: 12, color: '#93a89b' }}>Per-answer detail appears once granular capture is live.</div>}
-      {hasAnswers && sectors.map(s => {
-        const ids = [].concat(...s.levels.slice(0, 3)).map(qq => qq.id);
-        const picks = (s.tier4Topics || []).filter(t => camp.answers[t.id] === 'yes');
+      {!hasAnswers && !legacy && <div style={{ fontSize: 12, color: '#93a89b' }}>Per-answer detail appears once granular capture is live.</div>}
+      {(hasAnswers || legacy) && sectors.map(s => {
+        const ids = hasAnswers ? [].concat(...s.levels.slice(0, 3)).map(qq => qq.id) : [];
+        const picks = hasAnswers ? (s.tier4Topics || []).filter(t => camp.answers[t.id] === 'yes') : [];
         return (
           <div key={s.id} style={{ marginTop: 10 }}>
             <div style={{ display: 'flex', gap: 6, fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-              {s.name} <span style={{ color: '#93a89b', fontWeight: 600 }}>{camp.greens[s.id] || 0}/10</span>
+              {s.name} <span style={{ color: '#93a89b', fontWeight: 600 }}>{camp.greens[s.id] || 0}/{legacy ? 4 : 10}</span>
               {maxed.includes(s.id) && <span style={{ color: '#e8c15a' }}>★</span>}
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {ids.map(id => (
-                <span key={id} data-token style={{ fontSize: 10.5, padding: '2px 7px', borderRadius: 6,
-                  border: '1px solid ' + (camp.answers[id] === 'yes' ? '#2e5b43' : '#26382e'),
-                  background: camp.answers[id] === 'yes' ? '#15291e' : 'transparent',
-                  color: camp.answers[id] === 'yes' ? '#cdebd8' : '#93a89b' }}>
-                  {camp.answers[id] === 'yes' ? '✓ ' : '✕ '}{id}</span>
-              ))}
-            </div>
+            {hasAnswers && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                {ids.map(id => (
+                  <span key={id} data-token style={{ fontSize: 10.5, padding: '2px 7px', borderRadius: 6,
+                    border: '1px solid ' + (camp.answers[id] === 'yes' ? '#2e5b43' : '#26382e'),
+                    background: camp.answers[id] === 'yes' ? '#15291e' : 'transparent',
+                    color: camp.answers[id] === 'yes' ? '#cdebd8' : '#93a89b' }}>
+                    {camp.answers[id] === 'yes' ? '✓ ' : '✕ '}{id}</span>
+                ))}
+              </div>
+            )}
             {picks.length > 0 && <div style={{ marginTop: 5, fontSize: 11, color: '#93a89b' }}>Level 4: {picks.map(t => t.title).join(', ')}</div>}
           </div>
         );
       })}
     </div>
   );
+}
+
+// Legacy 0-4 rows: greens counts levels lit, not questions answered Yes. Fill whole levels.
+function legacyFills(sectors, greens) {
+  const out = {};
+  sectors.forEach(s => {
+    const count = Math.max(0, Math.min(4, (greens && greens[s.id]) | 0));
+    const sizes = [1, 2, 3, 4];
+    const levels = sizes.map((n, li) => Array.from({ length: n }, () => li < count));
+    out[s.id] = { levels, totalYes: sizes.reduce((t, n, li) => t + (li < count ? n : 0), 0), played: count > 0 };
+  });
+  return out;
 }
 
 // Approximate radius when a camp has no per-answer data: fill totalYes contiguously per sector.

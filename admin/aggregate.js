@@ -15,6 +15,16 @@
   function rowsWithAnswers(rows) {
     return rows.filter(r => r.answers && Object.keys(r.answers).length > 0);
   }
+  // Pre-rework rows (before the 0-10 per-question capture) have no schema tag and
+  // no per-question answers; their greens mean levels-lit 0-4, not questions 0-10.
+  // The greens<=4 check keeps a modern row that merely lost its tag/answers cells
+  // (hand-typed, or submitted before the sheet gained those columns) from being
+  // misread as old-scale when its scores are visibly 0-10.
+  function isLegacy(row) {
+    if (row.schemaVersion || (row.answers && Object.keys(row.answers).length > 0)) return false;
+    var g = row.greens || {};
+    return (row.total | 0) <= 24 && Object.keys(g).every(function (k) { return (g[k] | 0) <= 4; });
+  }
 
   function perQuestion(rows, sectors) {
     const out = {};
@@ -64,12 +74,15 @@
   }
 
   function computeAggregates(rows, sectors, now, windowMs) {
+    const legacyCount = rows.filter(isLegacy).length;
+    rows = rows.filter(r => !isLegacy(r));
     const pq = perQuestion(rows, sectors);
     const totalYes = rows.reduce((n, r) => n + (r.total || 0), 0);
     const totalPossible = rows.length * sectors.length * 10;
     const wMs = windowMs || 7 * 864e5;
     return {
       count: rows.length,
+      legacyCount,
       totalYes, totalPossible,
       tallyPct: totalPossible ? totalYes / totalPossible : 0,
       sectorStandings: sectorStandings(rows, sectors),
@@ -81,7 +94,7 @@
     };
   }
 
-  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, sectorIds, advYesCount };
+  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, sectorIds, advYesCount, isLegacy };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.AdminAggregate = api;
 })(typeof window !== 'undefined' ? window : this);

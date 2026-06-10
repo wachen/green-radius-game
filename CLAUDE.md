@@ -40,7 +40,7 @@ To "test" a change: run the parse gate, then load it in a browser and play throu
 
 Full map is in `docs/architecture.md`; the essentials:
 
-- **Entry:** `index.html` loads React + `@babel/standalone`, defines `PALETTE`, and mounts `<GreenRadiusGame variant="flat-playa" palette={PALETTE}/>`.
+- **Entry:** `index.html` loads React + `@babel/standalone` from `vendor/` (same-origin, no CDN), defines `PALETTE`, and mounts `<GreenRadiusGame variant="flat-playa" palette={PALETTE}/>`.
 - **The whole game UI is one file:** `green-radius.jsx` (~2200 lines) — wheel, question modal, form mode, result/share card, done+email screen, home FAQ modal. Components reference each other by **bare name** within a shared Babel scope (see gotcha below).
 - **Two plain scripts create the only real globals:** `game-data.js` → `window.SECTORS` (6 sectors × 4 tiers of Yes/No content), `result-state.js` → `window.ResultState` (encode/decode a result to/from the URL hash).
 - **One Worker, two dynamic routes:** `worker/index.js` handles `POST /api/complete` and `GET /api/admin/responses`, and serves everything else as static assets (`ASSETS` binding, `wrangler.jsonc`). `/api/complete` does two things best-effort in parallel — append a row to a Google Sheet (via an Apps Script web app) and email the player their result link (via Resend) — and returns `{ sheet, email }`.
@@ -54,7 +54,7 @@ Full map is in `docs/architecture.md`; the essentials:
 - **`localStorage` versioning.** Save key is `green-radius-game/v1`; bump `STORAGE_VERSION` (in `green-radius.jsx`) whenever the saved shape changes — `loadSaved` discards any save whose version doesn't match.
 - **Worker degrades gracefully — keep it that way.** Missing secrets → the sheet/email steps return `false` → the endpoint returns `err`, but the static site still serves and the share link still works. Don't make the share/keepsake path depend on the backend. `safeResultUrl` pins the emailed link to host `greenradi.us`/`localhost` + path `/result/` — don't loosen it (anti-XSS/phishing). Submitted free text is bounded + run through `sheetCell` (formula-injection guard) before it reaches the sheet; the origin check is **fail-closed** (absent Origin is rejected). Real abuse throttling is a Cloudflare WAF rule (owner-side), not in this file.
 - **`.assetsignore`, not `.gitignore`, controls what's served.** `assets.directory = "."` means the repo root is public; wrangler's asset uploader ignores `.gitignore`, so anything that must not be served (`.git`, `.dev.vars*`, `.claude/`, `.remember/`, `.superpowers/`) belongs in `.assetsignore`. This is also what makes a local `npx wrangler deploy` safe. Verify `https://greenradi.us/.git/config` → 404 after deploys.
-- **CDN scripts are SRI-pinned.** If you change a React/ReactDOM/Babel version, recompute its `integrity="sha384-…"` hash in all three HTML files (`curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A`) — a stale hash blanks the page.
+- **The runtime is vendored.** React/ReactDOM/Babel live in `vendor/` (versioned filenames) and load same-origin with `defer` in all three HTML files — never edit the vendored files; to upgrade, follow `vendor/README.md` (download the pinned URL, verify bytes, update all three entry points). The `defer` also lets the in-`#root` loading placeholder paint while scripts download — don't remove it.
 - **Match the existing copy style.** Recent FAQ/UI copy intentionally avoids em dashes; follow the surrounding tone and punctuation when editing user-facing strings.
 
 ## Secrets (hard rule)

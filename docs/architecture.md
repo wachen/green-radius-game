@@ -13,8 +13,9 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
 
 ## At a glance
 
-- **No-build static app.** `index.html` loads React 18 + ReactDOM (UMD CDN) +
-  `@babel/standalone`, which compiles the JSX *in the browser*, then mounts
+- **No-build static app.** `index.html` loads React 18 + ReactDOM +
+  `@babel/standalone` from the committed **`vendor/`** directory (same-origin, no
+  CDN at runtime); Babel compiles the JSX *in the browser*, then mounts
   `<GreenRadiusGame/>`.
 - **One small Cloudflare Worker.** `worker/index.js` handles two dynamic routes —
   `POST /api/complete` (result capture) and the Access-gated
@@ -125,11 +126,14 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   git-checkout deploy nor a local `wrangler deploy` can publish history or
   secrets. After any deploy, sanity-check `curl -sI https://greenradi.us/.git/config`
   returns 404.
-- **CDN scripts are SRI-pinned.** React/ReactDOM/`@babel/standalone` load from
-  unpkg with `integrity="sha384-…"` in all three HTML entry points. If you bump a
-  version, recompute the hash (`curl -sL <url> | openssl dgst -sha384 -binary |
-  openssl base64 -A`) or the script silently fails to load — a wrong/stale hash
-  blanks the page.
+- **The runtime is vendored, not CDN-loaded.** React/ReactDOM/`@babel/standalone`
+  are committed under `vendor/` (versioned filenames) and loaded same-origin with
+  `defer` in all three HTML entry points, so a CDN outage or compromise can't
+  blank or hijack the page and the playa-offline story improves. To upgrade, see
+  `vendor/README.md` (download the pinned URL, verify the bytes, update all three
+  entry points). `_headers` also sends `X-Frame-Options`/`frame-ancestors 'none'`
+  and a minimal `Permissions-Policy`; a script CSP is deliberately absent because
+  in-browser Babel needs eval and the boot scripts are inline.
 - **Admin viewer read path.** `GET /api/admin/responses` (Worker) is gated by
   **Cloudflare Access** (edge, email allowlist on `/admin*` + `/api/admin*`) and
   additionally validates the Access JWT (`Cf-Access-Jwt-Assertion`, RS256 vs. the
@@ -157,8 +161,8 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   changes; `loadSaved` drops any save whose `version` doesn't match.
 - **No build, no tests, no CI.** The only compile gate is
   `bun build green-radius.jsx` (catches JSX/syntax errors — the "could not resolve
-  react" message is *expected*; it's a CDN-global app, not a module). Verify
-  gameplay by hand.
+  react" message is *expected*; React is a global from `vendor/`, not a module).
+  Verify gameplay by hand.
 - **Deploy = merge.** No staging. `main` is branch-protected (PR required).
   Preview with a local static server, or `wrangler versions upload` for a real
   Cloudflare preview URL (no prod impact). Fork PRs get **no** preview and can't
