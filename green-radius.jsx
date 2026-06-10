@@ -3,6 +3,30 @@
 
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
+// Shared modal a11y: lock background scroll while open, and trap Tab focus inside
+// the dialog so keyboard/SR users can't wander onto the obscured page behind it.
+function useModalA11y(ref) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const onKey = (e) => {
+      if (e.key !== 'Tab') return;
+      const f = node.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex="-1"])');
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    node.addEventListener('keydown', onKey);
+    return () => node.removeEventListener('keydown', onKey);
+  }, [ref]);
+}
+
 // ─── persistence ──────────────────────────────────────────────────────────────
 // Saves the in-progress game so a refresh resumes where you left off.
 // Bump STORAGE_VERSION when the saved shape changes so old saves are discarded
@@ -16,20 +40,67 @@ const HOW_TO_PLAY_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green
 const RESOURCE_GUIDE_URL = 'https://www.greenthemecampcommunity.org/resource-guide';
 const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 
+// Every valid question id in the current game (Levels 1–3 by question id +
+// Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
+function validQidSet(sectors) {
+  const set = new Set();
+  sectors.forEach(s => {
+    s.levels.slice(0, 3).forEach(level => (level || []).forEach(q => set.add(q.id)));
+    (s.tier4Topics || []).forEach(t => set.add(t.id));
+  });
+  return set;
+}
+
+function isCurrentShape(data, sectors) {
+  return data.version === STORAGE_VERSION && data.answers && typeof data.answers === 'object' &&
+    sectors.every(s =>
+      typeof (data.sectorCursor && data.sectorCursor[s.id]) === 'number' &&
+      typeof (data.sectorClosed && data.sectorClosed[s.id]) === 'boolean'
+    );
+}
+
+// Turn any saved blob into something usable. A current-shape save passes through.
+// An OLDER save is SALVAGED instead of silently discarded on a version bump (the
+// qid -> 'yes'/'no' answer map has been the stable contract): keep the camp + the
+// answers whose question ids still exist, recompute per-sector progress, and flag
+// `salvaged` so the UI can say so. A completed ('done') save or an unrecognizable
+// one returns null.
+function migrateSaved(data, sectors) {
+  if (!data || typeof data !== 'object') return null;
+  if (isCurrentShape(data, sectors)) return data;
+  if (data.phase === 'done') return null;            // result already captured; don't resurrect
+  if (!data.answers || typeof data.answers !== 'object') return null;
+
+  const valid = validQidSet(sectors);
+  const answers = {};
+  for (const k of Object.keys(data.answers)) {
+    const v = data.answers[k];
+    if (valid.has(k) && (v === 'yes' || v === 'no')) answers[k] = v;
+  }
+  const sectorClosed = {}, sectorCursor = {};
+  sectors.forEach(s => {
+    const fixed = s.levels.slice(0, 3).reduce((a, lvl) => a.concat(lvl || []), []);
+    const done = fixed.length > 0 && fixed.every(q => answers[q.id] === 'yes' || answers[q.id] === 'no');
+    sectorClosed[s.id] = done;
+    sectorCursor[s.id] = done ? 4 : 0;
+  });
+  const camp = (data.camp && typeof data.camp === 'object')
+    ? { campName: data.camp.campName || '', leadName: data.camp.leadName || '', email: data.camp.email || '' }
+    : { campName: '', leadName: '', email: '' };
+  const mode = data.mode === 'form' ? 'form' : 'board';
+  return {
+    version: STORAGE_VERSION,
+    phase: mode === 'form' ? 'form' : 'playing',
+    camp, sectorCursor, sectorClosed, answers, mode,
+    submittedAt: null, salvaged: true,
+  };
+}
+
 function loadSaved(sectors) {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (data.version !== STORAGE_VERSION) return null;
-    // Schema sanity: every current sector id must be present and well-typed
-    // in the saved arrays. If sectors changed, drop the save instead of
-    // mixing shapes — better to start fresh than glitch.
-    const ok = data.answers && typeof data.answers === 'object' && sectors.every(s =>
-      typeof data.sectorCursor?.[s.id] === 'number' &&
-      typeof data.sectorClosed?.[s.id] === 'boolean'
-    );
-    return ok ? data : null;
+    return migrateSaved(JSON.parse(raw), sectors);
   } catch {
     return null;
   }
@@ -250,6 +321,8 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
 
       <svg
         width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`}
+        role="img"
+        aria-label={`Green radius wheel. ${sectors.map(s => `${s.name} ${(fills[s.id] && fills[s.id].totalYes) || 0} of 10`).join(', ')}.`}
         style={{
           display: 'block',
           transform: `rotate(${rotation}deg)`,
@@ -381,17 +454,38 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
 // tier 2 (2q) → tier 3 (3q) → tier 4 (4 picks). The user always answers all
 // 10 — failures don't end the sector early. Final scoring (which levels go
 // green) is computed by the caller from the returned answersByLevel.
-function QuestionModal({ sector, onComplete, palette, variant }) {
+// Where to reopen a partly-answered sector: the first Level 1–3 question without
+// an answer, with the already-answered ones seeded so the progress dots show them.
+// If all six fixed questions are answered, reopen at the (optional) Tier 4.
+function resumePosition(sector, answers) {
+  const answersByLevel = [[], [], [], []];
+  for (let li = 0; li < 3; li++) {
+    const qs = sector.levels[li] || [];
+    for (let i = 0; i < qs.length; i++) {
+      const a = answers[qs[i].id];
+      if (a === 'yes' || a === 'no') answersByLevel[li].push(a === 'yes');
+      else return { level: li, idx: i, answersByLevel };
+    }
+  }
+  return { level: 3, idx: 0, answersByLevel };
+}
+
+function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette, variant }) {
   const tierLabels = ['Start Here', 'Beginner', 'Intermediate', 'Advanced'];
   const levelSizes = [1, 2, 3, 4];
   const tier4Topics = sector.tier4Topics || [];
 
-  const [level, setLevel] = useState(0);
-  const [idx, setIdx] = useState(0);
-  const [answersByLevel, setAnswersByLevel] = useState([[], [], [], []]);
+  // Resume at the first unanswered Level 1–3 question (a refresh/back-swipe
+  // mid-sector no longer loses the answers already given). Computed once on mount.
+  const initial = useRef(null);
+  if (!initial.current) initial.current = resumePosition(sector, existingAnswers || {});
+  const [level, setLevel] = useState(initial.current.level);
+  const [idx, setIdx] = useState(initial.current.idx);
+  const [answersByLevel, setAnswersByLevel] = useState(initial.current.answersByLevel);
   const [pickedTopicIds, setPickedTopicIds] = useState([]); // tier 4 only
   const [topicId, setTopicId] = useState(''); // tier 4 dropdown selection
   const cardRef = useRef(null);
+  useModalA11y(cardRef); // scroll-lock + Tab focus trap
   // Move focus into the dialog on open. The Spin button the player just pressed
   // gets disabled as the modal mounts, which otherwise drops focus to <body> and
   // strands keyboard / screen-reader users. aria-live on the question (below)
@@ -411,6 +505,10 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
     : questions[idx];
 
   function answer(yes) {
+    // Persist each Level 1–3 answer to the shared map immediately so a refresh
+    // mid-sector resumes at the next question instead of losing the run. (Tier 4
+    // is optional and restarts on resume, so it stays modal-local.)
+    if (!isTier4 && q && onAnswer) onAnswer(q.id, yes ? 'yes' : 'no');
     const nextAnswers = answersByLevel.map((a, li) => li === level ? [...a, yes] : a);
     setAnswersByLevel(nextAnswers);
     const nextPicks = isTier4 ? [...pickedTopicIds, topicId] : pickedTopicIds;
@@ -526,6 +624,7 @@ function QuestionModal({ sector, onComplete, palette, variant }) {
             <select
               value={topicId}
               onChange={e => setTopicId(e.target.value)}
+              aria-label="Pick an advanced topic"
               style={{
                 width: '100%', padding: '14px 14px', borderRadius: 12,
                 border: `1.5px solid ${palette.text}22`,
@@ -650,7 +749,7 @@ function ResultToast({ kind, sector, greens, palette, onClose }) {
   const anyGreen = isDone && greens > 0;
 
   return (
-    <div style={{
+    <div role="status" aria-live="polite" style={{
       position: 'fixed', inset: 0, zIndex: 9, pointerEvents: 'none',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       animation: 'qm-fade 0.25s ease',
@@ -752,9 +851,10 @@ function Celebration({ sector, palette, onDone }) {
 
 // ─── radial badge (final result) ──────────────────────────────────────────────
 // Grid of green ring-cells: each sector shows its 4 levels as concentric arcs.
-// No gaps between sectors — a sector reads as a continuous radial wedge whose
-// outer reach equals its scored depth (contiguous green prefix). Adjacent sectors share
-// boundaries so the green area forms a single silhouette.
+// Fill is per-question: each level's ring lights one segment per Yes in that
+// level's color, gaps allowed (an early No just leaves its segment empty, no
+// compensation). Adjacent sectors share boundaries so the lit area still reads
+// as one silhouette.
 function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false,
                        intensities = null, onSelectSegment = null, selected = null, centerLabel = null }) {
   const cx = size / 2, cy = size / 2;
@@ -1015,7 +1115,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How do I play?',
-    a: 'Spin the wheel to draw a sector, then answer its yes/no questions across four levels from easiest to hardest. Every "yes" earns a point, and your point total sets how far that sector reaches — so a single "no" early on no longer stops you; later "yes" answers make up for it. Six spins (one per sector) complete your Green Radius.',
+    a: 'Spin the wheel to draw a sector, then answer its yes/no questions across four levels from easiest to hardest. Every yes lights its own segment of that sector, so an early no never blocks later progress, and your score is simply how many segments you light. Six spins (one per sector) complete your Green Radius.',
   },
   {
     q: 'Do I need to both play the game and fill out the form?',
@@ -1079,6 +1179,8 @@ function FaqButton({ onClick, palette, btnRef, expanded }) {
 
 function FaqModal({ onClose, palette }) {
   const closeRef = useRef(null);
+  const dialogRef = useRef(null);
+  useModalA11y(dialogRef); // scroll-lock + Tab focus trap
   // Focus the close button once on open; keep the Escape listener in its own
   // effect so a changing onClose can't re-trigger the focus.
   useEffect(() => { closeRef.current?.focus(); }, []);
@@ -1100,6 +1202,7 @@ function FaqModal({ onClose, palette }) {
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog" aria-modal="true" aria-labelledby="faq-title"
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -1121,7 +1224,7 @@ function FaqModal({ onClose, palette }) {
           <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3, padding: '0 30px' }}>Frequently Asked Questions</div>
           <button
             ref={closeRef} onClick={onClose} aria-label="Close"
-            style={{ position: 'absolute', top: 16, right: 0, border: 'none', background: palette.text + '0f', width: 30, height: 30, borderRadius: '50%', fontSize: 14, cursor: 'pointer', color: palette.text, lineHeight: 1 }}
+            style={{ position: 'absolute', top: 12, right: 0, border: 'none', background: palette.text + '0f', width: 40, height: 40, borderRadius: '50%', fontSize: 15, cursor: 'pointer', color: palette.text, lineHeight: 1 }}
           >✕</button>
         </div>
 
@@ -1246,6 +1349,7 @@ function ModePicker({ onPick, palette }) {
           href={BOARD_GAME_PDF_URL}
           download
           style={{
+            display: 'inline-block', padding: '10px 4px',
             color: palette.text + '99', fontSize: 11, fontWeight: 600,
             letterSpacing: '0.12em', textTransform: 'uppercase',
             textDecoration: 'underline',
@@ -1257,6 +1361,7 @@ function ModePicker({ onPick, palette }) {
           href={HOW_TO_PLAY_PDF_URL}
           download
           style={{
+            display: 'inline-block', padding: '10px 4px',
             color: palette.text + '99', fontSize: 11, fontWeight: 600,
             letterSpacing: '0.12em', textTransform: 'uppercase',
             textDecoration: 'underline',
@@ -1565,7 +1670,7 @@ function YesNoRow({ qid, text, subtext, answer, setAnswer, palette, missing }) {
     border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
     letterSpacing: '0.12em', textTransform: 'uppercase',
     padding: '8px 14px', borderRadius: 8, fontFamily: 'inherit',
-    minWidth: 56,
+    minWidth: 56, minHeight: 44, // WCAG 2.5.5 touch target (pressed up to 60x/game)
   };
   return (
     <div style={{
@@ -1723,13 +1828,15 @@ function Field({ label, value, onChange, placeholder, palette, required, invalid
   return (
     <label style={{ display: 'block' }}>
       <div style={{ fontSize: 10, letterSpacing: '0.15em', fontWeight: 700, color: palette.text + '99', marginBottom: 4 }}>
-        {label.toUpperCase()}{required && <span style={{ color: palette.accentDark, marginLeft: 3 }}>*</span>}
+        {label.toUpperCase()}{required && <span aria-hidden="true" style={{ color: palette.accentDark, marginLeft: 3 }}>*</span>}
       </div>
       <input
         type={type || 'text'}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
+        required={required}
+        aria-invalid={invalid || undefined}
         inputMode={isEmail ? 'email' : undefined}
         autoCapitalize={isEmail ? 'none' : undefined}
         autoCorrect={isEmail ? 'off' : undefined}
@@ -1744,6 +1851,23 @@ function Field({ label, value, onChange, placeholder, palette, required, invalid
         }}
       />
     </label>
+  );
+}
+
+// Shown once when a save from an older version was salvaged, so the shift isn't silent.
+function RestoredBanner({ onDismiss }) {
+  return (
+    <div role="status" style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      background: '#FEF3C7', color: '#5b4a16', border: '1px solid #F4D67A',
+      borderRadius: 10, padding: '10px 12px', margin: '12px 16px 0', fontSize: 12.5, lineHeight: 1.4,
+    }}>
+      <span style={{ flex: 1 }}>We updated the game and restored your saved answers. Some progress may have shifted.</span>
+      <button onClick={onDismiss} aria-label="Dismiss" style={{
+        border: 'none', background: 'transparent', cursor: 'pointer',
+        color: '#5b4a16', fontSize: 16, lineHeight: 1, minWidth: 32, minHeight: 32,
+      }}>✕</button>
+    </div>
   );
 }
 
@@ -1775,14 +1899,25 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
   const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
   const [submitResult, setSubmitResult] = useState(null); // { sheet:'ok'|'err', email:'sent'|'err' } from the last POST
+  const [editingEmail, setEditingEmail] = useState(false); // done-screen "edit & resend" affordance
+  const [emailDraft, setEmailDraft] = useState('');
   const [copied, setCopied] = useState(false);
   const cardSvgRef = useRef(null);   // offscreen ResultCardSVG, serialized on Download
   const autoSentRef = useRef(false); // guards the one-shot auto-email on the done screen
   const submitGenRef = useRef(0);    // bumped on Exit/new game so a stale in-flight POST can't write back
+  const spinTimerRef = useRef(null); // the spin->open-modal timeout; cleared on reset so it can't fire into the next game
+  const [restored, setRestored] = useState(saved?.salvaged || false); // a save from an older version was salvaged
 
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
-  const [activeQuestion, setActiveQuestion] = useState(null); // { sector }
+  const [activeQuestion, setActiveQuestion] = useState(() => {
+    // Reopen the in-progress sector after a refresh/back-swipe mid-sector.
+    const id = saved && saved.activeSectorId;
+    if (!id) return null;
+    const s = sectors.find(x => x.id === id);
+    const closed = saved.sectorClosed && saved.sectorClosed[id];
+    return s && !closed ? { sector: s } : null;
+  }); // { sector }
   const [toast, setToast] = useState(null);
   const [celebration, setCelebration] = useState(null); // { sector }
 
@@ -1803,7 +1938,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // outcomes independently ({sheet, email}), so we keep them separate and tell the
   // player the truth rather than collapsing both into "sent". A generation token
   // (submitGenRef) voids a stale in-flight request if the player exits mid-send.
-  const runSubmit = useCallback(() => {
+  const runSubmit = useCallback((overrideEmail) => {
     const gen = ++submitGenRef.current;
     autoSentRef.current = true;
     fontEmbedCss(); // warm the font cache so the Download button is snappy
@@ -1813,7 +1948,9 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       const year = new Date().getFullYear();
       const resultUrl = window.location.origin + '/result/#' +
         window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
-      const email = (camp.email || '').trim();
+      // overrideEmail (from the done-screen "edit & resend") wins over camp.email,
+      // which may not have flushed through setCamp yet when resend fires.
+      const email = (overrideEmail != null ? overrideEmail : (camp.email || '')).trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { if (gen === submitGenRef.current) setSubmitState('error'); return; }
       setSubmitState('sending');
       try {
@@ -1850,21 +1987,21 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     runSubmit();
   }, [phase, submittedAt, runSubmit]);
 
-  // Persist on every meaningful state change. On the mode-picker / intro screens
-  // there's nothing in flight, so clear the slot — that way "Exit" (→ pick-mode)
-  // wipes the save, as does starting fresh from the intro.
+  // Persist only on the in-progress phases (playing / form / done). On the
+  // navigation screens (pick-mode / intro / form-intro) we do NOTHING — neither
+  // write nor clear — so tapping "✕ Close" to step back keeps the autosave the
+  // form promised. Clearing is now explicit: Exit and Reset call clearSaved().
+  // (activeSectorId lets a refresh mid-sector reopen that sector — see resume.)
   useEffect(() => {
-    if (phase === 'intro' || phase === 'form-intro' || phase === 'pick-mode') {
-      clearSaved();
-      return;
-    }
+    if (phase !== 'playing' && phase !== 'form' && phase !== 'done') return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORAGE_VERSION,
         phase, camp, sectorCursor, sectorClosed, answers, mode, submittedAt,
+        activeSectorId: (activeQuestion && activeQuestion.sector && activeQuestion.sector.id) || null,
       }));
     } catch {}
-  }, [phase, camp, sectorCursor, sectorClosed, answers, mode, submittedAt]);
+  }, [phase, camp, sectorCursor, sectorClosed, answers, mode, submittedAt, activeQuestion]);
 
   function setFormAnswer(qid, value) {
     setAnswers(prev => ({ ...prev, [qid]: value }));
@@ -1901,16 +2038,17 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
     const reduceMotion = window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    setTimeout(() => {
+    clearTimeout(spinTimerRef.current);
+    spinTimerRef.current = setTimeout(() => {
       setSpinning(false);
       setActiveQuestion({ sector: target });
     }, reduceMotion ? 500 : 4300);
   }, [sectors, sectorClosed, rotation]);
 
   // The player answered every question of a sector. Build the per-question
-  // answer map (T1–T3 by question id; Tier-4 keyed by the picked topic id),
-  // merge it into the shared `answers` state, and score via cumulative bands —
-  // a single early No no longer zeroes the sector; later Yes answers compensate.
+  // answer map (T1–T3 by question id; Tier-4 keyed by the picked topic id) and
+  // merge it into the shared `answers` state. Scoring is per-question: each Yes
+  // lights its own segment, gaps allowed, so totalYes is just the Yes count (0–10).
   function handleAnswers(answersByLevel, pickedTopicIds = []) {
     const { sector } = activeQuestion;
     const sectorAns = {};
@@ -1936,7 +2074,27 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     else setToast({ kind: 'sector-done', sector, greens: totalYes });
   }
 
+  // Wipe in-progress state for a clean start. Called when entering a DIFFERENT
+  // mode than the answers belong to, so a part-filled form can't bleed into a
+  // board game (sectorFill counts any Yes in the shared map) — but re-entering
+  // the same mode keeps the answers so an in-session resume still works.
+  function freshProgress() {
+    clearTimeout(spinTimerRef.current);
+    setSpinning(false);
+    setActiveQuestion(null);
+    setAnswers({});
+    setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
+    setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
+    setSubmittedAt(null);
+    setSubmitState('idle');
+    setSubmitResult(null);
+    setEditingEmail(false);
+    autoSentRef.current = false;
+    submitGenRef.current++;
+  }
+
   function startGame(info) {
+    if (mode !== 'board') freshProgress();
     setCamp(info);
     setMode('board');
     setPhase('playing');
@@ -1952,6 +2110,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   }
 
   function startForm(info) {
+    if (mode !== 'form') freshProgress();
     setCamp(info);
     setMode('form');
     setPhase('form');
@@ -1982,15 +2141,18 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   if (phase === 'form') {
     return (
-      <LinearForm
-        sectors={sectors}
-        answers={answers}
-        setAnswer={setFormAnswer}
-        onSubmit={submitForm}
-        onBack={() => setPhase('pick-mode')}
-        onClear={() => setAnswers({})}
-        palette={palette}
-      />
+      <>
+        {restored && <RestoredBanner onDismiss={() => setRestored(false)} />}
+        <LinearForm
+          sectors={sectors}
+          answers={answers}
+          setAnswer={setFormAnswer}
+          onSubmit={submitForm}
+          onBack={() => setPhase('pick-mode')}
+          onClear={() => setAnswers({})}
+          palette={palette}
+        />
+      </>
     );
   }
 
@@ -2027,6 +2189,15 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setSubmitResult(null);
       runSubmit(); // bumps the generation token, re-runs the POST
     }
+    function handleResend() {
+      const e = emailDraft.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return; // ignore an obviously bad address
+      setCamp(c => ({ ...c, email: e }));
+      setEditingEmail(false);
+      setSubmitResult(null);
+      runSubmit(e); // pass the corrected address directly (setCamp hasn't flushed yet)
+    }
+    const emailDraftOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailDraft.trim());
     function handleExit() {
       // Nothing landed yet (offline / total failure) and Exit wipes the save —
       // confirm first so a stray tap can't destroy the only copy of the result.
@@ -2043,6 +2214,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setSubmittedAt(null);
       setSubmitState('idle');
       setSubmitResult(null);
+      setEditingEmail(false);
       setPhase('pick-mode');
     }
 
@@ -2070,6 +2242,34 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
                 ? <>Thank you for participating! You're counted in the community tally, but we couldn't email your card just now. Download it or copy the share link below.</>
                 : <>Thank you for participating! Your results were sent to <strong>{email}</strong> (please check spam).</>}
         </div>
+
+        {submitState !== 'sending' && (
+          editingEmail ? (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <input
+                type="email" value={emailDraft} onChange={e => setEmailDraft(e.target.value)}
+                aria-label="Your email address" placeholder="you@camp.org"
+                inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                style={{ flex: 1, padding: '10px 12px', borderRadius: 10, fontSize: 16, fontFamily: 'inherit',
+                  border: `1.5px solid ${emailDraftOk ? palette.text + '22' : '#B4463A'}`, background: palette.card, color: palette.text }}
+              />
+              <button onClick={handleResend} disabled={!emailDraftOk}
+                style={{ padding: '0 16px', borderRadius: 10, border: 'none', background: palette.accent, color: '#fff',
+                  fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
+                  cursor: emailDraftOk ? 'pointer' : 'default', opacity: emailDraftOk ? 1 : 0.5, minHeight: 44 }}>Resend</button>
+              <button onClick={() => setEditingEmail(false)} aria-label="Cancel editing email"
+                style={{ padding: '0 12px', borderRadius: 10, border: `1.5px solid ${palette.text}22`, background: 'transparent',
+                  color: palette.text, fontSize: 16, cursor: 'pointer', minHeight: 44 }}>✕</button>
+            </div>
+          ) : (
+            <button onClick={() => { setEmailDraft(email); setEditingEmail(true); }}
+              style={{ display: 'block', margin: '-6px auto 16px', background: 'none', border: 'none',
+                color: palette.accentDark, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                textDecoration: 'underline', textUnderlineOffset: 3 }}>
+              Wrong email? Edit and resend
+            </button>
+          )
+        )}
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={handleDownload}
@@ -2111,6 +2311,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   return (
     <div style={{ padding: '20px 16px 32px', maxWidth: 480, margin: '0 auto' }}>
+      {restored && <div style={{ margin: '0 0 12px' }}><RestoredBanner onDismiss={() => setRestored(false)} /></div>}
       {/* header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
@@ -2198,9 +2399,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           onClick={() => {
             if (totalAttempted === 0) return;
             if (!confirm('Reset progress and start over?')) return;
-            setSectorCursor(() => { const o={}; sectors.forEach(s=>o[s.id]=0); return o; });
-            setSectorClosed(() => { const o={}; sectors.forEach(s=>o[s.id]=false); return o; });
-            setAnswers({});
+            freshProgress();
+            clearSaved(); // explicit now that the persist effect no longer auto-clears on pick-mode
             setMode(null);
             setPhase('pick-mode');
           }}
@@ -2221,6 +2421,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <QuestionModal
           sector={activeQuestion.sector}
           onComplete={handleAnswers}
+          onAnswer={(qid, v) => setAnswers(a => ({ ...a, [qid]: v }))}
+          existingAnswers={answers}
           palette={palette}
           variant={variant}
         />
