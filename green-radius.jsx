@@ -2088,6 +2088,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setSubmittedAt(null);
     setSubmitState('idle');
     setSubmitResult(null);
+    setEditingEmail(false);
     autoSentRef.current = false;
     submitGenRef.current++;
   }
@@ -2213,6 +2214,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setSubmittedAt(null);
       setSubmitState('idle');
       setSubmitResult(null);
+      setEditingEmail(false);
       setPhase('pick-mode');
     }
 
