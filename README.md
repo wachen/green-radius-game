@@ -13,7 +13,7 @@ this implementation began from a Claude Design handoff bundle.
 
 ## Stack
 
-- Static HTML + React 18 (loaded via UMD CDN), with in-browser JSX via `@babel/standalone`
+- Static HTML + React 18 (UMD, vendored same-origin in `vendor/`), with in-browser JSX via `@babel/standalone`
 - **No build step** — the browser compiles the JSX
 - A small **Cloudflare Worker** (`worker/index.js`) backs one endpoint,
   `POST /api/complete` — it saves a result row to a Google Sheet and emails the camp a
@@ -30,6 +30,7 @@ this implementation began from a Claude Design handoff bundle.
 | `result-state.js`  | `window.ResultState` — encode/decode a result into the URL hash |
 | `result/`          | Stateless shareable result page                                 |
 | `worker/`          | Cloudflare Worker (`/api/complete`)                             |
+| `vendor/`          | Pinned React/ReactDOM/Babel runtime, served same-origin        |
 | `downloads/`       | Printable board-game + how-to-play PDFs                          |
 
 ## Run locally

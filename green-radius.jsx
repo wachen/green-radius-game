@@ -470,6 +470,14 @@ function resumePosition(sector, answers) {
   return { level: 3, idx: 0, answersByLevel };
 }
 
+// One step back through the fixed levels (sizes 1/2/3). Returns null at the very start.
+function stepBack(level, idx) {
+  const levelSizes = [1, 2, 3, 4];
+  if (idx > 0) return { level, idx: idx - 1 };
+  if (level > 0) return { level: level - 1, idx: levelSizes[level - 1] - 1 };
+  return null;
+}
+
 function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette, variant }) {
   const tierLabels = ['Start Here', 'Beginner', 'Intermediate', 'Advanced'];
   const levelSizes = [1, 2, 3, 4];
@@ -527,6 +535,27 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
       setIdx(idx + 1);
     }
   }
+
+  // Step one question back, un-answering it so a Yes/No can be changed.
+  function back() {
+    if (isTier4) {
+      if (topicId) { setTopicId(''); return; }          // leave the open topic, back to the picker
+      if (idx > 0) {                                     // un-answer the previous advanced topic
+        setAnswersByLevel(a => a.map((l, li) => li === 3 ? l.slice(0, -1) : l));
+        setPickedTopicIds(p => p.slice(0, -1));
+        setIdx(idx - 1);
+        return;
+      }
+    }
+    const prev = stepBack(level, idx);
+    if (!prev) return;
+    const pq = (sector.levels[prev.level] || [])[prev.idx];
+    if (pq && onAnswer) onAnswer(pq.id, null);           // null = remove the persisted answer
+    setAnswersByLevel(a => a.map((l, li) => li === prev.level ? l.slice(0, -1) : l));
+    setLevel(prev.level);
+    setIdx(prev.idx);
+  }
+  const canGoBack = !(level === 0 && idx === 0 && !topicId);
 
   // Overall position across all 10 questions, for the counter and dot grouping
   const stepNumber = levelSizes.slice(0, level).reduce((a, b) => a + b, 0) + idx + 1;
@@ -730,8 +759,17 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
           </div>
         )}
 
-        <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: palette.text + '99' }}>
-          {stepNumber} of 10
+        <div style={{ display: 'flex', alignItems: 'center', marginTop: 16 }}>
+          <button type="button" onClick={back} aria-label="Go back to the previous question"
+            style={{ visibility: canGoBack ? 'visible' : 'hidden', background: 'none', border: 'none',
+              color: palette.text + '99', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit', padding: '6px 8px', minHeight: 32 }}>
+            ‹ Back
+          </button>
+          <div style={{ flex: 1, textAlign: 'center', fontSize: 12, color: palette.text + '99' }}>
+            {isTier4 ? 'Advanced' : `${stepNumber} of 10`}
+          </div>
+          <span style={{ visibility: 'hidden', fontSize: 12, fontWeight: 700, padding: '6px 8px' }} aria-hidden="true">‹ Back</span>
         </div>
       </div>
     </div>
@@ -856,7 +894,7 @@ function Celebration({ sector, palette, onDone }) {
 // compensation). Adjacent sectors share boundaries so the lit area still reads
 // as one silhouette.
 function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false,
-                       intensities = null, onSelectSegment = null, selected = null, centerLabel = null }) {
+                       intensities = null, onSelectSegment = null, selected = null, centerLabel = null, fluid = false }) {
   const cx = size / 2, cy = size / 2;
   // [hub edge, L1, L2, L3, L4] — the inner hub stays clear (total moved to the header), like the board
   const RINGS = [0.18, 0.34, 0.52, 0.68, 0.84].map(f => f * size / 2);
@@ -870,7 +908,7 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
   const gridStroke = dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)';
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
+    <svg width={fluid ? '100%' : size} height={fluid ? undefined : size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
       {showLabels && (
         <circle cx={cx} cy={cy} r={RINGS[4]} fill={baseColor} stroke={baseStroke} strokeWidth={1}/>
       )}
@@ -895,6 +933,12 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
                 stroke={isSel ? '#e8c15a' : baseStroke} strokeWidth={isSel ? 1.5 : 0.5}
                 style={onSelectSegment ? { cursor: 'pointer' } : undefined}
                 onClick={onSelectSegment ? () => onSelectSegment(sector.id, li, qi) : undefined}
+                tabIndex={onSelectSegment ? 0 : undefined}
+                role={onSelectSegment ? 'button' : undefined}
+                aria-label={onSelectSegment ? `${sector.name}, level ${li + 1}, segment ${qi + 1}` : undefined}
+                onKeyDown={onSelectSegment ? (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectSegment(sector.id, li, qi); }
+                } : undefined}
               />
             );
           });
@@ -957,7 +1001,7 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
   const total = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
   return (
     <div style={{
-      width: 360, padding: 28,
+      width: 'min(360px, 100%)', padding: 28,
       background: 'linear-gradient(155deg, #1c1410 0%, #2a1c14 100%)',
       borderRadius: 24, color: '#fff',
       fontFamily: "'Space Grotesk', system-ui, -apple-system, sans-serif",
@@ -984,7 +1028,9 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
 
       <div style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', margin: '0 0 14px' }}>
-          <RadialBadge sectors={sectors} fills={fills} size={300} showGrid={true}/>
+          <div style={{ width: '100%', maxWidth: 300 }}>
+            <RadialBadge sectors={sectors} fills={fills} size={300} showGrid={true} fluid/>
+          </div>
         </div>
 
         {/* sector breakdown */}
@@ -2421,7 +2467,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <QuestionModal
           sector={activeQuestion.sector}
           onComplete={handleAnswers}
-          onAnswer={(qid, v) => setAnswers(a => ({ ...a, [qid]: v }))}
+          onAnswer={(qid, v) => setAnswers(a => {
+            const next = { ...a };
+            if (v == null) delete next[qid]; else next[qid] = v;
+            return next;
+          })}
           existingAnswers={answers}
           palette={palette}
           variant={variant}

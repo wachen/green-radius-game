@@ -34,7 +34,8 @@ No build step — the browser compiles the JSX in place via `@babel/standalone`.
 | `admin/`           | Internal, Cloudflare Access–gated response viewer (City + Camps tabs); read-only |
 | `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses`; all else served as static assets |
 | `wrangler.jsonc`   | Worker + static-assets config                                         |
-| `_headers`         | Static-asset response headers (incl. HSTS)                            |
+| `_headers`         | Static-asset response headers (HSTS, framing, permissions)            |
+| `vendor/`          | Pinned React/ReactDOM/Babel runtime, served same-origin (see its README) |
 | `downloads/`       | Printable board-game + how-to-play PDFs                               |
 
 ### One JSX gotcha worth knowing

@@ -4,21 +4,64 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Your Green Radius</title>
+<meta name="description" content="See how green this Burning Man theme camp went, sector by sector. Play your own at greenradi.us."/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://greenradi.us/result/"/>
+<meta property="og:title" content="Our Green Radius"/>
+<meta property="og:description" content="See how green this Burning Man theme camp went, sector by sector. Play your own at greenradi.us."/>
+<meta property="og:image" content="https://greenradi.us/og-card.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="Green Radius Game. A radial sustainability scorecard for Burning Man theme camps."/>
+<meta name="twitter:card" content="summary_large_image"/>
 
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script defer src="/vendor/react-18.3.1.production.min.js"></script>
+<script defer src="/vendor/react-dom-18.3.1.production.min.js"></script>
+<script defer src="/vendor/babel-standalone-7.29.0.min.js"></script>
 
-<script src="../game-data.js"></script>
+<script defer src="../game-data.js"></script>
 <script type="text/babel" src="../green-radius.jsx"></script>
-<script src="../result-state.js"></script>
+<script defer src="../result-state.js"></script>
+
+<style>
+  /* Loading placeholder shown until React mounts (root.render clears it). */
+  .grg-loading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; text-align: center; padding: 24px; color: #2a2620;
+  }
+  .grg-loading .grg-loading-dot {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: conic-gradient(#7AB85C 0 50%, #2a2620 50% 100%);
+    animation: grg-loading-spin 1.2s linear infinite;
+  }
+  .grg-loading .grg-loading-slow {
+    opacity: 0; animation: grg-loading-reveal 0.4s ease 6s forwards;
+    font-size: 13px; color: #2a2620aa; max-width: 280px;
+  }
+  @keyframes grg-loading-spin { to { transform: rotate(360deg); } }
+  @keyframes grg-loading-reveal { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .grg-loading .grg-loading-dot { animation: none; }
+  }
+</style>
 </head>
 <body style="margin:0;padding:0;background:#D8CBB6;font-family:'Space Grotesk',system-ui,-apple-system,sans-serif;">
-<div id="root" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#D8CBB6;padding:24px"></div>
+<div id="root" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#D8CBB6;padding:24px">
+  <div class="grg-loading">
+    <div class="grg-loading-dot" aria-hidden="true"></div>
+    <div style="font-weight:700">Loading your Green Radius…</div>
+    <div class="grg-loading-slow">Still loading. On a slow connection the card can take a little while the first time.</div>
+  </div>
+</div>
+<noscript>
+  <div style="text-align:center;padding:40px 24px;font-family:system-ui">
+    The Green Radius Game needs JavaScript to run. Please enable it and reload.
+  </div>
+</noscript>
 
 <script type="text/babel" data-presets="react">
 // ShareCard is defined in green-radius.jsx (another text/babel script). Babel-standalone runs all
@@ -27,7 +70,24 @@
 const data = window.ResultState.decode(window.location.hash);
 const root = ReactDOM.createRoot(document.getElementById('root'));
 if (!data) {
-  root.render(<p style={{ fontFamily: 'system-ui', color: '#3c2a1e' }}>This result link looks invalid or incomplete.</p>);
+  root.render(
+    <div style={{
+      background: 'linear-gradient(155deg, #1c1410 0%, #2a1c14 100%)',
+      borderRadius: 24, color: '#fff', padding: '36px 28px', maxWidth: 360,
+      textAlign: 'center', boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+    }}>
+      <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, opacity: 0.6, marginBottom: 10 }}>GREEN RADIUS</div>
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>This result link looks incomplete.</div>
+      <div style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.75, marginBottom: 20 }}>
+        Result links carry the whole scorecard after the # mark, so make sure the full link was copied. Or start fresh and build your own.
+      </div>
+      <a href="/" style={{
+        display: 'inline-block', background: '#5BA84A', color: '#fff',
+        padding: '12px 22px', borderRadius: 14, fontWeight: 700, fontSize: 14,
+        textDecoration: 'none', boxShadow: '0 3px 0 #3d7a31',
+      }}>Play your own Green Radius</a>
+    </div>
+  );
 } else {
   root.render(
     <ShareCard sectors={window.SECTORS} fills={data.fills}

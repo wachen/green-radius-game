@@ -6,6 +6,15 @@
 <meta name="theme-color" content="#D8CBB6"/>
 <title>Green Radius Game</title>
 <meta name="description" content="A self-ranking sustainability game for Burning Man theme camps. Spin the wheel, answer Yes/No, build your camp's green radius."/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://greenradi.us/"/>
+<meta property="og:title" content="Green Radius Game"/>
+<meta property="og:description" content="A self-ranking sustainability game for Burning Man theme camps. Spin the wheel, answer Yes/No, build your camp's green radius."/>
+<meta property="og:image" content="https://greenradi.us/og-card.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="Green Radius Game. A radial sustainability scorecard for Burning Man theme camps."/>
+<meta name="twitter:card" content="summary_large_image"/>
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232a2620'/%3E%3Cpath d='M3 16a13 13 0 1 1 26 0z' fill='%237AB85C'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%232a2620'/%3E%3C/svg%3E"/>
 
@@ -58,6 +67,27 @@
     @keyframes grg-celeb { from { opacity: 1; transform: translate(-50%, -50%); } to { opacity: 1; transform: translate(-50%, -50%); } }
   }
 
+  /* Loading placeholder shown until React mounts (root.render clears it). */
+  .grg-loading {
+    min-height: 100vh; min-height: 100dvh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; text-align: center; padding: 24px; color: #2a2620;
+  }
+  .grg-loading .grg-loading-dot {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: conic-gradient(#7AB85C 0 50%, #2a2620 50% 100%);
+    animation: grg-loading-spin 1.2s linear infinite;
+  }
+  .grg-loading .grg-loading-slow {
+    opacity: 0; animation: grg-loading-reveal 0.4s ease 6s forwards;
+    font-size: 13px; color: #2a2620aa; max-width: 280px;
+  }
+  @keyframes grg-loading-spin { to { transform: rotate(360deg); } }
+  @keyframes grg-loading-reveal { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .grg-loading .grg-loading-dot { animation: none; }
+  }
+
   /* Responsive shell: full-bleed on mobile, phone-shaped frame on larger screens. */
   .grg-shell {
     width: 100%;
@@ -91,16 +121,27 @@
   }
 </style>
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script defer src="/vendor/react-18.3.1.production.min.js"></script>
+<script defer src="/vendor/react-dom-18.3.1.production.min.js"></script>
+<script defer src="/vendor/babel-standalone-7.29.0.min.js"></script>
 
-<script src="game-data.js"></script>
-<script src="result-state.js"></script>
+<script defer src="game-data.js"></script>
+<script defer src="result-state.js"></script>
 <script type="text/babel" src="green-radius.jsx"></script>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <div class="grg-loading">
+    <div class="grg-loading-dot" aria-hidden="true"></div>
+    <div style="font-weight:700">Loading the Green Radius Game…</div>
+    <div class="grg-loading-slow">Still loading. On a slow connection the game can take a little while the first time.</div>
+  </div>
+</div>
+<noscript>
+  <div style="text-align:center;padding:40px 24px;font-family:system-ui">
+    The Green Radius Game needs JavaScript to run. Please enable it and reload.
+  </div>
+</noscript>
 
 <script type="text/babel" data-presets="react">
 const PALETTE = {

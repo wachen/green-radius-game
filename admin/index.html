@@ -4,16 +4,17 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Green Radius — Admin</title>
-<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
-<script src="../game-data.js"></script>
+<script defer src="/vendor/react-18.3.1.production.min.js"></script>
+<script defer src="/vendor/react-dom-18.3.1.production.min.js"></script>
+<script defer src="/vendor/babel-standalone-7.29.0.min.js"></script>
+<script defer src="../game-data.js"></script>
 <script type="text/babel" src="../green-radius.jsx"></script>
-<script src="./aggregate.js"></script>
+<script defer src="./aggregate.js"></script>
 <script type="text/babel" src="./admin.jsx"></script>
+<style>path:focus-visible{outline:2px solid #e8c15a}button:focus-visible{outline:2px solid #45c483;outline-offset:2px}</style>
 </head>
 <body style="margin:0;background:#0e1712;color:#eaf2ec;font-family:system-ui,sans-serif">
-<div id="root"></div>
+<div id="root"><div style="text-align:center;padding:60px 0;color:#93a89b">Loading the admin viewer…</div></div>
 <script type="text/babel" data-presets="react">
   ReactDOM.createRoot(document.getElementById('root')).render(<AdminApp sectors={window.SECTORS} />);
 </script>

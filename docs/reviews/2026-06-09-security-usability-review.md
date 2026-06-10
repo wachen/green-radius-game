@@ -18,9 +18,14 @@ action (can't be done in-repo) · ⏭️ deferred follow-up.
 > a11y items:** U3, R1, U6, U8, R3, R5, R6, A4 (partial), A7, A8, and U5. Those
 > entries below are still marked ⏭️ for the historical record; see
 > `docs/superpowers/plans/2026-06-09-data-safety-cluster.md` for what landed.
-> Still genuinely open after both PRs: U4 (board-mode undo), U7 (offline shell),
-> U9 + OG tags, R2 (legacy admin aggregation), A2 (button contrast — reverted by
-> request), A5/A6, and the feature ideas.
+>
+> **Update 2 — a third PR (`resilience-reach-cluster`) closes the rest:** S5
+> vendoring + S6 headers, U4 (board-mode Back), U7 (loading state + defer), U9 +
+> OG tags (plus `og-card.png`), A5 (fluid ShareCard), A6 (keyboard paths), and R2
+> (legacy rows excluded from admin aggregates, tagged in Camps). See
+> `docs/superpowers/plans/2026-06-09-resilience-reach-cluster.md`.
+> Still genuinely open: A2 (button contrast — needs the previewed palette pass),
+> R4 (double-submit nonce — needs an Apps Script change), and the feature ideas.
 
 ---
 
