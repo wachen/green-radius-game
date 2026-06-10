@@ -6,7 +6,9 @@
 <title>Your Green Radius</title>
 <meta name="description" content="See how green this Burning Man theme camp went, sector by sector. Play your own at greenradi.us."/>
 <meta property="og:type" content="website"/>
-<meta property="og:url" content="https://greenradi.us/result/"/>
+<!-- No og:url here on purpose: platforms that treat og:url as the canonical click
+     target (Facebook, LinkedIn) would strip the #fragment that carries the whole
+     result, sending viewers to the empty fallback instead of the camp's card. -->
 <meta property="og:title" content="Our Green Radius"/>
 <meta property="og:description" content="See how green this Burning Man theme camp went, sector by sector. Play your own at greenradi.us."/>
 <meta property="og:image" content="https://greenradi.us/og-card.png"/>
@@ -58,6 +60,7 @@
   </div>
 </div>
 <noscript>
+  <style>.grg-loading { display: none; } #root { min-height: 0 !important; padding: 0 !important; }</style>
   <div style="text-align:center;padding:40px 24px;font-family:system-ui">
     The Green Radius Game needs JavaScript to run. Please enable it and reload.
   </div>

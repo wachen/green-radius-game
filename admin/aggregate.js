@@ -17,8 +17,13 @@
   }
   // Pre-rework rows (before the 0-10 per-question capture) have no schema tag and
   // no per-question answers; their greens mean levels-lit 0-4, not questions 0-10.
+  // The greens<=4 check keeps a modern row that merely lost its tag/answers cells
+  // (hand-typed, or submitted before the sheet gained those columns) from being
+  // misread as old-scale when its scores are visibly 0-10.
   function isLegacy(row) {
-    return !row.schemaVersion && (!row.answers || Object.keys(row.answers).length === 0);
+    if (row.schemaVersion || (row.answers && Object.keys(row.answers).length > 0)) return false;
+    var g = row.greens || {};
+    return (row.total | 0) <= 24 && Object.keys(g).every(function (k) { return (g[k] | 0) <= 4; });
   }
 
   function perQuestion(rows, sectors) {

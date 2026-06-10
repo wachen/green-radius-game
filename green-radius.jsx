@@ -16,7 +16,10 @@ function useModalA11y(ref) {
     if (!node) return;
     const onKey = (e) => {
       if (e.key !== 'Tab') return;
-      const f = node.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex="-1"])');
+      // Skip elements CSS hides (visibility/display): they match the selector but
+      // can never hold focus, and a hidden "last" element breaks the wrap.
+      const f = Array.from(node.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex="-1"])'))
+        .filter(el => { const s = getComputedStyle(el); return s.visibility !== 'hidden' && s.display !== 'none'; });
       if (!f.length) return;
       const first = f[0], last = f[f.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
@@ -760,12 +763,16 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', marginTop: 16 }}>
-          <button type="button" onClick={back} aria-label="Go back to the previous question"
-            style={{ visibility: canGoBack ? 'visible' : 'hidden', background: 'none', border: 'none',
-              color: palette.text + '99', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'inherit', padding: '6px 8px', minHeight: 32 }}>
-            ‹ Back
-          </button>
+          {canGoBack ? (
+            <button type="button" onClick={back} aria-label="Go back to the previous question"
+              style={{ background: 'none', border: 'none',
+                color: palette.text + '99', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'inherit', padding: '6px 8px', minHeight: 32 }}>
+              ‹ Back
+            </button>
+          ) : (
+            <span style={{ visibility: 'hidden', fontSize: 12, fontWeight: 700, padding: '6px 8px' }} aria-hidden="true">‹ Back</span>
+          )}
           <div style={{ flex: 1, textAlign: 'center', fontSize: 12, color: palette.text + '99' }}>
             {isTier4 ? 'Advanced' : `${stepNumber} of 10`}
           </div>
@@ -1001,7 +1008,7 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
   const total = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
   return (
     <div style={{
-      width: 'min(360px, 100%)', padding: 28,
+      width: 'min(360px, 100%)', padding: 28, boxSizing: 'border-box',
       background: 'linear-gradient(155deg, #1c1410 0%, #2a1c14 100%)',
       borderRadius: 24, color: '#fff',
       fontFamily: "'Space Grotesk', system-ui, -apple-system, sans-serif",

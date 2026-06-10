@@ -165,9 +165,9 @@ function CampsView({ sectors, rows }) {
             style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 11px', cursor: 'pointer',
               width: '100%', textAlign: 'left', font: 'inherit', color: 'inherit', border: 'none',
               borderBottom: '1px solid #1a281f', background: selected && rowKey(selected) === rowKey(r) ? '#16271d' : 'transparent' }}>
-            <div style={{ flex: 1 }}><b style={{ fontSize: 13 }}>{r.campName}</b><small style={{ display: 'block', color: '#93a89b', fontSize: 10 }}>{r.leadName}</small></div>
-            {legacy && <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px' }}>old scale</span>}
-            <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px' }}>{r.source}</span>
+            <div style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.campName}</b><small style={{ display: 'block', color: '#93a89b', fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.leadName}</small></div>
+            {legacy && <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap' }}>old scale</span>}
+            <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap' }}>{r.source}</span>
             <b style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{legacy ? `${r.total}/24` : r.total}</b>
           </button>
         );
