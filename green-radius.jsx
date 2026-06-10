@@ -1899,6 +1899,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
   const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
   const [submitResult, setSubmitResult] = useState(null); // { sheet:'ok'|'err', email:'sent'|'err' } from the last POST
+  const [editingEmail, setEditingEmail] = useState(false); // done-screen "edit & resend" affordance
+  const [emailDraft, setEmailDraft] = useState('');
   const [copied, setCopied] = useState(false);
   const cardSvgRef = useRef(null);   // offscreen ResultCardSVG, serialized on Download
   const autoSentRef = useRef(false); // guards the one-shot auto-email on the done screen
@@ -1936,7 +1938,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // outcomes independently ({sheet, email}), so we keep them separate and tell the
   // player the truth rather than collapsing both into "sent". A generation token
   // (submitGenRef) voids a stale in-flight request if the player exits mid-send.
-  const runSubmit = useCallback(() => {
+  const runSubmit = useCallback((overrideEmail) => {
     const gen = ++submitGenRef.current;
     autoSentRef.current = true;
     fontEmbedCss(); // warm the font cache so the Download button is snappy
@@ -1946,7 +1948,9 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       const year = new Date().getFullYear();
       const resultUrl = window.location.origin + '/result/#' +
         window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
-      const email = (camp.email || '').trim();
+      // overrideEmail (from the done-screen "edit & resend") wins over camp.email,
+      // which may not have flushed through setCamp yet when resend fires.
+      const email = (overrideEmail != null ? overrideEmail : (camp.email || '')).trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { if (gen === submitGenRef.current) setSubmitState('error'); return; }
       setSubmitState('sending');
       try {
@@ -2184,6 +2188,15 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setSubmitResult(null);
       runSubmit(); // bumps the generation token, re-runs the POST
     }
+    function handleResend() {
+      const e = emailDraft.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return; // ignore an obviously bad address
+      setCamp(c => ({ ...c, email: e }));
+      setEditingEmail(false);
+      setSubmitResult(null);
+      runSubmit(e); // pass the corrected address directly (setCamp hasn't flushed yet)
+    }
+    const emailDraftOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailDraft.trim());
     function handleExit() {
       // Nothing landed yet (offline / total failure) and Exit wipes the save —
       // confirm first so a stray tap can't destroy the only copy of the result.
@@ -2227,6 +2240,34 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
                 ? <>Thank you for participating! You're counted in the community tally, but we couldn't email your card just now. Download it or copy the share link below.</>
                 : <>Thank you for participating! Your results were sent to <strong>{email}</strong> (please check spam).</>}
         </div>
+
+        {submitState !== 'sending' && (
+          editingEmail ? (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <input
+                type="email" value={emailDraft} onChange={e => setEmailDraft(e.target.value)}
+                aria-label="Your email address" placeholder="you@camp.org"
+                inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                style={{ flex: 1, padding: '10px 12px', borderRadius: 10, fontSize: 16, fontFamily: 'inherit',
+                  border: `1.5px solid ${emailDraftOk ? palette.text + '22' : '#B4463A'}`, background: palette.card, color: palette.text }}
+              />
+              <button onClick={handleResend} disabled={!emailDraftOk}
+                style={{ padding: '0 16px', borderRadius: 10, border: 'none', background: palette.accent, color: '#fff',
+                  fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
+                  cursor: emailDraftOk ? 'pointer' : 'default', opacity: emailDraftOk ? 1 : 0.5, minHeight: 44 }}>Resend</button>
+              <button onClick={() => setEditingEmail(false)} aria-label="Cancel editing email"
+                style={{ padding: '0 12px', borderRadius: 10, border: `1.5px solid ${palette.text}22`, background: 'transparent',
+                  color: palette.text, fontSize: 16, cursor: 'pointer', minHeight: 44 }}>✕</button>
+            </div>
+          ) : (
+            <button onClick={() => { setEmailDraft(email); setEditingEmail(true); }}
+              style={{ display: 'block', margin: '-6px auto 16px', background: 'none', border: 'none',
+                color: palette.accentDark, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                textDecoration: 'underline', textUnderlineOffset: 3 }}>
+              Wrong email? Edit and resend
+            </button>
+          )
+        )}
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={handleDownload}
