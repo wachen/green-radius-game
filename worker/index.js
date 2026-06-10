@@ -13,12 +13,16 @@ export default {
 async function handleComplete(request, env) {
   const origin = request.headers.get('Origin') || '';
   const isLocalhost = /^http:\/\/localhost(:\d+)?$/.test(origin);
-  if (origin && origin !== ALLOWED_ORIGIN && !isLocalhost) return json({ error: 'forbidden' }, 403);
+  // Fail closed: browsers always send Origin on a POST, so require it to match.
+  // (An absent Origin used to slip through. This only deters casual scripted
+  // abuse — the real rate-limit lives in a Cloudflare WAF rule, see docs.)
+  if (origin !== ALLOWED_ORIGIN && !isLocalhost) return json({ error: 'forbidden' }, 403);
 
   const raw = await request.text();
   if (raw.length > 4096) return json({ error: 'too_large' }, 413);
   let body;
   try { body = JSON.parse(raw); } catch { return json({ error: 'bad_json' }, 400); }
+  if (!body || typeof body !== 'object') return json({ error: 'bad_json' }, 400);
 
   if (body.website) return json({ sheet: 'skipped', email: 'skipped' }); // honeypot -> bot
   if (!body.campName || !body.email) return json({ error: 'missing_fields' }, 400);
@@ -41,10 +45,16 @@ async function handleComplete(request, env) {
   const source = body.mode === 'form' ? 'form' : 'board';
   const schemaVersion = typeof body.schemaVersion === 'string' ? body.schemaVersion.slice(0, 32) : '';
 
+  // Bound the free-text fields (prevents subject/row stuffing) and neutralize
+  // spreadsheet formula injection before anything reaches the sheet or the email.
+  const campName = clampField(body.campName, 80);
+  const leadName = clampField(body.leadName, 80);
+  const email = clampField(body.email, 254);
+
   const resultUrl = safeResultUrl(body.resultUrl);
   const row = {
     secret: env.SHEETS_SHARED_SECRET,
-    campName: body.campName, leadName: body.leadName || '', email: body.email,
+    campName: sheetCell(campName), leadName: sheetCell(leadName), email: sheetCell(email),
     year: Math.max(2000, Math.min(2100, body.year | 0)), greens, source,
     answers, schemaVersion,
     resultUrl,
@@ -52,7 +62,7 @@ async function handleComplete(request, env) {
 
   const [sheetRes, emailRes] = await Promise.allSettled([
     appendToSheet(env, row),
-    sendEmail(env, body.email, body.campName, resultUrl),
+    sendEmail(env, email, campName, resultUrl),
   ]);
   return json({
     sheet: sheetRes.status === 'fulfilled' && sheetRes.value ? 'ok' : 'err',
@@ -97,6 +107,17 @@ function safeResultUrl(raw) {
 
 function escAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#x27;');
+}
+
+function clampField(s, n) {
+  return String(s == null ? '' : s).slice(0, n);
+}
+
+// Google Sheets treats a cell whose value starts with = + - @ (or a control char)
+// as a formula, which would execute on view/recalc (e.g. =IMPORTXML exfiltrating
+// the email column). Prefix a ' so submitted text always stays literal text.
+function sheetCell(s) {
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
 }
 
 function json(obj, status = 200) {
