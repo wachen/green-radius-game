@@ -1852,7 +1852,7 @@ function Intro({ onStart, onBack, palette, description }) {
         fontSize: 11, lineHeight: 1.45, color: palette.text + '99',
         marginTop: 16, textWrap: 'pretty',
       }}>
-        By continuing, you agree the Green Theme Camp Community will email your results on completion and may contact you.
+        By continuing, you agree the Green Theme Camp Community will email your results. We store your camp name, email, and answers to track community progress, and never share or sell them.
       </div>
 
       <div style={{

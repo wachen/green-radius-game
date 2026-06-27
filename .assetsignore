@@ -33,3 +33,12 @@
 .idea
 node_modules
 *.log
+
+# Source / config / docs — the repo is public on GitHub, so this is prod-domain
+# hygiene, not secrecy: no reason to also serve these from greenradi.us. (Do NOT
+# add og-card.png, downloads/, vendor/, or the root .js/.jsx — those are fetched
+# at runtime. worker/index.js runs as the Worker via wrangler `main`, not fetched.)
+docs
+worker
+wrangler.jsonc
+CLAUDE.md
