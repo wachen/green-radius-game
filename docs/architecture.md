@@ -124,14 +124,20 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   wrangler ignores `.gitignore` for assets) excludes `.git`, `.dev.vars*`,
   `.claude/`, `.remember/`, `.superpowers/`, and editor junk, so neither the
   git-checkout deploy nor a local `wrangler deploy` can publish history or
-  secrets. After any deploy, sanity-check `curl -sI https://greenradi.us/.git/config`
-  returns 404.
+  secrets. It also excludes the source/config/docs that have no reason to live on
+  the live domain (`worker/`, `docs/`, `wrangler.jsonc`, `CLAUDE.md`) — prod-domain
+  hygiene, since the repo is public on GitHub regardless. Runtime-fetched paths stay
+  served (`vendor/`, the root `.js`/`.jsx`, `og-card.png`, `downloads/`). After any
+  deploy, sanity-check `curl -sI https://greenradi.us/.git/config` returns 404.
 - **The runtime is vendored, not CDN-loaded.** React/ReactDOM/`@babel/standalone`
   are committed under `vendor/` (versioned filenames) and loaded same-origin with
   `defer` in all three HTML entry points, so a CDN outage or compromise can't
   blank or hijack the page and the playa-offline story improves. To upgrade, see
   `vendor/README.md` (download the pinned URL, verify the bytes, update all three
-  entry points). `_headers` also sends `X-Frame-Options`/`frame-ancestors 'none'`
+  entry points). Because the filenames are versioned, `_headers` serves `/vendor/*`
+  with `Cache-Control: immutable, max-age=1y` (a new version is a new URL) — returning
+  visitors skip ~7 RTTs; `og-card.png` is unversioned at root and deliberately not
+  covered. `_headers` also sends `X-Frame-Options`/`frame-ancestors 'none'`
   and a minimal `Permissions-Policy`; a script CSP is deliberately absent because
   in-browser Babel needs eval and the boot scripts are inline.
 - **Admin viewer read path.** `GET /api/admin/responses` (Worker) is gated by
