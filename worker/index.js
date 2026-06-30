@@ -1,3 +1,6 @@
+import ResultState from '../result-state.js';
+import Rank from '../rank.js';
+
 const SECTOR_IDS = ['food', 'water', 'waste', 'transport', 'shelter', 'power'];
 const ALLOWED_ORIGIN = 'https://greenradi.us';
 
@@ -6,6 +9,9 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/complete' && request.method === 'POST') return handleComplete(request, env);
     if (url.pathname === '/api/admin/responses' && request.method === 'GET') return handleAdminResponses(request, env);
+    if (request.method === 'GET' && url.pathname === '/result/' && url.searchParams.has('r')) {
+      return resultWithOg(request, env, url.searchParams.get('r'));
+    }
     return env.ASSETS.fetch(request);
   },
 };
@@ -68,6 +74,24 @@ async function handleComplete(request, env) {
     sheet: sheetRes.status === 'fulfilled' && sheetRes.value ? 'ok' : 'err',
     email: emailRes.status === 'fulfilled' && emailRes.value ? 'sent' : 'err',
   });
+}
+
+// Per-camp OG: decode the ?r= hash, rewrite /result/'s og:title/description to the
+// camp's name + score. Image stays the static og-card.png. Fail-open: any problem
+// serves the unmodified static page (generic unfurl is fine; a broken page is not).
+async function resultWithOg(request, env, r) {
+  const res = await env.ASSETS.fetch(request);
+  let data;
+  try { data = ResultState.decode(r); } catch { data = null; }
+  if (!data) return res;
+  const total = ResultState.SECTOR_IDS.reduce((n, id) => n + ((data.fills[id] && data.fills[id].totalYes) | 0), 0);
+  const camp = String(data.campName || '').slice(0, 80).trim();
+  const title = camp ? `${camp}'s Green Radius` : 'Our Green Radius';
+  const desc = `A ${Rank.titleFor(total)} at ${total}/60. See the card and build your own at greenradi.us.`;
+  return new HTMLRewriter()
+    .on('meta[property="og:title"]', { element(e) { e.setAttribute('content', title); } })
+    .on('meta[property="og:description"]', { element(e) { e.setAttribute('content', desc); } })
+    .transform(res);
 }
 
 async function appendToSheet(env, row) {
