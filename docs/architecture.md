@@ -158,7 +158,15 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   to the camp's name + score + playa-rank (`rank.js`). The OG image stays the static
   `og-card.png` (no headless render in Workers). **Fail-open:** any missing param,
   decode error, or rewrite issue serves the unmodified static page — a generic unfurl
-  is fine, a broken result page is not. **Privacy:** `?r=` makes the result readable by
+  is fine, a broken result page is not. **Routing requirement (load-bearing):** Workers +
+  Static Assets serve assets *before* the Worker by default, and `/result/` matches the
+  `result/index.html` asset — so without help the Worker never runs for it and this
+  rewrite is dead code. `wrangler.jsonc` sets `assets.run_worker_first: ["/result/"]` so
+  the Worker runs first for that one route (and just proxies `env.ASSETS.fetch` when there
+  is no `?r=`). Do not remove it. `/api/*` needs no such entry — those paths match no
+  asset, so the Worker already runs for them. (HTMLRewriter `setAttribute` HTML-escapes
+  the value, so an attacker-supplied camp name cannot break out of the meta attribute —
+  verified with a quote/`<script>` payload.) **Privacy:** `?r=` makes the result readable by
   the Worker (we don't log it, but Cloudflare may record request URLs); the same data
   already lands in the Sheet on completion and in any link the camp shares, so the
   marginal exposure is low-sensitivity. `safeResultUrl` still passes the emailed `?r=`
