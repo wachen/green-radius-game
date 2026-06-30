@@ -892,7 +892,7 @@ function Celebration({ sector, palette, onDone }) {
   // Deterministic random per mount — splats stay in place for the duration
   // instead of jittering on re-render.
   const splats = useMemo(() => {
-    const colors = ['#5BA84A', '#7AB85C', '#D9885C', '#E0B85C', '#fbf7f0', '#3a2a20'];
+    const colors = ['#5BA84A', '#7AB85C', '#4A9639', '#A3D178', '#8FC96B', '#fbf7f0'];
     return Array.from({ length: 18 }, (_, i) => ({
       key: i,
       left: 6 + Math.random() * 88,
@@ -945,7 +945,7 @@ function Celebration({ sector, palette, onDone }) {
           transform: reduceMotion ? 'none' : 'rotate(-3deg)',
           fontFamily: 'inherit',
         }}>
-          All Lit!
+          All Green!
         </div>
       </div>
     </div>
@@ -2462,9 +2462,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 9, letterSpacing: '0.25em', fontWeight: 700, color: palette.text + '99' }}>GREEN</div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: '#5BA84A', lineHeight: 1 }}>
-            {totalGreens}<span style={{ fontSize: 12, opacity: 0.5 }}>/60</span>
+          <div style={{ fontSize: 36, fontWeight: 900, color: '#5BA84A', lineHeight: 1 }}>
+            {totalGreens}<span style={{ fontSize: 18, opacity: 0.5 }}>/60</span>
           </div>
         </div>
       </div>
@@ -2481,8 +2480,22 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         palette={palette}
       />
 
+      {/* status / hint */}
+      <div style={{
+        marginTop: 16, padding: '10px 14px', borderRadius: 10,
+        background: palette.card, border: `1px solid ${palette.text}11`,
+        fontSize: 12, fontWeight: 700, color: palette.text, textAlign: 'center', textWrap: 'pretty',
+      }}>
+        {(() => {
+          if (totalAttempted === 0) return 'Tap Spin to begin. The wheel picks a sector — answer all 10 questions to score it. Six spins total.';
+          if (allDone) return 'All sectors complete — see your radius.';
+          const left = sectors.filter(s => !sectorClosed[s.id]).length;
+          return `${left} ${left === 1 ? 'sector' : 'sectors'} left · spin again`;
+        })()}
+      </div>
+
       {/* sector legend */}
-      <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+      <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
         {sectors.map(s => {
           const f = fills[s.id];
           const ty = f.totalYes;
@@ -2517,21 +2530,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         })}
       </div>
 
-      {/* status / hint */}
-      <div style={{
-        marginTop: 16, padding: '10px 14px', borderRadius: 10,
-        background: palette.card, border: `1px solid ${palette.text}11`,
-        fontSize: 12, color: palette.text + 'cc', textAlign: 'center', textWrap: 'pretty',
-      }}>
-        {(() => {
-          if (totalAttempted === 0) return 'Tap Spin to begin. The wheel picks a sector — answer all 10 questions to score it. Six spins total.';
-          if (allDone) return 'All sectors complete — see your radius.';
-          const left = sectors.filter(s => !sectorClosed[s.id]).length;
-          return `${left} ${left === 1 ? 'sector' : 'sectors'} left · spin again`;
-        })()}
-      </div>
-
-      <div style={{ textAlign: 'center', marginTop: 4 }}>
+      <div style={{ textAlign: 'center', marginTop: 16 }}>
         <button
           type="button"
           aria-label="Reset game progress"
