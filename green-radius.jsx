@@ -2301,6 +2301,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 24px', color: palette.heading, letterSpacing: '-0.01em' }}>
           {camp.campName}
         </h2>
+        {rankTitle && (
+          <div style={{ fontSize: 15, fontWeight: 700, color: palette.text, margin: '-16px 0 24px' }}>
+            Your camp is a <span style={{ color: palette.accentDark }}>{rankTitle}</span> · {total}/60
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
           <ShareCard sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette}/>
         </div>
