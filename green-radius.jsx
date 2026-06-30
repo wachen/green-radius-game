@@ -1959,6 +1959,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const [emailDraft, setEmailDraft] = useState('');
   const [copied, setCopied] = useState(false);
   const cardSvgRef = useRef(null);   // offscreen ResultCardSVG, serialized on Download
+  const cardPngRef = useRef(null);   // pre-generated PNG Blob for Web Share L2 (Safari needs it ready in-gesture)
   const autoSentRef = useRef(false); // guards the one-shot auto-email on the done screen
   const submitGenRef = useRef(0);    // bumped on Exit/new game so a stale in-flight POST can't write back
   const spinTimerRef = useRef(null); // the spin->open-modal timeout; cleared on reset so it can't fire into the next game
@@ -2042,6 +2043,15 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     if (autoSentRef.current) return;
     runSubmit();
   }, [phase, submittedAt, runSubmit]);
+
+  // Pre-rasterize the card so Web Share has the file ready inside the tap gesture
+  // (Safari blocks share() if the file is produced by a later async step). Best-effort.
+  useEffect(() => {
+    if (phase !== 'done' || !cardSvgRef.current) return;
+    let alive = true;
+    svgToPngBlob(cardSvgRef.current).then(b => { if (alive) cardPngRef.current = b; }).catch(() => {});
+    return () => { alive = false; };
+  }, [phase, fills]);
 
   // Persist only on the in-progress phases (playing / form / done). On the
   // navigation screens (pick-mode / intro / form-intro) we do NOTHING — neither
@@ -2225,6 +2235,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   if (phase === 'done') {
     const year = new Date().getFullYear();
+    const total = sectors.reduce((n, s) => n + (fills[s.id] ? fills[s.id].totalYes : 0), 0);
+    const rankTitle = (window.Rank ? window.Rank.titleFor(total) : '');
     const resultUrl = window.location.origin + '/result/#' +
       window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
     const email = (camp.email || '').trim();
@@ -2232,9 +2244,18 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     const needsRetry = submitState === 'error' || (submitResult && submitResult.email !== 'sent');
 
     async function handleShare() {
+      const shareText = `${rankTitle ? rankTitle + '! ' : ''}Our camp reached ${total}/60. Build your camp's Green Radius:`;
       try {
-        if (navigator.share) await navigator.share({ title: 'Our Green Radius', url: resultUrl });
-        else { await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+        const blob = cardPngRef.current;
+        if (blob && navigator.canShare) {
+          const file = new File([blob], `green-radius-${slug}.png`, { type: 'image/png' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: 'Our Green Radius', text: shareText, url: resultUrl });
+            return;
+          }
+        }
+        if (navigator.share) { await navigator.share({ title: 'Our Green Radius', text: shareText, url: resultUrl }); return; }
+        await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500);
       } catch {}
     }
     async function handleDownload() {
