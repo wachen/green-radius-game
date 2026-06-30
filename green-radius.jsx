@@ -174,7 +174,7 @@ async function fontEmbedCss() {
   }
   return _fontEmbedCss;
 }
-async function downloadSvgAsPng(svgEl, filename, scale = 2) {
+async function svgToPngBlob(svgEl, scale = 2) {
   const W = svgEl.viewBox.baseVal.width, H = svgEl.viewBox.baseVal.height;
   const clone = svgEl.cloneNode(true);
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -197,17 +197,20 @@ async function downloadSvgAsPng(svgEl, filename, scale = 2) {
     const ctx = canvas.getContext('2d');
     ctx.scale(scale, scale);
     ctx.drawImage(img, 0, 0, W, H);
-    await new Promise(res => canvas.toBlob(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      res();
-    }, 'image/png'));
+    return await new Promise(res => canvas.toBlob(res, 'image/png'));
   } finally {
     URL.revokeObjectURL(svgUrl);
   }
+}
+
+async function downloadSvgAsPng(svgEl, filename, scale = 2) {
+  const blob = await svgToPngBlob(svgEl, scale);
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 // ─── icons ────────────────────────────────────────────────────────────────────
