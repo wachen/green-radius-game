@@ -174,7 +174,7 @@ async function fontEmbedCss() {
   }
   return _fontEmbedCss;
 }
-async function downloadSvgAsPng(svgEl, filename, scale = 2) {
+async function svgToPngBlob(svgEl, scale = 2) {
   const W = svgEl.viewBox.baseVal.width, H = svgEl.viewBox.baseVal.height;
   const clone = svgEl.cloneNode(true);
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -197,17 +197,75 @@ async function downloadSvgAsPng(svgEl, filename, scale = 2) {
     const ctx = canvas.getContext('2d');
     ctx.scale(scale, scale);
     ctx.drawImage(img, 0, 0, W, H);
-    await new Promise(res => canvas.toBlob(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      res();
-    }, 'image/png'));
+    return await new Promise(res => canvas.toBlob(res, 'image/png'));
   } finally {
     URL.revokeObjectURL(svgUrl);
   }
+}
+
+async function downloadSvgAsPng(svgEl, filename, scale = 2) {
+  const blob = await svgToPngBlob(svgEl, scale);
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// Green-Up Plan data: every "No" answer becomes a next-year step. Levels 1–3 come
+// from sector.levels[0..2]; level 4 from sector.tier4Topics. Grouped by sector (board
+// order), each group's steps in level order. Zero gaps → empty array (panel hides).
+function greenUpSteps(sectors, answers) {
+  const groups = [];
+  for (const s of sectors) {
+    const steps = [];
+    (s.levels || []).forEach((qs, i) => {
+      (qs || []).forEach(q => { if (answers[q.id] === 'no') steps.push({ level: i + 1, title: q.title, link: q.link }); });
+    });
+    (s.tier4Topics || []).forEach(t => { if (answers[t.id] === 'no') steps.push({ level: 4, title: t.title, link: t.link }); });
+    if (steps.length) groups.push({ sector: s.name, steps });
+  }
+  return groups;
+}
+
+// Done-screen-only panel: the camp's "No" answers as next-year steps. Collapsed by
+// default; renders nothing when there are no gaps. Never mounted on /result/.
+function GreenUpPlan({ sectors, answers, palette }) {
+  const [open, setOpen] = useState(false);
+  const groups = greenUpSteps(sectors, answers);
+  if (!groups.length) return null;
+  const count = groups.reduce((n, g) => n + g.steps.length, 0);
+  return (
+    <div style={{ marginTop: 20, textAlign: 'left', border: `1.5px solid ${palette.text}1a`, borderRadius: 12, overflow: 'hidden' }}>
+      <button onClick={() => setOpen(o => !o)} aria-expanded={open}
+        style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+          padding: '14px 16px', background: 'transparent', border: 'none', cursor: 'pointer',
+          font: 'inherit', color: palette.heading, fontWeight: 800, fontSize: 14 }}>
+        <span>🌱 Your Green-Up Plan · {count} {count === 1 ? 'idea' : 'ideas'}</span>
+        <span aria-hidden="true" style={{ color: palette.accentDark }}>{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 16px 14px' }}>
+          <div style={{ fontSize: 13, color: palette.text, opacity: 0.7, margin: '0 0 12px' }}>Ideas to grow your radius next year.</div>
+          {groups.map(g => (
+            <div key={g.sector} style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase', color: palette.accentDark, marginBottom: 4 }}>{g.sector}</div>
+              {g.steps.map((st, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '4px 0', fontSize: 14, color: palette.text }}>
+                  <span><span style={{ opacity: 0.55 }}>L{st.level} · </span>{st.title}</span>
+                  {st.link && st.link.url && (
+                    <a href={st.link.url} target="_blank" rel="noopener noreferrer"
+                      aria-label={`Guide for ${st.title}`} style={{ color: palette.accentDark, textDecoration: 'none', fontWeight: 700, flexShrink: 0 }}>→</a>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── icons ────────────────────────────────────────────────────────────────────
@@ -834,7 +892,7 @@ function Celebration({ sector, palette, onDone }) {
   // Deterministic random per mount — splats stay in place for the duration
   // instead of jittering on re-render.
   const splats = useMemo(() => {
-    const colors = ['#5BA84A', '#7AB85C', '#D9885C', '#E0B85C', '#fbf7f0', '#3a2a20'];
+    const colors = ['#5BA84A', '#7AB85C', '#4A9639', '#A3D178', '#8FC96B', '#fbf7f0'];
     return Array.from({ length: 18 }, (_, i) => ({
       key: i,
       left: 6 + Math.random() * 88,
@@ -887,7 +945,7 @@ function Celebration({ sector, palette, onDone }) {
           transform: reduceMotion ? 'none' : 'rotate(-3deg)',
           fontFamily: 'inherit',
         }}>
-          All Lit!
+          All Green!
         </div>
       </div>
     </div>
@@ -1956,6 +2014,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const [emailDraft, setEmailDraft] = useState('');
   const [copied, setCopied] = useState(false);
   const cardSvgRef = useRef(null);   // offscreen ResultCardSVG, serialized on Download
+  const cardPngRef = useRef(null);   // pre-generated PNG Blob for Web Share L2 (Safari needs it ready in-gesture)
   const autoSentRef = useRef(false); // guards the one-shot auto-email on the done screen
   const submitGenRef = useRef(0);    // bumped on Exit/new game so a stale in-flight POST can't write back
   const spinTimerRef = useRef(null); // the spin->open-modal timeout; cleared on reset so it can't fire into the next game
@@ -1999,7 +2058,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       const greens = {};
       sectors.forEach(s => { greens[s.id] = sectorFill(s, answers).totalYes; });
       const year = new Date().getFullYear();
-      const resultUrl = window.location.origin + '/result/#' +
+      const resultUrl = window.location.origin + '/result/?r=' +
         window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
       // overrideEmail (from the done-screen "edit & resend") wins over camp.email,
       // which may not have flushed through setCamp yet when resend fires.
@@ -2039,6 +2098,15 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     if (autoSentRef.current) return;
     runSubmit();
   }, [phase, submittedAt, runSubmit]);
+
+  // Pre-rasterize the card so Web Share has the file ready inside the tap gesture
+  // (Safari blocks share() if the file is produced by a later async step). Best-effort.
+  useEffect(() => {
+    if (phase !== 'done' || !cardSvgRef.current) return;
+    let alive = true;
+    svgToPngBlob(cardSvgRef.current).then(b => { if (alive) cardPngRef.current = b; }).catch(() => {});
+    return () => { alive = false; };
+  }, [phase, fills]);
 
   // Persist only on the in-progress phases (playing / form / done). On the
   // navigation screens (pick-mode / intro / form-intro) we do NOTHING — neither
@@ -2222,17 +2290,35 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   if (phase === 'done') {
     const year = new Date().getFullYear();
-    const resultUrl = window.location.origin + '/result/#' +
+    const total = sectors.reduce((n, s) => n + (fills[s.id] ? fills[s.id].totalYes : 0), 0);
+    const rankTitle = (window.Rank ? window.Rank.titleFor(total) : '');
+    const resultUrl = window.location.origin + '/result/?r=' +
       window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
     const email = (camp.email || '').trim();
     const slug = (camp.campName || 'theme-camp').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'theme-camp';
     const needsRetry = submitState === 'error' || (submitResult && submitResult.email !== 'sent');
 
     async function handleShare() {
-      try {
-        if (navigator.share) await navigator.share({ title: 'Our Green Radius', url: resultUrl });
-        else { await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }
-      } catch {}
+      const shareText = `${rankTitle ? rankTitle + '! ' : ''}Our camp reached ${total}/60. Build your camp's Green Radius:`;
+      const blob = cardPngRef.current;
+      const file = blob ? new File([blob], `green-radius-${slug}.png`, { type: 'image/png' }) : null;
+      // A share rejection is either the user dismissing the sheet (AbortError —
+      // leave it, do not nag with a clipboard copy) or a real failure (fall
+      // through so the CTA still does *something*). Each attempt gets its own
+      // try so one failing path can hand off to the next.
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'Our Green Radius', text: shareText, url: resultUrl });
+          return;
+        } catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'Our Green Radius', text: shareText, url: resultUrl });
+          return;
+        } catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      try { await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
     }
     async function handleDownload() {
       if (!cardSvgRef.current) return;
@@ -2277,6 +2363,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 24px', color: palette.heading, letterSpacing: '-0.01em' }}>
           {camp.campName}
         </h2>
+        {rankTitle && (
+          <div style={{ fontSize: 15, fontWeight: 700, color: palette.text, margin: '-16px 0 24px' }}>
+            Your camp is a <span style={{ color: palette.accentDark }}>{rankTitle}</span> · {total}/60
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
           <ShareCard sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette}/>
         </div>
@@ -2350,6 +2441,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           </button>
         )}
 
+        <GreenUpPlan sectors={sectors} answers={answers} palette={palette} />
+
         <button onClick={handleExit}
           style={{ marginTop: 16, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
           Exit
@@ -2376,9 +2469,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 9, letterSpacing: '0.25em', fontWeight: 700, color: palette.text + '99' }}>GREEN</div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: '#5BA84A', lineHeight: 1 }}>
-            {totalGreens}<span style={{ fontSize: 12, opacity: 0.5 }}>/60</span>
+          <div style={{ fontSize: 36, fontWeight: 900, color: '#5BA84A', lineHeight: 1 }}>
+            {totalGreens}<span style={{ fontSize: 18, opacity: 0.5 }}>/60</span>
           </div>
         </div>
       </div>
@@ -2395,8 +2487,22 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         palette={palette}
       />
 
+      {/* status / hint */}
+      <div style={{
+        marginTop: 16, padding: '10px 14px', borderRadius: 10,
+        background: palette.card, border: `1px solid ${palette.text}11`,
+        fontSize: 12, fontWeight: 700, color: palette.text, textAlign: 'center', textWrap: 'pretty',
+      }}>
+        {(() => {
+          if (totalAttempted === 0) return 'Tap Spin to begin. The wheel picks a sector — answer all 10 questions to score it. Six spins total.';
+          if (allDone) return 'All sectors complete — see your radius.';
+          const left = sectors.filter(s => !sectorClosed[s.id]).length;
+          return `${left} ${left === 1 ? 'sector' : 'sectors'} left · spin again`;
+        })()}
+      </div>
+
       {/* sector legend */}
-      <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+      <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
         {sectors.map(s => {
           const f = fills[s.id];
           const ty = f.totalYes;
@@ -2431,21 +2537,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         })}
       </div>
 
-      {/* status / hint */}
-      <div style={{
-        marginTop: 16, padding: '10px 14px', borderRadius: 10,
-        background: palette.card, border: `1px solid ${palette.text}11`,
-        fontSize: 12, color: palette.text + 'cc', textAlign: 'center', textWrap: 'pretty',
-      }}>
-        {(() => {
-          if (totalAttempted === 0) return 'Tap Spin to begin. The wheel picks a sector — answer all 10 questions to score it. Six spins total.';
-          if (allDone) return 'All sectors complete — see your radius.';
-          const left = sectors.filter(s => !sectorClosed[s.id]).length;
-          return `${left} ${left === 1 ? 'sector' : 'sectors'} left · spin again`;
-        })()}
-      </div>
-
-      <div style={{ textAlign: 'center', marginTop: 4 }}>
+      <div style={{ textAlign: 'center', marginTop: 16 }}>
         <button
           type="button"
           aria-label="Reset game progress"

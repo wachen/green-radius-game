@@ -55,9 +55,12 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
    the source of both the fill and the backend record.
 3. **Two outputs:**
    - **Share link** — `result-state.js` `encode({campName, leadName, year, fills})`
-     → base64url URL hash (v2: per sector `fixedBits*5 + advCount`, ~88 chars) →
-     `https://greenradi.us/result/#<hash>`. Carries the **exact per-question fill** so
-     the shared page matches the in-app graphic. Pure client; works with the Worker down.
+     → base64url payload (v2: per sector `fixedBits*5 + advCount`, ~88 chars) →
+     `https://greenradi.us/result/?r=<payload>`. Carries the **exact per-question fill**
+     so the shared page matches the in-app graphic. The payload now rides in the `?r=`
+     **query** (so the Worker can read it for the per-camp OG unfurl — see below);
+     `/result/` reads `?r=` first and falls back to the legacy `#<hash>` for older
+     links. Pure client render; works with the Worker down.
    - **`POST /api/complete`** — `{campName, email, year, greens, mode, answers,
      schemaVersion, resultUrl}`. `greens` is now 0–10 per sector; `answers` (the full
      map) is backend-only (→ sheet `answers_json`).
@@ -68,9 +71,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
    then does two things **independently, best-effort, in parallel**, and returns
    `{sheet, email}`. NOTE: these gates only deter casual scripted abuse; the
    actual rate-limit is a Cloudflare WAF rule (owner-side, not in-repo).
-5. **`/result/`** (`result/index.html`) decodes the hash to `fills` and renders
-   `<ShareCard fills=… >` read-only (legacy v1 `greens` links fall back to a
-   contiguous fill).
+5. **`/result/`** (`result/index.html`) decodes the `?r=` payload (or legacy `#hash`)
+   to `fills` and renders `<ShareCard fills=… >` read-only (legacy v1 `greens` links
+   fall back to a contiguous fill). When the request carries `?r=`, the Worker first
+   rewrites the OG tags (below); the client render is unchanged.
 
 ## Integration contracts (don't break these)
 
@@ -124,14 +128,20 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   wrangler ignores `.gitignore` for assets) excludes `.git`, `.dev.vars*`,
   `.claude/`, `.remember/`, `.superpowers/`, and editor junk, so neither the
   git-checkout deploy nor a local `wrangler deploy` can publish history or
-  secrets. After any deploy, sanity-check `curl -sI https://greenradi.us/.git/config`
-  returns 404.
+  secrets. It also excludes the source/config/docs that have no reason to live on
+  the live domain (`worker/`, `docs/`, `wrangler.jsonc`, `CLAUDE.md`) — prod-domain
+  hygiene, since the repo is public on GitHub regardless. Runtime-fetched paths stay
+  served (`vendor/`, the root `.js`/`.jsx`, `og-card.png`, `downloads/`). After any
+  deploy, sanity-check `curl -sI https://greenradi.us/.git/config` returns 404.
 - **The runtime is vendored, not CDN-loaded.** React/ReactDOM/`@babel/standalone`
   are committed under `vendor/` (versioned filenames) and loaded same-origin with
   `defer` in all three HTML entry points, so a CDN outage or compromise can't
   blank or hijack the page and the playa-offline story improves. To upgrade, see
   `vendor/README.md` (download the pinned URL, verify the bytes, update all three
-  entry points). `_headers` also sends `X-Frame-Options`/`frame-ancestors 'none'`
+  entry points). Because the filenames are versioned, `_headers` serves `/vendor/*`
+  with `Cache-Control: immutable, max-age=1y` (a new version is a new URL) — returning
+  visitors skip ~7 RTTs; `og-card.png` is unversioned at root and deliberately not
+  covered. `_headers` also sends `X-Frame-Options`/`frame-ancestors 'none'`
   and a minimal `Permissions-Policy`; a script CSP is deliberately absent because
   in-browser Babel needs eval and the boot scripts are inline.
 - **Admin viewer read path.** `GET /api/admin/responses` (Worker) is gated by
@@ -143,6 +153,28 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   + `window.AdminAggregate`) shapes everything client-side. Read-only; the
   `CF_ACCESS_AUD`/`CF_ACCESS_TEAM_DOMAIN` vars live in `wrangler.jsonc`. See
   `docs/admin-setup.md`.
+- **Per-camp OG (Worker `HTMLRewriter`).** `GET /result/?r=<payload>` decodes the
+  payload server-side (reusing `result-state.js`) and rewrites `og:title`/`og:description`
+  to the camp's name + score + playa-rank (`rank.js`). The OG image stays the static
+  `og-card.png` (no headless render in Workers). **Fail-open:** any missing param,
+  decode error, or rewrite issue serves the unmodified static page — a generic unfurl
+  is fine, a broken result page is not. **Routing requirement (load-bearing):** Workers +
+  Static Assets serve assets *before* the Worker by default, and `/result/` matches the
+  `result/index.html` asset — so without help the Worker never runs for it and this
+  rewrite is dead code. `wrangler.jsonc` sets `assets.run_worker_first: ["/result/"]` so
+  the Worker runs first for that one route (and just proxies `env.ASSETS.fetch` when there
+  is no `?r=`). Do not remove it. `/api/*` needs no such entry — those paths match no
+  asset, so the Worker already runs for them. (HTMLRewriter `setAttribute` HTML-escapes
+  the value, so an attacker-supplied camp name cannot break out of the meta attribute —
+  verified with a quote/`<script>` payload.) **Privacy:** `?r=` makes the result readable by
+  the Worker (we don't log it, but Cloudflare may record request URLs); the same data
+  already lands in the Sheet on completion and in any link the camp shares, so the
+  marginal exposure is low-sensitivity. `safeResultUrl` still passes the emailed `?r=`
+  link (it checks `pathname`, which the query doesn't change).
+- **`rank.js`** is isomorphic (`module.exports` + a `globalThis.Rank` assign) so the
+  browser (done-screen headline, Web Share text) and the Worker (OG description)
+  compute the playa-rank title from one source. `result-state.js` resolves its global
+  via `globalThis` too, so both import into the Worker bundle without a module-eval throw.
 
 ## Gotchas (hard-won)
 

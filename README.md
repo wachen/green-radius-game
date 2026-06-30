@@ -15,9 +15,10 @@ this implementation began from a Claude Design handoff bundle.
 
 - Static HTML + React 18 (UMD, vendored same-origin in `vendor/`), with in-browser JSX via `@babel/standalone`
 - **No build step** — the browser compiles the JSX
-- A small **Cloudflare Worker** (`worker/index.js`) backs one endpoint,
-  `POST /api/complete` — it saves a result row to a Google Sheet and emails the camp a
-  shareable link. Everything else is served as static assets.
+- A small **Cloudflare Worker** (`worker/index.js`) backs two dynamic routes:
+  `POST /api/complete` (saves a result row to a Google Sheet and emails the camp a
+  shareable link) and the Cloudflare Access–gated `GET /api/admin/responses` (the
+  read path behind the internal admin viewer). Everything else is served as static assets.
 - Deployed on **Cloudflare Workers + Static Assets**
 
 ## Layout
@@ -29,7 +30,8 @@ this implementation began from a Claude Design handoff bundle.
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content             |
 | `result-state.js`  | `window.ResultState` — encode/decode a result into the URL hash |
 | `result/`          | Stateless shareable result page                                 |
-| `worker/`          | Cloudflare Worker (`/api/complete`)                             |
+| `admin/`           | Internal Cloudflare Access–gated response viewer (City + Camps), read-only |
+| `worker/`          | Cloudflare Worker (`/api/complete` + `/api/admin/responses`)    |
 | `vendor/`          | Pinned React/ReactDOM/Babel runtime, served same-origin        |
 | `downloads/`       | Printable board-game + how-to-play PDFs                          |
 
