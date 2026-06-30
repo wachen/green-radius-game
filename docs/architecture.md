@@ -17,10 +17,12 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
   `@babel/standalone` from the committed **`vendor/`** directory (same-origin, no
   CDN at runtime); Babel compiles the JSX *in the browser*, then mounts
   `<GreenRadiusGame/>`.
-- **One small Cloudflare Worker.** `worker/index.js` handles two dynamic routes —
-  `POST /api/complete` (result capture) and the Access-gated
-  `GET /api/admin/responses` (admin viewer read path) — and serves everything else
-  as static assets (the `ASSETS` binding in `wrangler.jsonc`, directory `.`).
+- **One small Cloudflare Worker.** `worker/index.js` handles three dynamic routes —
+  `POST /api/complete` (result capture), the Access-gated
+  `GET /api/admin/responses` (admin viewer read path), and
+  `GET /result/?r=<payload>` (per-camp OG unfurl — see below) — and serves
+  everything else as static assets (the `ASSETS` binding in `wrangler.jsonc`,
+  directory `.`).
 - **Deploy = merge to `main`.** Cloudflare Workers + Static Assets auto-deploys
   `main` to https://greenradi.us. No staging environment.
 
@@ -30,14 +32,14 @@ The game and the result-capture backend are wired through one shared shape: a
 per-sector **green count** (`0–10`, total Yes).
 
 ```
-play game / form  →  done screen  ─┬─►  result-state.encode()  →  /result/#<hash>   (share link, client-only)
+play game / form  →  done screen  ─┬─►  result-state.encode()  →  /result/?r=<payload>   (share link; legacy #<hash> still decoded)
    (green-radius.jsx)              │
                                    └─►  POST /api/complete (worker/index.js)
                                           ├─► appendToSheet → Apps Script web app → "2026 Results" tab
                                           └─► sendEmail     → Resend → emails the /result/ link
                                         returns { sheet: ok|err, email: sent|err }
 
-/result/ (result/index.html):  decode(location.hash) → <ShareCard> (read-only, stateless)
+/result/ (result/index.html):  decode(?r= payload, legacy #hash fallback) → <ShareCard> (read-only, stateless)
 ```
 
 1. **Play** (`green-radius.jsx`). Each spin plays a whole sector's 10 questions
@@ -182,7 +184,8 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   scope, so components defined in `green-radius.jsx` (e.g. `ShareCard`) are
   referenced by **bare name** across babel scripts — they are **not** `window`
   properties. Only plain scripts that assign `window.X = …` create real globals
-  (`window.SECTORS` in `game-data.js`, `window.ResultState` in `result-state.js`).
+  (`window.SECTORS` in `game-data.js`, `window.ResultState` in `result-state.js`,
+  `window.Rank` in `rank.js`).
   Mounting a component via `window.ShareCard` → `undefined` → renders nothing.
   *(This was the blank-`/result/` bug fixed in #19.)*
 - **`/result/` must load the same web fonts as `index.html`.** `ShareCard` inherits

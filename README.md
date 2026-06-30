@@ -15,10 +15,12 @@ this implementation began from a Claude Design handoff bundle.
 
 - Static HTML + React 18 (UMD, vendored same-origin in `vendor/`), with in-browser JSX via `@babel/standalone`
 - **No build step** — the browser compiles the JSX
-- A small **Cloudflare Worker** (`worker/index.js`) backs two dynamic routes:
+- A small **Cloudflare Worker** (`worker/index.js`) backs three dynamic routes:
   `POST /api/complete` (saves a result row to a Google Sheet and emails the camp a
-  shareable link) and the Cloudflare Access–gated `GET /api/admin/responses` (the
-  read path behind the internal admin viewer). Everything else is served as static assets.
+  shareable link), the Cloudflare Access–gated `GET /api/admin/responses` (the
+  read path behind the internal admin viewer), and `GET /result/?r=…` (rewrites the
+  result page's Open Graph title and description for a per-camp share unfurl, pinned
+  to the Worker via `run_worker_first` in `wrangler.jsonc`). Everything else is served as static assets.
 - Deployed on **Cloudflare Workers + Static Assets**
 
 ## Layout
@@ -28,10 +30,11 @@ this implementation began from a Claude Design handoff bundle.
 | `index.html`       | Entry point; mounts `<GreenRadiusGame/>`                        |
 | `green-radius.jsx` | Game UI — wheel, question modal, form mode, result card, email capture, home FAQ modal |
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content             |
-| `result-state.js`  | `window.ResultState` — encode/decode a result into the URL hash |
+| `result-state.js`  | `window.ResultState` — encode/decode a result to/from the `?r=` share payload (legacy `#hash` fallback) |
+| `rank.js`          | `window.Rank` — maps the 0–60 total to a playa-rank title ("First Spark"…"Green Supernova"); shared by the done screen and the Worker's OG description |
 | `result/`          | Stateless shareable result page                                 |
 | `admin/`           | Internal Cloudflare Access–gated response viewer (City + Camps), read-only |
-| `worker/`          | Cloudflare Worker (`/api/complete` + `/api/admin/responses`)    |
+| `worker/`          | Cloudflare Worker (`/api/complete` + `/api/admin/responses` + `/result/?r=` OG unfurl) |
 | `vendor/`          | Pinned React/ReactDOM/Babel runtime, served same-origin        |
 | `downloads/`       | Printable board-game + how-to-play PDFs                          |
 

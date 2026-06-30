@@ -29,10 +29,11 @@ No build step — the browser compiles the JSX in place via `@babel/standalone`.
 | `index.html`       | Entry point; mounts `<GreenRadiusGame/>`                             |
 | `green-radius.jsx` | The whole game UI — wheel, question modal, form mode, result card, done/email screen, home FAQ modal |
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content (BLAST framework) |
-| `result-state.js`  | `window.ResultState` — encode/decode a result into the URL hash       |
-| `result/`          | Stateless shareable result page (renders a card from the hash)        |
+| `result-state.js`  | `window.ResultState` — encode/decode a result to/from the `?r=` share payload (legacy `#hash` fallback) |
+| `rank.js`          | `window.Rank` — isomorphic module mapping a 0–60 total to a playa-rank title ("First Spark"…"Green Supernova"); also imported by the Worker for the OG description |
+| `result/`          | Stateless shareable result page (renders a card from the `?r=` payload, legacy `#hash` fallback) |
 | `admin/`           | Internal, Cloudflare Access–gated response viewer (City + Camps tabs); read-only |
-| `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses`; all else served as static assets |
+| `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses` + `GET /result/?r=` (per-camp OG unfurl); all else served as static assets |
 | `wrangler.jsonc`   | Worker + static-assets config                                         |
 | `_headers`         | Static-asset response headers (HSTS, framing, permissions)            |
 | `vendor/`          | Pinned React/ReactDOM/Babel runtime, served same-origin (see its README) |
@@ -43,7 +44,7 @@ No build step — the browser compiles the JSX in place via `@babel/standalone`.
 `@babel/standalone` runs every `<script type="text/babel">` in a **shared scope**, so
 components defined in `green-radius.jsx` (e.g. `ShareCard`) are referenced by **bare
 name** from other pages like `result/index.html` — they are *not* `window` properties.
-Only the plain scripts attach to `window` (`window.SECTORS`, `window.ResultState`).
+Only the plain scripts attach to `window` (`window.SECTORS`, `window.ResultState`, `window.Rank`).
 Referencing a component as `window.Something` silently renders nothing.
 
 ## Run it locally
