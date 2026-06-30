@@ -2003,7 +2003,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       const greens = {};
       sectors.forEach(s => { greens[s.id] = sectorFill(s, answers).totalYes; });
       const year = new Date().getFullYear();
-      const resultUrl = window.location.origin + '/result/#' +
+      const resultUrl = window.location.origin + '/result/?r=' +
         window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
       // overrideEmail (from the done-screen "edit & resend") wins over camp.email,
       // which may not have flushed through setCamp yet when resend fires.
@@ -2237,7 +2237,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     const year = new Date().getFullYear();
     const total = sectors.reduce((n, s) => n + (fills[s.id] ? fills[s.id].totalYes : 0), 0);
     const rankTitle = (window.Rank ? window.Rank.titleFor(total) : '');
-    const resultUrl = window.location.origin + '/result/#' +
+    const resultUrl = window.location.origin + '/result/?r=' +
       window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
     const email = (camp.email || '').trim();
     const slug = (camp.campName || 'theme-camp').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'theme-camp';

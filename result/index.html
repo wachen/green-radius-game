@@ -72,7 +72,9 @@
 // ShareCard is defined in green-radius.jsx (another text/babel script). Babel-standalone runs all
 // text/babel scripts in a shared scope, so reference it by bare name — it is NOT a window property
 // (this mirrors how index.html mounts the game via a bare <GreenRadiusGame/>).
-const data = window.ResultState.decode(window.location.hash);
+const data = window.ResultState.decode(
+  new URLSearchParams(window.location.search).get('r') || window.location.hash
+);
 const root = ReactDOM.createRoot(document.getElementById('root'));
 if (!data) {
   root.render(
