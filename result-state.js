@@ -86,4 +86,4 @@
   var api = { encode: encode, decode: decode, SECTOR_IDS: SECTOR_IDS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.ResultState = api;
-})(typeof window !== 'undefined' ? window : this);
+})(typeof globalThis !== 'undefined' ? globalThis : this);
