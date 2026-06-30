@@ -213,6 +213,61 @@ async function downloadSvgAsPng(svgEl, filename, scale = 2) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+// Green-Up Plan data: every "No" answer becomes a next-year step. Levels 1–3 come
+// from sector.levels[0..2]; level 4 from sector.tier4Topics. Grouped by sector (board
+// order), each group's steps in level order. Zero gaps → empty array (panel hides).
+function greenUpSteps(sectors, answers) {
+  const groups = [];
+  for (const s of sectors) {
+    const steps = [];
+    (s.levels || []).forEach((qs, i) => {
+      (qs || []).forEach(q => { if (answers[q.id] === 'no') steps.push({ level: i + 1, title: q.title, link: q.link }); });
+    });
+    (s.tier4Topics || []).forEach(t => { if (answers[t.id] === 'no') steps.push({ level: 4, title: t.title, link: t.link }); });
+    if (steps.length) groups.push({ sector: s.name, steps });
+  }
+  return groups;
+}
+
+// Done-screen-only panel: the camp's "No" answers as next-year steps. Collapsed by
+// default; renders nothing when there are no gaps. Never mounted on /result/.
+function GreenUpPlan({ sectors, answers, palette }) {
+  const [open, setOpen] = useState(false);
+  const groups = greenUpSteps(sectors, answers);
+  if (!groups.length) return null;
+  const count = groups.reduce((n, g) => n + g.steps.length, 0);
+  return (
+    <div style={{ marginTop: 20, textAlign: 'left', border: `1.5px solid ${palette.text}1a`, borderRadius: 12, overflow: 'hidden' }}>
+      <button onClick={() => setOpen(o => !o)} aria-expanded={open}
+        style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+          padding: '14px 16px', background: 'transparent', border: 'none', cursor: 'pointer',
+          font: 'inherit', color: palette.heading, fontWeight: 800, fontSize: 14 }}>
+        <span>🌱 Your Green-Up Plan · {count} {count === 1 ? 'idea' : 'ideas'}</span>
+        <span aria-hidden="true" style={{ color: palette.accentDark }}>{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 16px 14px' }}>
+          <div style={{ fontSize: 13, color: palette.text, opacity: 0.7, margin: '0 0 12px' }}>Ideas to grow your radius next year.</div>
+          {groups.map(g => (
+            <div key={g.sector} style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase', color: palette.accentDark, marginBottom: 4 }}>{g.sector}</div>
+              {g.steps.map((st, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '4px 0', fontSize: 14, color: palette.text }}>
+                  <span><span style={{ opacity: 0.55 }}>L{st.level} · </span>{st.title}</span>
+                  {st.link && st.link.url && (
+                    <a href={st.link.url} target="_blank" rel="noopener noreferrer"
+                      aria-label={`Guide for ${st.title}`} style={{ color: palette.accentDark, textDecoration: 'none', fontWeight: 700, flexShrink: 0 }}>→</a>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── icons ────────────────────────────────────────────────────────────────────
 function SectorIcon({ kind, size = 28, color = '#fff' }) {
   const s = size, sw = 1.8;
@@ -2378,6 +2433,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             {submitState === 'sending' ? 'Sending…' : '↻ Try again'}
           </button>
         )}
+
+        <GreenUpPlan sectors={sectors} answers={answers} palette={palette} />
 
         <button onClick={handleExit}
           style={{ marginTop: 16, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
