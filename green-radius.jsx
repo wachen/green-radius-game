@@ -2300,18 +2300,25 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
     async function handleShare() {
       const shareText = `${rankTitle ? rankTitle + '! ' : ''}Our camp reached ${total}/60. Build your camp's Green Radius:`;
-      try {
-        const blob = cardPngRef.current;
-        if (blob && navigator.canShare) {
-          const file = new File([blob], `green-radius-${slug}.png`, { type: 'image/png' });
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: 'Our Green Radius', text: shareText, url: resultUrl });
-            return;
-          }
-        }
-        if (navigator.share) { await navigator.share({ title: 'Our Green Radius', text: shareText, url: resultUrl }); return; }
-        await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500);
-      } catch {}
+      const blob = cardPngRef.current;
+      const file = blob ? new File([blob], `green-radius-${slug}.png`, { type: 'image/png' }) : null;
+      // A share rejection is either the user dismissing the sheet (AbortError —
+      // leave it, do not nag with a clipboard copy) or a real failure (fall
+      // through so the CTA still does *something*). Each attempt gets its own
+      // try so one failing path can hand off to the next.
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'Our Green Radius', text: shareText, url: resultUrl });
+          return;
+        } catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'Our Green Radius', text: shareText, url: resultUrl });
+          return;
+        } catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      try { await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
     }
     async function handleDownload() {
       if (!cardSvgRef.current) return;
