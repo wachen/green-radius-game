@@ -89,7 +89,7 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 - **The `greens` shape is the contract.** `{ food, water, waste, transport,
   shelter, power }`, each `0–10` (total Yes per sector), threads game → Worker →
   the sheet's per-sector columns + email. The *graphic* uses `fills` (per-question),
-  carried in the hash; `greens` is just the headline number for the tally.
+  carried in the `?r=` payload; `greens` is just the headline number for the tally.
 - **Fill is per-question; gaps allowed.** A sector is NOT a contiguous depth any
   more — each level fills independently per question (e.g. L1 empty, L2 half, L3 full),
   in per-level colors. `result-state` v2 stores the per-sector pattern (`fixedBits` +
