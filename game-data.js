@@ -2,6 +2,9 @@
 // Structure: 6 sectors × 4 tiers × (1, 2, 3, 4) questions = 60 steps total.
 // Tiers 1–3 are fixed steps. Tier 4 is "advanced" — for each of its 4 slots,
 // the player picks a topic from a dropdown and answers Yes/No on it.
+// The per-sector "Our Camp's Idea" topic (id `X-camp`) is the write-in slot:
+// the UI collects a free-text description alongside the Yes/No, submitted as
+// an `X-camp-note` entry in the answers map (see docs/architecture.md).
 
 window.SECTORS = [
   // ── FOOD ────────────────────────────────────────────────────────────────
@@ -62,7 +65,7 @@ window.SECTORS = [
       { id: 'F-local', title: 'Source Locally', description: "Increase food freshness, reduce transportation. Source food in Northern Nevada or local to your hometown. Buying local supports growers, increases food security.", link: { label: 'Source Local Foods', url: 'https://www.greenthemecampcommunity.org/resource-guide/food' } },
       { id: 'F-plant', title: 'Source Plant-based Foods', description: "More veggies! Increase plant-based regenerative meats. Meat production has a high environmental impact. Transition to more plant-based meals.", link: { label: 'More Plant-based Foods', url: 'https://worldmetrics.org/plant-based-diet-statistics/' } },
       { id: 'F-collexodus', title: 'Gift to Collexodus', description: "Collexodus collects leftover food and drinks for BM staff and Resto. As you make your exodus from BRC at 6:00 and K, donate unused unopened non-perishable food, beer or booze." },
-      { id: 'F-camp', title: "Our Camp's Idea", description: "Describe one of your camp's own food ideas, and answer whether you actually achieved it." },
+      { id: 'F-camp', title: "Our Camp's Idea", prompt: "Did your camp pull it off?", description: "Describe one of your camp's own food ideas, and answer whether you actually achieved it." },
     ]
   },
 
@@ -112,7 +115,7 @@ window.SECTORS = [
       { id: 'H-bottles', title: 'Reusable Bottles', description: "People: get your own water bottle. Put your name on it. Sleep with it. Avoid single-use water containers. For public watering, provide compostable cone Dixie cups." },
       { id: 'H-grey', title: 'Greywater Processing', description: "Build a system for evaporation, filtration, or reuse. Try a Greywater Evaporation Pond, Wikatron, or wind-power. Locate away from your compost-drying racks." },
       { id: 'H-reduce', title: 'More Reduction', description: "Even less water: food prep, dishwashing, cleaning, showers. Low-flow sprayers, fixtures, shower heads. Tubs for different dish water types. Discounts for showering with a friend." },
-      { id: 'H-camp', title: "Our Camp's Idea", description: "Describe one of your camp's own water ideas, and answer whether you actually achieved it." },
+      { id: 'H-camp', title: "Our Camp's Idea", prompt: "Did your camp pull it off?", description: "Describe one of your camp's own water ideas, and answer whether you actually achieved it." },
     ]
   },
 
@@ -162,7 +165,7 @@ window.SECTORS = [
       { id: 'W-cover', title: 'Ground Cover', description: "Waterproof tarps under kitchens, showers. Oil-pan under VW bus. Highest priority: avoid spills on playa, especially chemicals. Second: dust control." },
       { id: 'W-toilets', title: 'Composting Toilets', description: "Chemical, sawdust, organic. Excrement experiments. Multiple toilet types available. Put tarps underneath. DON'T put your toilet compost in the Portos." },
       { id: 'W-wood', title: 'Wood Recycling', description: "Boxes, pallets, packaging, structures. Instant Art on Playa. After the burn, burn leftover wood at Esplanade burn barrels at 3:00, 5:30, and 9:00. Or take it home for upcycled art." },
-      { id: 'W-camp', title: "Our Camp's Idea", description: "Describe one of your camp's own waste ideas, and answer whether you actually achieved it." },
+      { id: 'W-camp', title: "Our Camp's Idea", prompt: "Did your camp pull it off?", description: "Describe one of your camp's own waste ideas, and answer whether you actually achieved it." },
     ]
   },
 
@@ -216,7 +219,7 @@ window.SECTORS = [
       { id: 'T-share-haul', title: 'Share Long Hauls', description: "City or regional long-distance hauling. Consolidate hauling with other Burners in your region. Tubs, crates, containers, pods. Philly camps share a trailer/rail program." },
       { id: 'T-bikes', title: '100% People Bicycles', description: "All our campers have real bicycles. Not E-bikes. Or tricycles, unicycles, any person-powered vehicle. Powered wheelchairs are cool but E-BIKES DON'T COUNT." },
       { id: 'T-toxins', title: 'Reduce Future Toxins', description: "CO2e is easy. Batteries are our worst toxin. Lost batteries leach lead, lithium, nickel, cadmium, plastic, paint, rust into the playa. Collect batteries separately, take them home to a safe recycling center." },
-      { id: 'T-camp', title: "Our Camp's Idea", description: "Describe one of your camp's own transport ideas, and answer whether you actually achieved it." },
+      { id: 'T-camp', title: "Our Camp's Idea", prompt: "Did your camp pull it off?", description: "Describe one of your camp's own transport ideas, and answer whether you actually achieved it." },
     ]
   },
 
@@ -264,7 +267,7 @@ window.SECTORS = [
       { id: 'S-cover', title: 'Ground Cover', description: "Tarps, mats, carpets, sandbags. Ideal to cut down blowing dust and keep you dry. Sandbags can hold down lots of stuff — they're cheap, weigh nothing, avoid stakes." },
       { id: 'S-shade', title: 'More Shade', description: "Over tents, trailers, RVs. Especially over sleeping spaces. Extra shade reduces AC + cooling demand, hopefully sheds rain, and may give dust protection." },
       { id: 'S-optimize', title: 'Optimize Shelter', description: "Rent vs. buy? Or gift in the off-season, or use at home? Shelter is a big investment for a week. Renting a trailer or RV can be practical for BRC and have a low green footprint overall." },
-      { id: 'S-camp', title: "Our Camp's Idea", description: "Describe one of your camp's own shelter ideas, and answer whether you actually achieved it." },
+      { id: 'S-camp', title: "Our Camp's Idea", prompt: "Did your camp pull it off?", description: "Describe one of your camp's own shelter ideas, and answer whether you actually achieved it." },
     ]
   },
 
@@ -318,11 +321,13 @@ window.SECTORS = [
       { id: 'P-opt-solar', title: 'Optimize Solar', description: "Rent vs. buy? Or gift in the off-season, or use at home? Solar is a big investment for a week. Donate equipment off-season — BWB coordinated camps' equipment to support forest fire victims." },
       { id: 'P-rat', title: 'RAT (Renewable Artists Team)', description: "If you're an Art Support Camp and only need a generator for your art, don't bring it. Go solar. Join RAT. No noise. No fumes. Just Art.", link: { label: 'RAT', url: 'https://burningman.org' } },
       { id: 'P-mv', title: 'Renewable MV', description: "Solar MVs? People-powered? Wind? No petrol. Lots of MVs offer rides — but the best are powered by renewable alternatives." },
-      { id: 'P-camp', title: "Our Camp's Idea", description: "Describe one of your camp's own power ideas, and answer whether you actually achieved it." },
+      { id: 'P-camp', title: "Our Camp's Idea", prompt: "Did your camp pull it off?", description: "Describe one of your camp's own power ideas, and answer whether you actually achieved it." },
     ]
   },
 ];
 
 // Content schema stamp — recorded with each response so historical rows stay
 // alignable if questions/topics change later. Bump when question content changes.
-window.SCHEMA_VERSION = 'frog-v12';
+// v12.1: same Frog v12 questions; X-camp topics gained a prompt and answers may
+// carry free-text `X-camp-note` entries (the write-in Level 4 idea).
+window.SCHEMA_VERSION = 'frog-v12.1';

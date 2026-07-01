@@ -211,7 +211,18 @@ function CampDetail({ sectors, camp }) {
       {!hasAnswers && !legacy && <div style={{ fontSize: 12, color: '#93a89b' }}>Per-answer detail appears once granular capture is live.</div>}
       {(hasAnswers || legacy) && sectors.map(s => {
         const ids = hasAnswers ? [].concat(...s.levels.slice(0, 3)).map(qq => qq.id) : [];
-        const picks = hasAnswers ? (s.tier4Topics || []).filter(t => camp.answers[t.id] === 'yes') : [];
+        // The write-in topic ("Our Camp's Idea", id `X-camp`) may carry the camp's
+        // own text as an `X-camp-note` answers entry; show it on its own line
+        // (with its ✓/✕) instead of as an anonymous title in the picks list.
+        const campTopic = (s.tier4Topics || []).find(t => /-camp$/.test(t.id));
+        const noteVal = hasAnswers && campTopic ? camp.answers[campTopic.id + '-note'] : '';
+        // The Worker's sheetCell guard bakes a leading ' into notes starting
+        // with a formula trigger (= + - @); strip it so the camp's words render
+        // verbatim (the stored value keeps the guard as defense-in-depth).
+        const note = (typeof noteVal === 'string' ? noteVal.trim() : '').replace(/^'(?=[=+\-@\t\r])/, '');
+        const picks = hasAnswers
+          ? (s.tier4Topics || []).filter(t => camp.answers[t.id] === 'yes' && !(note && t === campTopic))
+          : [];
         return (
           <div key={s.id} style={{ marginTop: 10 }}>
             <div style={{ display: 'flex', gap: 6, fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
@@ -230,6 +241,11 @@ function CampDetail({ sectors, camp }) {
               </div>
             )}
             {picks.length > 0 && <div style={{ marginTop: 5, fontSize: 11, color: '#93a89b' }}>Level 4: {picks.map(t => t.title).join(', ')}</div>}
+            {note && (
+              <div data-camp-note style={{ marginTop: 4, fontSize: 11, color: '#cdebd8' }}>
+                {camp.answers[campTopic.id] === 'yes' ? '✓' : '✕'} Camp's own idea: “{note}”
+              </div>
+            )}
           </div>
         );
       })}

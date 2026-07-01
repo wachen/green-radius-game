@@ -80,6 +80,14 @@ function migrateSaved(data, sectors) {
     const v = data.answers[k];
     if (valid.has(k) && (v === 'yes' || v === 'no')) answers[k] = v;
   }
+  // Carry write-in idea text whose topic id still exists and was actually answered.
+  const customNotes = {};
+  if (data.customNotes && typeof data.customNotes === 'object') {
+    for (const k of Object.keys(data.customNotes)) {
+      const t = data.customNotes[k];
+      if (valid.has(k) && answers[k] && typeof t === 'string' && t.trim()) customNotes[k] = t.slice(0, 140);
+    }
+  }
   const sectorClosed = {}, sectorCursor = {};
   sectors.forEach(s => {
     const fixed = s.levels.slice(0, 3).reduce((a, lvl) => a.concat(lvl || []), []);
@@ -94,7 +102,7 @@ function migrateSaved(data, sectors) {
   return {
     version: STORAGE_VERSION,
     phase: mode === 'form' ? 'form' : 'playing',
-    camp, sectorCursor, sectorClosed, answers, mode,
+    camp, sectorCursor, sectorClosed, answers, customNotes, mode,
     submittedAt: null, salvaged: true,
   };
 }
@@ -216,14 +224,20 @@ async function downloadSvgAsPng(svgEl, filename, scale = 2) {
 // Green-Up Plan data: every "No" answer becomes a next-year step. Levels 1–3 come
 // from sector.levels[0..2]; level 4 from sector.tier4Topics. Grouped by sector (board
 // order), each group's steps in level order. Zero gaps → empty array (panel hides).
-function greenUpSteps(sectors, answers) {
+function greenUpSteps(sectors, answers, notes) {
   const groups = [];
   for (const s of sectors) {
     const steps = [];
     (s.levels || []).forEach((qs, i) => {
       (qs || []).forEach(q => { if (answers[q.id] === 'no') steps.push({ level: i + 1, title: q.title, link: q.link }); });
     });
-    (s.tier4Topics || []).forEach(t => { if (answers[t.id] === 'no') steps.push({ level: 4, title: t.title, link: t.link }); });
+    (s.tier4Topics || []).forEach(t => {
+      if (answers[t.id] !== 'no') return;
+      // A written-in idea the camp didn't pull off yet is the best next-year step
+      // there is: show their own words.
+      const note = notes && typeof notes[t.id] === 'string' && notes[t.id].trim();
+      steps.push({ level: 4, title: note ? `${t.title}: ${note}` : t.title, link: t.link });
+    });
     if (steps.length) groups.push({ sector: s.name, steps });
   }
   return groups;
@@ -231,9 +245,9 @@ function greenUpSteps(sectors, answers) {
 
 // Done-screen-only panel: the camp's "No" answers as next-year steps. Collapsed by
 // default; renders nothing when there are no gaps. Never mounted on /result/.
-function GreenUpPlan({ sectors, answers, palette }) {
+function GreenUpPlan({ sectors, answers, notes, palette }) {
   const [open, setOpen] = useState(false);
-  const groups = greenUpSteps(sectors, answers);
+  const groups = greenUpSteps(sectors, answers, notes);
   if (!groups.length) return null;
   const count = groups.reduce((n, g) => n + g.steps.length, 0);
   return (
@@ -388,7 +402,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
           display: 'block',
           transform: `rotate(${rotation}deg)`,
           transition: spinning
-            ? (reduceMotion ? 'transform 0.4s ease-out' : 'transform 4.2s cubic-bezier(0.17, 0.67, 0.16, 0.99)')
+            ? (reduceMotion ? 'transform 0.4s ease-out' : 'transform 2.2s cubic-bezier(0.17, 0.67, 0.16, 0.99)')
             : 'none',
           filter: dim ? 'drop-shadow(0 12px 28px rgba(40,20,10,0.35))' : 'drop-shadow(0 4px 12px rgba(40,20,10,0.18))',
         }}
@@ -510,7 +524,10 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
 // ─── question modal ───────────────────────────────────────────────────────────
 // Each question has: title, prompt (yes/no question), description, optional link.
 // For tier 4 (level index 3), the question is generated from a topic the user
-// picks via dropdown. `tier4Topics` is provided per-sector.
+// picks via dropdown, or written in via the per-sector "Our Camp's Idea" topic
+// (id `X-camp`): a Custom button opens it with a free-text field, and the typed
+// idea travels up through onComplete's third argument (notes, keyed by topic id).
+// `tier4Topics` is provided per-sector.
 // Plays all 10 questions of a sector in a single open modal: tier 1 (1q) →
 // tier 2 (2q) → tier 3 (3q) → tier 4 (4 picks). The user always answers all
 // 10 — failures don't end the sector early. Final scoring (which levels go
@@ -530,6 +547,9 @@ function resumePosition(sector, answers) {
   }
   return { level: 3, idx: 0, answersByLevel };
 }
+
+// The write-in Tier-4 topic ("Our Camp's Idea") — the only one with a text field.
+const isCampTopic = (t) => !!t && /-camp$/.test(t.id);
 
 // One step back through the fixed levels (sizes 1/2/3). Returns null at the very start.
 function stepBack(level, idx) {
@@ -553,6 +573,8 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
   const [answersByLevel, setAnswersByLevel] = useState(initial.current.answersByLevel);
   const [pickedTopicIds, setPickedTopicIds] = useState([]); // tier 4 only
   const [topicId, setTopicId] = useState(''); // tier 4 dropdown selection
+  const [notes, setNotes] = useState({}); // write-in idea text, keyed by topic id
+  const [customText, setCustomText] = useState(''); // draft text of the open write-in
   const cardRef = useRef(null);
   useModalA11y(cardRef); // scroll-lock + Tab focus trap
   // Move focus into the dialog on open. The Spin button the player just pressed
@@ -565,13 +587,20 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
   const questions = sector.levels[level] || [];
   const total = levelSizes[level];
 
+  // The write-in topic lives behind its own button, not in the dropdown.
   const availableTopics = isTier4
-    ? tier4Topics.filter(t => !pickedTopicIds.includes(t.id))
+    ? tier4Topics.filter(t => !pickedTopicIds.includes(t.id) && !isCampTopic(t))
     : [];
+  const campTopic = tier4Topics.find(isCampTopic) || null;
+  const campTopicOpen = isTier4 && !!campTopic && !pickedTopicIds.includes(campTopic.id);
 
   const q = isTier4
     ? tier4Topics.find(t => t.id === topicId) || null
     : questions[idx];
+
+  // The write-in needs its idea described before Yes/No makes sense.
+  const needsIdeaText = isTier4 && isCampTopic(q);
+  const canAnswer = !needsIdeaText || customText.trim().length > 0;
 
   function answer(yes) {
     // Persist each Level 1–3 answer to the shared map immediately so a refresh
@@ -581,13 +610,18 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
     const nextAnswers = answersByLevel.map((a, li) => li === level ? [...a, yes] : a);
     setAnswersByLevel(nextAnswers);
     const nextPicks = isTier4 ? [...pickedTopicIds, topicId] : pickedTopicIds;
+    const nextNotes = (isTier4 && isCampTopic(q) && customText.trim())
+      ? { ...notes, [q.id]: customText.trim() }
+      : notes;
     if (isTier4) {
       setPickedTopicIds(nextPicks);
+      setNotes(nextNotes);
       setTopicId('');
+      setCustomText('');
     }
     if (idx + 1 >= total) {
       if (level + 1 >= 4) {
-        onComplete(nextAnswers, nextPicks);
+        onComplete(nextAnswers, nextPicks, nextNotes);
       } else {
         setLevel(level + 1);
         setIdx(0);
@@ -600,10 +634,22 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
   // Step one question back, un-answering it so a Yes/No can be changed.
   function back() {
     if (isTier4) {
-      if (topicId) { setTopicId(''); return; }          // leave the open topic, back to the picker
+      // Leave the open topic, back to the picker. A write-in draft stays in
+      // customText so reopening the write-in button restores it.
+      if (topicId) { setTopicId(''); return; }
       if (idx > 0) {                                     // un-answer the previous advanced topic
+        const prevPick = pickedTopicIds[pickedTopicIds.length - 1];
+        // The un-answered write-in's text would die with its note; keep it as
+        // the draft so the player can reopen the write-in without retyping.
+        if (prevPick && /-camp$/.test(prevPick) && typeof notes[prevPick] === 'string') {
+          setCustomText(notes[prevPick]);
+        }
         setAnswersByLevel(a => a.map((l, li) => li === 3 ? l.slice(0, -1) : l));
         setPickedTopicIds(p => p.slice(0, -1));
+        setNotes(n => {
+          if (!(prevPick in n)) return n;
+          const o = { ...n }; delete o[prevPick]; return o;
+        });
         setIdx(idx - 1);
         return;
       }
@@ -709,7 +755,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
               ADVANCED · OPTIONAL · TOPIC {idx + 1} OF 4
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.5, color: palette.text + 'cc', marginBottom: 12, textWrap: 'pretty' }}>
-              Pick an advanced {sector.name.toLowerCase()} idea your camp pursued — or one of "Our Camp's Idea" entries. This level is optional.
+              Pick an advanced {sector.name.toLowerCase()} idea your camp pursued from the list, or write in your own. Totally optional.
             </div>
             <select
               value={topicId}
@@ -727,14 +773,27 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
                 paddingRight: 36,
               }}
             >
-              <option value="">Select a topic…</option>
+              <option value="">Pick a topic…</option>
               {availableTopics.map(t => (
                 <option key={t.id} value={t.id}>{t.title}</option>
               ))}
             </select>
+            {campTopicOpen && (
+              <button
+                type="button"
+                onClick={() => setTopicId(campTopic.id)}
+                style={{
+                  width: '100%', marginTop: 10, padding: '12px 0', borderRadius: 12,
+                  border: '1.5px dashed #5BA84A99', background: '#5BA84A14',
+                  color: '#3d7a31', fontSize: 12, fontWeight: 800,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              ><span aria-hidden="true">✎ </span>Write in your own idea</button>
+            )}
             <button
               type="button"
-              onClick={() => onComplete(answersByLevel, pickedTopicIds)}
+              onClick={() => onComplete(answersByLevel, pickedTopicIds, notes)}
               aria-label="Skip the optional advanced tier"
               style={{
                 width: '100%', marginTop: 10, padding: '12px 0', borderRadius: 12,
@@ -792,26 +851,49 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
               </a>
             )}
 
+            {/* write-in topic: describe the idea before answering Yes/No */}
+            {needsIdeaText && (
+              <input
+                value={customText}
+                onChange={e => setCustomText(e.target.value)}
+                maxLength={140}
+                placeholder="What did your camp try?"
+                aria-label="Describe your camp's own idea"
+                autoFocus
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 12,
+                  border: `1.5px solid ${palette.text}22`,
+                  background: '#fff', color: palette.text,
+                  fontSize: 16, fontFamily: 'inherit',
+                  marginBottom: 16,
+                }}
+              />
+            )}
+
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => answer(false)}
+                disabled={!canAnswer}
                 style={{
                   flex: 1, padding: '14px 0', borderRadius: 14,
                   border: `1.5px solid ${palette.text}22`,
                   background: 'transparent', color: palette.text,
                   fontSize: 15, fontWeight: 700, letterSpacing: '0.05em',
-                  cursor: 'pointer',
+                  cursor: canAnswer ? 'pointer' : 'default',
+                  opacity: canAnswer ? 1 : 0.45,
                   textTransform: 'uppercase',
                 }}
               >No</button>
               <button
                 onClick={() => answer(true)}
+                disabled={!canAnswer}
                 style={{
                   flex: 1, padding: '14px 0', borderRadius: 14,
                   border: 'none',
                   background: '#5BA84A', color: '#fff',
                   fontSize: 15, fontWeight: 700, letterSpacing: '0.05em',
-                  cursor: 'pointer',
+                  cursor: canAnswer ? 'pointer' : 'default',
+                  opacity: canAnswer ? 1 : 0.55,
                   textTransform: 'uppercase',
                   boxShadow: '0 3px 0 #3d7a31',
                 }}
@@ -870,7 +952,7 @@ function ResultToast({ kind, sector, greens, palette, onClose }) {
         <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.25, textWrap: 'pretty' }}>
           {anyGreen
             ? `${greens} of 10 answered yes`
-            : 'Sector complete — no yeses this time'}
+            : 'Sector done · no yeses this time. Room to grow!'}
         </div>
       </div>
     </div>
@@ -1222,24 +1304,24 @@ function ResultCardSVG({ sectors, fills, campName, leadName, year, svgRef }) {
 const FAQ_ITEMS = [
   {
     q: 'What is the Green Radius?',
-    a: "A six-spoke snapshot of your camp's sustainability, one spoke each for food, water, waste, power, transport, and shelter. The more green choices you've already made in an area, the further that spoke reaches. Together, the six make up your camp's Green Radius.",
+    a: "A six-spoke snapshot of your camp's sustainability: one spoke each for food, water, waste, power, transport, and shelter. The greener your choices in an area, the further its spoke reaches. Together they make your camp's Green Radius.",
   },
   {
     q: 'How do I play?',
-    a: 'Spin the wheel to draw a sector, then answer its yes/no questions across four levels from easiest to hardest. Every yes lights its own segment of that sector, so an early no never blocks later progress, and your score is simply how many segments you light. Six spins (one per sector) complete your Green Radius.',
+    a: 'Spin the wheel to draw a sector, then answer its yes/no questions across four levels, easiest to hardest. Every yes lights its own segment, so an early no never blocks later progress. Your score is how many segments you light. Six spins, one per sector, complete your Green Radius.',
   },
   {
     q: 'Do I need to both play the game and fill out the form?',
-    a: "Nope! They're two ways through the same assessment, so just pick one. The game is the playful path; the form is the familiar one: the classic questionnaire in a single list. Either way, you end up with the same Green Radius.",
+    a: "Nope! Pick one; they're two paths through the same assessment. The game is the playful way, the form is the classic questionnaire in a single list. Same Green Radius either way.",
   },
   {
     q: 'What happens to my results?',
-    a: "When you finish, you'll see your Green Radius and can email yourself a shareable results card. Add your camp's details and your results join the community tally, so we can celebrate progress together. It's an honor-system self-assessment: no proof required, just answer honestly.",
+    a: "When you finish, you'll see your Green Radius and can email yourself a shareable results card. Add your camp's details and your results join the community tally, so we can celebrate progress together. It's an honor-system self-assessment: no proof, just honesty.",
   },
   {
     q: "What's happening to BLAST?",
     a: (
-      <>Nothing's disappearing; it's evolving. The Green Radius <em>is</em> BLAST, in a more playable form: the same six-area framework and the same goals. You're still measuring your camp's "blast radius," just with a wheel instead of a worksheet. All the original BLAST guidance lives on in the Resource Guide below.</>
+      <>Nothing's disappearing; it's evolving. The Green Radius <em>is</em> BLAST in a more playable form: same six-area framework, same goals. You're still measuring your camp's "blast radius," just with a wheel instead of a worksheet. All the original BLAST guidance lives on in the Resource Guide below.</>
     ),
   },
   {
@@ -1259,7 +1341,7 @@ const FAQ_ITEMS = [
   {
     q: 'How do I report an issue or suggest an improvement?',
     a: (
-      <>Found a bug or have an idea to make this better? We'd love to hear it. Email <a href={'mailto:' + REPORT_EMAIL} style={{ color: '#558040', fontWeight: 700, textDecoration: 'none', borderBottom: '1.5px solid rgba(85,128,64,0.4)' }}>{REPORT_EMAIL}</a>.</>
+      <>Found a bug or have an idea? We'd love to hear it. Email <a href={'mailto:' + REPORT_EMAIL} style={{ color: '#558040', fontWeight: 700, textDecoration: 'none', borderBottom: '1.5px solid rgba(85,128,64,0.4)' }}>{REPORT_EMAIL}</a>.</>
     ),
   },
 ];
@@ -1386,7 +1468,7 @@ function ModePicker({ onPick, palette }) {
         fontSize: 15, lineHeight: 1.45, color: palette.text + 'cc',
         maxWidth: 340, margin: '0 auto 24px', textWrap: 'pretty',
       }}>
-        Participate in BLAST 2026 and track your camp's progress across all 6 sustainability sectors. Pick any way to play.
+        Join BLAST 2026 and track your camp's progress across all 6 sustainability sectors. Pick your path below.
       </div>
 
       <button
@@ -1511,16 +1593,20 @@ function ModePicker({ onPick, palette }) {
 // Scoring is per-question and identical to the board game (see sectorFill):
 // each level's ring fills per question, in its level color; Level 4 shows the
 // count of advanced Yeses (capped at 4). totalYes (0–10) feeds the sheet.
-function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, palette }) {
+function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onBack, onClear, palette }) {
   const [page, setPage] = useState(0);
   const [highlightMissing, setHighlightMissing] = useState(false);
   const lastPage = sectors.length - 1;
   const sector = sectors[page];
 
-  // A sector is "complete" once every Tier 1-3 question is answered. Tier 4 is optional.
-  const requiredAnswered = (s) => s.levels.slice(0, 3).every(
-    lvl => lvl.every(qq => answers[qq.id] === 'yes' || answers[qq.id] === 'no')
-  );
+  // A sector is "complete" once every Tier 1-3 question is answered. Tier 4 is
+  // optional, with one exception: a write-in with typed text needs its Yes/No,
+  // otherwise runSubmit would silently drop the idea from the submission.
+  const isAns = (id) => answers[id] === 'yes' || answers[id] === 'no';
+  const requiredAnswered = (s) =>
+    s.levels.slice(0, 3).every(lvl => lvl.every(qq => isAns(qq.id))) &&
+    (s.tier4Topics || []).every(t =>
+      !isCampTopic(t) || !((notes && notes[t.id]) || '').trim() || isAns(t.id));
   const incompleteSectors = sectors.filter(s => !requiredAnswered(s));
   const allComplete = incompleteSectors.length === 0;
   const firstIncompleteIndex = sectors.findIndex(s => !requiredAnswered(s));
@@ -1607,7 +1693,7 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
           textAlign: 'center', fontSize: 13, lineHeight: 1.5,
           color: palette.text + 'cc', marginBottom: 4, textWrap: 'pretty',
         }}>
-          Answer yes/no for your camp. Progress is autosaved.
+          Answer yes/no for your camp. Progress autosaves.
         </div>
       )}
 
@@ -1616,6 +1702,7 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
         <FormSectorBlock
           sector={sector}
           answers={answers} setAnswer={setAnswer} palette={palette}
+          notes={notes} setNote={setNote}
           highlightMissing={highlightMissing}
         />
       </div>
@@ -1708,7 +1795,7 @@ function LinearForm({ sectors, answers, setAnswer, onSubmit, onBack, onClear, pa
   );
 }
 
-function FormSectorBlock({ sector, answers, setAnswer, palette, highlightMissing }) {
+function FormSectorBlock({ sector, answers, setAnswer, notes, setNote, palette, highlightMissing }) {
   const fixedQs = [].concat(...sector.levels.slice(0, 3));
   const t4 = sector.tier4Topics || [];
   const isAnswered = (id) => answers[id] === 'yes' || answers[id] === 'no';
@@ -1761,14 +1848,35 @@ function FormSectorBlock({ sector, answers, setAnswer, palette, highlightMissing
             <span style={{
               fontSize: 9, fontWeight: 700, letterSpacing: '0.16em',
               textTransform: 'uppercase', color: palette.text + '88',
-            }}>Level 4 · mark any 4+ to go deeper</span>
+            }}>Level 4 · every yes counts, max 4</span>
           </div>
           {t4.map(t => (
-            <YesNoRow
-              key={t.id} qid={t.id}
-              text={t.title} subtext={t.description}
-              answer={answers[t.id]} setAnswer={setAnswer} palette={palette}
-            />
+            <React.Fragment key={t.id}>
+              <YesNoRow
+                qid={t.id}
+                text={t.title} subtext={t.description}
+                answer={answers[t.id]} setAnswer={setAnswer} palette={palette}
+                missing={highlightMissing && isCampTopic(t)
+                  && !!((notes && notes[t.id]) || '').trim() && !isAnswered(t.id)}
+              />
+              {/* write-in slot: capture the camp's own idea alongside its Yes/No */}
+              {isCampTopic(t) && (
+                <input
+                  value={(notes && notes[t.id]) || ''}
+                  onChange={e => setNote && setNote(t.id, e.target.value)}
+                  maxLength={140}
+                  placeholder="What did your camp try?"
+                  aria-label={`Describe your camp's own ${sector.name.toLowerCase()} idea`}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    border: `1.5px solid ${palette.text}22`,
+                    background: '#fff', color: palette.text,
+                    fontSize: 16, fontFamily: 'inherit',
+                    marginTop: -2, marginBottom: 10,
+                  }}
+                />
+              )}
+            </React.Fragment>
           ))}
         </>
       )}
@@ -2003,6 +2111,10 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // Per-question answers, keyed by question id (Tier-4 keyed by picked topic id).
   // Both modes write this map; it drives scoring AND the backend-only granular record.
   const [answers, setAnswers] = useState(saved?.answers || {});
+  // Write-in "Our Camp's Idea" text, keyed by the X-camp topic id. Backend-only
+  // (submitted as `X-camp-note` answers entries); scoring only sees the Yes/No.
+  const [customNotes, setCustomNotes] = useState(() =>
+    (saved && saved.customNotes && typeof saved.customNotes === 'object') ? saved.customNotes : {});
   const [mode, setMode] = useState(saved?.mode || null); // 'board' | 'form'
   // Per-question fill (segment booleans per sector) — the single source for every
   // renderer. Derived from `answers`; an untouched sector is simply all-empty.
@@ -2065,6 +2177,13 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       const email = (overrideEmail != null ? overrideEmail : (camp.email || '')).trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { if (gen === submitGenRef.current) setSubmitState('error'); return; }
       setSubmitState('sending');
+      // Write-in idea text rides the same answers map as `X-camp-note` entries
+      // (only when its topic was answered), landing in the sheet's Answers JSON.
+      const noteEntries = {};
+      Object.keys(customNotes || {}).forEach(tid => {
+        const t = String(customNotes[tid] || '').trim();
+        if (t && (answers[tid] === 'yes' || answers[tid] === 'no')) noteEntries[tid + '-note'] = t.slice(0, 160);
+      });
       try {
         const res = await fetch('/api/complete', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2072,7 +2191,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             campName: camp.campName, leadName: camp.leadName, email,
             year, greens,
             mode: mode === 'form' ? 'form' : 'board',
-            answers,
+            answers: { ...answers, ...noteEntries },
             schemaVersion: window.SCHEMA_VERSION || '',
             resultUrl,
           }),
@@ -2088,7 +2207,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         if (gen === submitGenRef.current) setSubmitState('error');
       }
     })();
-  }, [sectors, answers, camp, fills, mode]);
+  }, [sectors, answers, customNotes, camp, fills, mode]);
 
   // Fire the submit once when the done screen first appears. submittedAt (persisted)
   // prevents re-sending across reloads; autoSentRef guards a double-fire in-session.
@@ -2118,14 +2237,26 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORAGE_VERSION,
-        phase, camp, sectorCursor, sectorClosed, answers, mode, submittedAt,
+        phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt,
         activeSectorId: (activeQuestion && activeQuestion.sector && activeQuestion.sector.id) || null,
       }));
     } catch {}
-  }, [phase, camp, sectorCursor, sectorClosed, answers, mode, submittedAt, activeQuestion]);
+  }, [phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, activeQuestion]);
 
   function setFormAnswer(qid, value) {
     setAnswers(prev => ({ ...prev, [qid]: value }));
+  }
+
+  // Form-mode write-in: keep the note while it has text, drop it when cleared.
+  function setCustomNote(tid, text) {
+    setCustomNotes(prev => {
+      const t = String(text || '');
+      if (!t.trim()) {
+        if (!(tid in prev)) return prev;
+        const o = { ...prev }; delete o[tid]; return o;
+      }
+      return { ...prev, [tid]: t.slice(0, 140) };
+    });
   }
 
   function submitForm({ sectorCursor: sc, sectorClosed: scl }) {
@@ -2150,7 +2281,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     // Wheel sectors are drawn starting at 0deg and going clockwise; the middle of sector idx is at idx*sweep + sweep/2.
     // We need to rotate the wheel so this angle aligns to the top (0deg); negative rotation.
     const targetAngle = -(idx * sweep + sweep/2);
-    const baseTurns = 4; // full spins
+    const baseTurns = 2; // full spins
     const jitter = (Math.random() - 0.5) * (sweep * 0.5); // land somewhere within sector
     const newRotation = rotation - (rotation % 360) + (-baseTurns * 360) + targetAngle + jitter;
 
@@ -2163,14 +2294,14 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     spinTimerRef.current = setTimeout(() => {
       setSpinning(false);
       setActiveQuestion({ sector: target });
-    }, reduceMotion ? 500 : 4300);
+    }, reduceMotion ? 500 : 2300); // CSS transition (2.2s) + a beat to settle
   }, [sectors, sectorClosed, rotation]);
 
   // The player answered every question of a sector. Build the per-question
   // answer map (T1–T3 by question id; Tier-4 keyed by the picked topic id) and
   // merge it into the shared `answers` state. Scoring is per-question: each Yes
   // lights its own segment, gaps allowed, so totalYes is just the Yes count (0–10).
-  function handleAnswers(answersByLevel, pickedTopicIds = []) {
+  function handleAnswers(answersByLevel, pickedTopicIds = [], notes = {}) {
     const { sector } = activeQuestion;
     const sectorAns = {};
     for (let li = 0; li < 3; li++) {
@@ -2183,6 +2314,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       const a = (answersByLevel[3] || [])[i];
       if (tid && (a === true || a === false)) sectorAns[tid] = a ? 'yes' : 'no';
     });
+    if (notes && Object.keys(notes).length) setCustomNotes(prev => ({ ...prev, ...notes }));
 
     const merged = { ...answers, ...sectorAns };
     setAnswers(merged);
@@ -2204,6 +2336,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setSpinning(false);
     setActiveQuestion(null);
     setAnswers({});
+    setCustomNotes({});
     setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
     setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
     setSubmittedAt(null);
@@ -2255,7 +2388,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         onStart={startForm}
         onBack={() => setPhase('pick-mode')}
         palette={palette}
-        description="Answer to your best ability. Progress is autosaved unless you reset."
+        description="Answer as best you can. Progress autosaves unless you reset."
       />
     );
   }
@@ -2268,9 +2401,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           sectors={sectors}
           answers={answers}
           setAnswer={setFormAnswer}
+          notes={customNotes}
+          setNote={setCustomNote}
           onSubmit={submitForm}
           onBack={() => setPhase('pick-mode')}
-          onClear={() => setAnswers({})}
+          onClear={() => { setAnswers({}); setCustomNotes({}); }}
           palette={palette}
         />
       </>
@@ -2283,7 +2418,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         onStart={startGame}
         onBack={() => setPhase('pick-mode')}
         palette={palette}
-        description="Spin the wheel and answer to your best ability. Progress is autosaved unless you reset."
+        description="Spin the wheel and answer as best you can. Progress autosaves unless you reset."
       />
     );
   }
@@ -2348,6 +2483,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
       setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
       setAnswers({});
+      setCustomNotes({});
       setMode(null);
       setCamp({ campName: '', leadName: '', email: '' });
       setSubmittedAt(null);
@@ -2379,12 +2515,12 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
         <div role="status" aria-live="polite" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
           {submitState === 'sending'
-            ? <>Thank you for participating! Emailing your results to <strong>{email}</strong>…</>
+            ? <>Thanks for playing! Emailing your results to <strong>{email}</strong>…</>
             : submitState === 'error'
-              ? <>Thank you for participating! We couldn't reach the server just now. Your card is safe: download it or copy the share link below, then tap Try again.</>
+              ? <>Thanks for playing! We couldn't reach the server. Your card is safe: download it or copy the share link below, then tap Try again.</>
               : submitResult && submitResult.email !== 'sent'
-                ? <>Thank you for participating! You're counted in the community tally, but we couldn't email your card just now. Download it or copy the share link below.</>
-                : <>Thank you for participating! Your results were sent to <strong>{email}</strong> (please check spam).</>}
+                ? <>Thanks for playing! You're in the community tally, but the email didn't go through. Download your card or copy the share link below.</>
+                : <>Thanks for playing! Results sent to <strong>{email}</strong>. Not there? Check spam.</>}
         </div>
 
         {submitState !== 'sending' && (
@@ -2441,7 +2577,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           </button>
         )}
 
-        <GreenUpPlan sectors={sectors} answers={answers} palette={palette} />
+        <GreenUpPlan sectors={sectors} answers={answers} notes={customNotes} palette={palette} />
 
         <button onClick={handleExit}
           style={{ marginTop: 16, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
@@ -2494,8 +2630,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         fontSize: 12, fontWeight: 700, color: palette.text, textAlign: 'center', textWrap: 'pretty',
       }}>
         {(() => {
-          if (totalAttempted === 0) return 'Tap Spin to begin. The wheel picks a sector — answer all 10 questions to score it. Six spins total.';
-          if (allDone) return 'All sectors complete — see your radius.';
+          if (totalAttempted === 0) return 'Tap Spin. The wheel picks a sector · answer its 10 questions to score it. Six spins total.';
+          if (allDone) return 'All six done · behold your radius.';
           const left = sectors.filter(s => !sectorClosed[s.id]).length;
           return `${left} ${left === 1 ? 'sector' : 'sectors'} left · spin again`;
         })()}

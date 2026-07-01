@@ -71,7 +71,12 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      sharing the `?r=` URL (Web Share L1), then to copying the link to the clipboard.
    - **`POST /api/complete`** — `{campName, email, year, greens, mode, answers,
      schemaVersion, resultUrl}`. `greens` is now 0–10 per sector; `answers` (the full
-     map) is backend-only (→ sheet `answers_json`).
+     map) is backend-only (→ sheet `answers_json`). Besides `qid:'yes'|'no'` entries,
+     `answers` may carry **`X-camp-note`** entries: the free-text "Our Camp's
+     Idea" write-in per sector (client caps 140 chars; the Worker accepts only
+     the six whitelisted note keys, trims, clamps to 160, runs `sheetCell`, and
+     drops any note whose `X-camp` yes/no isn't in the same payload). Scoring
+     ignores notes — the write-in's point rides its normal `X-camp` yes/no.
 4. **Worker** (`worker/index.js`) validates (**fail-closed** origin check —
    absent/foreign Origin is rejected — body-size cap, honeypot, required
    `campName`+`email`, email regex, per-field length caps, and
@@ -112,10 +117,12 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   spreadsheet). `doPost` verifies a shared secret, then `appendRow` to the
   **`2026 Results`** tab (16 cols: Timestamp · Camp · Lead · Email · Year · 6
   sectors · Total · Source · Result URL · **Answers JSON** · **Schema Version**).
-  The Worker sends `answers` (the full `{qid:'yes'|'no'}` map) + `schemaVersion`;
-  these land in the last two columns (`Answers JSON` = `JSON.stringify(answers)`,
-  `Schema Version` = the stamp), and the 6 per-sector columns + Total now carry
-  0–10 / 0–60. A read-only **`doGet`** (added for the admin viewer) returns the
+  The Worker sends `answers` (the full `{qid:'yes'|'no'}` map, plus any
+  `X-camp-note` write-in text entries) + `schemaVersion`; these land in the last
+  two columns (`Answers JSON` = `JSON.stringify(answers)`, `Schema Version` = the
+  stamp), and the 6 per-sector columns + Total now carry 0–10 / 0–60. The note
+  entries need **no Apps Script change** — they ride inside the same stringified
+  JSON, and the admin viewer reads them back out of it. A read-only **`doGet`** (added for the admin viewer) returns the
   rows to the Worker. See `docs/admin-setup.md` for the `doGet` source and the
   Cloudflare Access setup. Quirks: a `/exec` request returns
   **302 → script.googleusercontent.com**; Cloudflare's `fetch` follows it

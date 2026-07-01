@@ -2,6 +2,9 @@ import ResultState from '../result-state.js';
 import Rank from '../rank.js';
 
 const SECTOR_IDS = ['food', 'water', 'waste', 'transport', 'shelter', 'power'];
+// The six write-in note keys (one "Our Camp's Idea" per sector, game-data.js
+// `X-camp` topics) — the only free-text answers entries accepted.
+const NOTE_KEYS = new Set(['F-camp-note', 'H-camp-note', 'W-camp-note', 'T-camp-note', 'S-camp-note', 'P-camp-note']);
 const ALLOWED_ORIGIN = 'https://greenradi.us';
 
 export default {
@@ -25,7 +28,9 @@ async function handleComplete(request, env) {
   if (origin !== ALLOWED_ORIGIN && !isLocalhost) return json({ error: 'forbidden' }, 403);
 
   const raw = await request.text();
-  if (raw.length > 4096) return json({ error: 'too_large' }, 413);
+  // 8 KB: 60 answers + six 160-char write-in notes + maxed name/email/url
+  // fields still fit with headroom (worst case is ~4 KB).
+  if (raw.length > 8192) return json({ error: 'too_large' }, 413);
   let body;
   try { body = JSON.parse(raw); } catch { return json({ error: 'bad_json' }, 400); }
   if (!body || typeof body !== 'object') return json({ error: 'bad_json' }, 400);
@@ -38,14 +43,25 @@ async function handleComplete(request, env) {
   for (const id of SECTOR_IDS) greens[id] = Math.max(0, Math.min(10, (body.greens && body.greens[id]) | 0));
 
   // Granular per-question answers (backend-only). Keep it bounded and clean:
-  // string keys <= 40 chars, values strictly 'yes'/'no', at most 120 entries.
+  // string keys <= 40 chars; values strictly 'yes'/'no' (at most 120 entries),
+  // except the whitelisted NOTE_KEYS, the write-in "Our Camp's Idea" text:
+  // free text, trimmed + clamped to 160 chars + formula-guarded.
   const answers = {};
   if (body.answers && typeof body.answers === 'object') {
     let n = 0;
     for (const k of Object.keys(body.answers)) {
-      if (n >= 120) break;
+      if (typeof k !== 'string' || k.length > 40) continue;
       const v = body.answers[k];
-      if (typeof k === 'string' && k.length <= 40 && (v === 'yes' || v === 'no')) { answers[k] = v; n++; }
+      if (v === 'yes' || v === 'no') {
+        if (n < 120) { answers[k] = v; n++; }
+      } else if (NOTE_KEYS.has(k) && typeof v === 'string' && v.trim()) {
+        answers[k] = sheetCell(clampField(v.trim(), 160));
+      }
+    }
+    // A note only means something alongside its topic's Yes/No — drop orphans
+    // (also keeps forged note-only rows out of the sheet/admin).
+    for (const k of Object.keys(answers)) {
+      if (k.endsWith('-note') && answers[k.slice(0, -5)] !== 'yes' && answers[k.slice(0, -5)] !== 'no') delete answers[k];
     }
   }
   const source = body.mode === 'form' ? 'form' : 'board';
