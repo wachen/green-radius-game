@@ -54,7 +54,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 2. **Done screen.** Required, validated email. `greens[sectorId] =
    sectorFill(...).totalYes` (0–10). Every individual answer lives in the shared
    `answers` map (`{questionId: 'yes'|'no'}`, Level 4 keyed by the picked topic id) —
-   the source of both the fill and the backend record.
+   the source of both the fill and the backend record. The done screen also renders a
+   collapsible **Green-Up Plan** — the player's `'no'` answers turned into suggested
+   next-year steps (`greenUpSteps`/`<GreenUpPlan>`), grouped by sector and hidden when
+   there are no gaps; client-only, sent nowhere and never mounted on `/result/`.
 3. **Two outputs:**
    - **Share link** — `result-state.js` `encode({campName, leadName, year, fills})`
      → base64url payload (v2: per sector `fixedBits*5 + advCount`, ~88 chars) →
@@ -62,7 +65,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      so the shared page matches the in-app graphic. The payload now rides in the `?r=`
      **query** (so the Worker can read it for the per-camp OG unfurl — see below);
      `/result/` reads `?r=` first and falls back to the legacy `#<hash>` for older
-     links. Pure client render; works with the Worker down.
+     links. Pure client render; works with the Worker down. The done-screen
+     **Share** button delivers it via Web Share L2 — `navigator.share({ files: [pngFile] })`
+     hands the pre-rasterized result-card PNG to the OS share sheet — then degrades to
+     sharing the `?r=` URL (Web Share L1), then to copying the link to the clipboard.
    - **`POST /api/complete`** — `{campName, email, year, greens, mode, answers,
      schemaVersion, resultUrl}`. `greens` is now 0–10 per sector; `answers` (the full
      map) is backend-only (→ sheet `answers_json`).

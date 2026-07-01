@@ -41,10 +41,10 @@ Any box unchecked → do not announce. Each is a same-day fix.
 
 1. Load https://greenradi.us cold: placeholder within ~1 s, game within a few seconds.
 2. Play a full game as camp **"TEST ignore"** with your own email. Submit.
-3. Done screen shows the success copy (not the sheet-failed / email-failed variants).
-4. **Download the PNG card on the iPhone** — this is also the Safari export test (SVG-to-canvas export was never machine-verified in WebKit; this real-device step is the net).
+3. Done screen shows the success copy (not the sheet-failed / email-failed variants), plus the two #39 done-screen elements: the rank headline ("Your camp is a &lt;rank&gt; · &lt;total&gt;/60" — a blank headline means `rank.js` / `window.Rank` didn't load) and, since your test game included at least one "No," the collapsible "🌱 Your Green-Up Plan · N ideas" panel built from those No answers.
+4. **Download the PNG card on the iPhone, then tap "🔗 Share link"** — the two real-device WebKit tests. Download exercises the SVG-to-canvas PNG export; "Share link" fires the #39 Web Share L2 path, so the native share sheet must open with the card PNG *attached* (`navigator.share({files})`), not just a URL. Neither was ever machine-verified in WebKit; this step is the net. (If the sheet shows only a link, the in-gesture pre-raster failed — it degrades to share-URL then clipboard, but investigate before launch.)
 5. Email arrives in inbox ≤ ~2 min; open the emailed /result/ link; card renders.
-6. Paste a result link into iMessage/Slack: OG unfurl shows the branded card.
+6. Paste a result link into iMessage/Slack: the OG unfurl **title** reads **"TEST ignore's Green Radius"** and the **description** reads **"A &lt;rank&gt; at &lt;total&gt;/60…"** — not just that a card image appears. The image is intentionally static (`og-card.png`), so a generic unfurl that still shows the card means the Worker's `og:title`/`og:description` rewrite (or `run_worker_first: ["/result/"]`) is dead.
 7. Security → Events: your single submission was NOT challenged.
 8. /admin: Access login, TEST row visible in Camps. Then delete/mark the row in the Sheet.
 

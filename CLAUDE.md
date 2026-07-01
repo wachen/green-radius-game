@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The Green Radius Game — a self-ranking sustainability game for Burning Man theme camps, live at **https://greenradi.us**. It's a **no-build static app** (React 18 via UMD CDN + in-browser JSX through `@babel/standalone`) fronted by one tiny Cloudflare Worker.
+The Green Radius Game — a self-ranking sustainability game for Burning Man theme camps, live at **https://greenradi.us**. It's a **no-build static app** (React 18 UMD served same-origin from `vendor/` + in-browser JSX through `@babel/standalone`) fronted by one tiny Cloudflare Worker.
 
 > **Merging to `main` deploys to production instantly.** There is no staging. `main` is branch-protected (PR required, 0 approvals), and **HSTS preload is active — the site must never go offline.** Never force-push or delete `main`. PRs are squash-merged.
 
@@ -41,7 +41,7 @@ To "test" a change: run the parse gate, then load it in a browser and play throu
 Full map is in `docs/architecture.md`; the essentials:
 
 - **Entry:** `index.html` loads React + `@babel/standalone` from `vendor/` (same-origin, no CDN), defines `PALETTE`, and mounts `<GreenRadiusGame variant="flat-playa" palette={PALETTE}/>`.
-- **The whole game UI is one file:** `green-radius.jsx` (~2200 lines) — wheel, question modal, form mode, result/share card, done+email screen, home FAQ modal. Components reference each other by **bare name** within a shared Babel scope (see gotcha below).
+- **The whole game UI is one file:** `green-radius.jsx` (~2600 lines) — wheel, question modal, form mode, result/share card, done+email screen (with the collapsible Green-Up Plan built from the player's "No" answers), home FAQ modal. Components reference each other by **bare name** within a shared Babel scope (see gotcha below).
 - **Three plain scripts create the only real globals:** `game-data.js` → `window.SECTORS` (6 sectors × 4 tiers of Yes/No content), `result-state.js` → `window.ResultState` (encode/decode a result to/from the result-link payload), and `rank.js` → `window.Rank` (a camp's playa-rank title from its 0–60 total). `rank.js` is isomorphic and is also imported by the Worker.
 - **One Worker, three dynamic routes:** `worker/index.js` handles `POST /api/complete`, `GET /api/admin/responses`, and `GET /result/?r=<payload>` (per-camp OG unfurl — decodes the share payload with `result-state.js` and rewrites `og:title`/`og:description` via `HTMLRewriter`, fail-open; the image stays the static `og-card.png`), and serves everything else as static assets (`ASSETS` binding, `wrangler.jsonc`). Because Static Assets are served before the Worker by default, `wrangler.jsonc` sets `assets.run_worker_first: ["/result/"]` so the Worker runs first for that one route — drop it and the OG rewrite goes dead. `/api/complete` does two things best-effort in parallel — append a row to a Google Sheet (via an Apps Script web app) and email the player their result link (via Resend) — and returns `{ sheet, email }`.
 - **Shareable result page:** `result/index.html` decodes the result payload from the `?r=` query param client-side (legacy `#hash` still accepted as a fallback) and renders a read-only `<ShareCard>`. Works even with the Worker down (the Worker only layers per-camp OG meta on top).
