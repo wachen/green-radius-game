@@ -14,13 +14,13 @@
 | Deploy | merge PR to `main` | Instant. No staging. Squash merges. Never force-push `main`. |
 | Rollback | `git revert <squash-sha>` → PR → merge | Also instant. The ONLY rollback path. |
 | Worker logs | CF dash → Workers & Pages → green-radius-game → Logs | `observability.enabled = true` |
-| Traffic/errors | CF zone Analytics; Workers metrics for /api | Statics absorbed by Cloudflare; only /api is dynamic |
+| Traffic/errors | CF zone Analytics; Workers metrics for /api/* + /result/ | Statics absorbed by Cloudflare; /api/* and /result/ hit the Worker |
 | Abuse | Security → Events (rate limit: 10 req/10s/IP on /api/*, Managed Challenge) | |
 | Player data | Google Sheet via Apps Script; Apps Script Executions page | "Answers JSON" / "Schema Version" columns |
 | Email | Resend dashboard (sends, bounces, quota) | One email per completion. **Kill switch:** deleting the `RESEND_API_KEY` Worker secret makes the email leg return false gracefully (done screen already handles it); restore by re-adding the secret. |
 | Admin viewer | /admin (Cloudflare Access) | City + Camps tabs |
-| Routing reality | Static assets are served BEFORE the Worker runs (no `run_worker_first`) | A throwing Worker breaks `/api/*` only — the game, /result/, vendor files keep serving. A syntactically invalid Worker upload is rejected at deploy time; the old version keeps running. |
-| Source of truth for a result | the URL hash (schema v2) | Sheet + email are best-effort; a lost row is reconstructable from any result link |
+| Routing reality | Static assets are served BEFORE the Worker EXCEPT `/result/`, pinned to the Worker via `run_worker_first: ["/result/"]` (per-camp OG rewrite) | A throwing Worker breaks `/api/*` and degrades `/result/`'s OG unfurl (fail-open → the generic static result page still serves); the game and vendor files keep serving. A syntactically invalid Worker upload is rejected at deploy time; the old version keeps running. |
+| Source of truth for a result | the result-link payload (`?r=`, schema v2; legacy `#hash` fallback) | Sheet + email are best-effort; a lost row is reconstructable from any result link |
 
 ---
 
@@ -41,10 +41,10 @@ Any box unchecked → do not announce. Each is a same-day fix.
 
 1. Load https://greenradi.us cold: placeholder within ~1 s, game within a few seconds.
 2. Play a full game as camp **"TEST ignore"** with your own email. Submit.
-3. Done screen shows the success copy (not the sheet-failed / email-failed variants).
-4. **Download the PNG card on the iPhone** — this is also the Safari export test (SVG-to-canvas export was never machine-verified in WebKit; this real-device step is the net).
+3. Done screen shows the success copy (not the sheet-failed / email-failed variants), plus the two #39 done-screen elements: the rank headline ("Your camp is a &lt;rank&gt; · &lt;total&gt;/60" — a blank headline means `rank.js` / `window.Rank` didn't load) and, since your test game included at least one "No," the collapsible "🌱 Your Green-Up Plan · N ideas" panel built from those No answers.
+4. **Download the PNG card on the iPhone, then tap "🔗 Share link"** — the two real-device WebKit tests. Download exercises the SVG-to-canvas PNG export; "Share link" fires the #39 Web Share L2 path, so the native share sheet must open with the card PNG *attached* (`navigator.share({files})`), not just a URL. Neither was ever machine-verified in WebKit; this step is the net. (If the sheet shows only a link, the in-gesture pre-raster failed — it degrades to share-URL then clipboard, but investigate before launch.)
 5. Email arrives in inbox ≤ ~2 min; open the emailed /result/ link; card renders.
-6. Paste a result link into iMessage/Slack: OG unfurl shows the branded card.
+6. Paste a result link into iMessage/Slack: the OG unfurl **title** reads **"TEST ignore's Green Radius"** and the **description** reads **"A &lt;rank&gt; at &lt;total&gt;/60…"** — not just that a card image appears. The image is intentionally static (`og-card.png`), so a generic unfurl that still shows the card means the Worker's `og:title`/`og:description` rewrite (or `run_worker_first: ["/result/"]`) is dead.
 7. Security → Events: your single submission was NOT challenged.
 8. /admin: Access login, TEST row visible in Camps. Then delete/mark the row in the Sheet.
 
@@ -86,7 +86,7 @@ First hour: every ~15 min. Rest of day: hourly. Order: (1) zone Analytics reques
 
 **P1 — Site down/blank for everyone.** Statics are served before the Worker, so a Worker bug alone can NOT blank the whole site. Reproduce (curl + phone). Whole-site failure → suspect Cloudflare platform (cloudflarestatus.com) or a bad change to the HTML/assets themselves: if a recent merge correlates, `git revert <squash-sha>` → PR → merge → re-run smoke curls. Never disable the Worker or delete the route (HSTS preload = no fallback).
 
-**P2 — /api/complete erroring (players see try-again).** Players are safe: the result lives in their URL hash; nothing is silently lost. Worker logs: which leg fails — Apps Script fetch or Resend? → P3 / P4. Both → check Worker secrets weren't disturbed (Settings → Variables).
+**P2 — /api/complete erroring (players see try-again).** Players are safe: the result lives in their result link (`/result/?r=<payload>`); nothing is silently lost. Worker logs: which leg fails — Apps Script fetch or Resend? → P3 / P4. Both → check Worker secrets weren't disturbed (Settings → Variables).
 
 **P3 — Sheet rows not appearing.** Apps Script Executions page: failures/quota on doPost? If the deployment was redeployed it minted a NEW /exec URL → update the `SHEETS_WEBAPP_URL` secret. Mitigation: none needed player-side; rows are backfillable later from result links (note the gap window).
 

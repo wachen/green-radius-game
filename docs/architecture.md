@@ -17,10 +17,12 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
   `@babel/standalone` from the committed **`vendor/`** directory (same-origin, no
   CDN at runtime); Babel compiles the JSX *in the browser*, then mounts
   `<GreenRadiusGame/>`.
-- **One small Cloudflare Worker.** `worker/index.js` handles two dynamic routes —
-  `POST /api/complete` (result capture) and the Access-gated
-  `GET /api/admin/responses` (admin viewer read path) — and serves everything else
-  as static assets (the `ASSETS` binding in `wrangler.jsonc`, directory `.`).
+- **One small Cloudflare Worker.** `worker/index.js` handles three dynamic routes —
+  `POST /api/complete` (result capture), the Access-gated
+  `GET /api/admin/responses` (admin viewer read path), and
+  `GET /result/?r=<payload>` (per-camp OG unfurl — see below) — and serves
+  everything else as static assets (the `ASSETS` binding in `wrangler.jsonc`,
+  directory `.`).
 - **Deploy = merge to `main`.** Cloudflare Workers + Static Assets auto-deploys
   `main` to https://greenradi.us. No staging environment.
 
@@ -30,14 +32,14 @@ The game and the result-capture backend are wired through one shared shape: a
 per-sector **green count** (`0–10`, total Yes).
 
 ```
-play game / form  →  done screen  ─┬─►  result-state.encode()  →  /result/#<hash>   (share link, client-only)
+play game / form  →  done screen  ─┬─►  result-state.encode()  →  /result/?r=<payload>   (share link; legacy #<hash> still decoded)
    (green-radius.jsx)              │
                                    └─►  POST /api/complete (worker/index.js)
                                           ├─► appendToSheet → Apps Script web app → "2026 Results" tab
                                           └─► sendEmail     → Resend → emails the /result/ link
                                         returns { sheet: ok|err, email: sent|err }
 
-/result/ (result/index.html):  decode(location.hash) → <ShareCard> (read-only, stateless)
+/result/ (result/index.html):  decode(?r= payload, legacy #hash fallback) → <ShareCard> (read-only, stateless)
 ```
 
 1. **Play** (`green-radius.jsx`). Each spin plays a whole sector's 10 questions
@@ -52,7 +54,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 2. **Done screen.** Required, validated email. `greens[sectorId] =
    sectorFill(...).totalYes` (0–10). Every individual answer lives in the shared
    `answers` map (`{questionId: 'yes'|'no'}`, Level 4 keyed by the picked topic id) —
-   the source of both the fill and the backend record.
+   the source of both the fill and the backend record. The done screen also renders a
+   collapsible **Green-Up Plan** — the player's `'no'` answers turned into suggested
+   next-year steps (`greenUpSteps`/`<GreenUpPlan>`), grouped by sector and hidden when
+   there are no gaps; client-only, sent nowhere and never mounted on `/result/`.
 3. **Two outputs:**
    - **Share link** — `result-state.js` `encode({campName, leadName, year, fills})`
      → base64url payload (v2: per sector `fixedBits*5 + advCount`, ~88 chars) →
@@ -60,7 +65,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      so the shared page matches the in-app graphic. The payload now rides in the `?r=`
      **query** (so the Worker can read it for the per-camp OG unfurl — see below);
      `/result/` reads `?r=` first and falls back to the legacy `#<hash>` for older
-     links. Pure client render; works with the Worker down.
+     links. Pure client render; works with the Worker down. The done-screen
+     **Share** button delivers it via Web Share L2 — `navigator.share({ files: [pngFile] })`
+     hands the pre-rasterized result-card PNG to the OS share sheet — then degrades to
+     sharing the `?r=` URL (Web Share L1), then to copying the link to the clipboard.
    - **`POST /api/complete`** — `{campName, email, year, greens, mode, answers,
      schemaVersion, resultUrl}`. `greens` is now 0–10 per sector; `answers` (the full
      map) is backend-only (→ sheet `answers_json`).
@@ -81,7 +89,7 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 - **The `greens` shape is the contract.** `{ food, water, waste, transport,
   shelter, power }`, each `0–10` (total Yes per sector), threads game → Worker →
   the sheet's per-sector columns + email. The *graphic* uses `fills` (per-question),
-  carried in the hash; `greens` is just the headline number for the tally.
+  carried in the `?r=` payload; `greens` is just the headline number for the tally.
 - **Fill is per-question; gaps allowed.** A sector is NOT a contiguous depth any
   more — each level fills independently per question (e.g. L1 empty, L2 half, L3 full),
   in per-level colors. `result-state` v2 stores the per-sector pattern (`fixedBits` +
@@ -182,7 +190,8 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   scope, so components defined in `green-radius.jsx` (e.g. `ShareCard`) are
   referenced by **bare name** across babel scripts — they are **not** `window`
   properties. Only plain scripts that assign `window.X = …` create real globals
-  (`window.SECTORS` in `game-data.js`, `window.ResultState` in `result-state.js`).
+  (`window.SECTORS` in `game-data.js`, `window.ResultState` in `result-state.js`,
+  `window.Rank` in `rank.js`).
   Mounting a component via `window.ShareCard` → `undefined` → renders nothing.
   *(This was the blank-`/result/` bug fixed in #19.)*
 - **`/result/` must load the same web fonts as `index.html`.** `ShareCard` inherits
