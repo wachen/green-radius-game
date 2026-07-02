@@ -2531,7 +2531,9 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
               ? <>Thanks for playing! We couldn't reach the server. Your card is safe: download it or copy the share link below, then tap Try again.</>
               : submitResult && submitResult.email !== 'sent'
                 ? <>Thanks for playing! You're in the community tally, but the email didn't go through. Download your card or copy the share link below.</>
-                : <>Thanks for playing! Results sent to <strong>{email}</strong>. Not there? Check spam.</>}
+                : <>Thanks for playing! {greenUpSteps(sectors, answers, customNotes).length
+                    ? <>Your result and Green-Up Plan are in your inbox at <strong>{email}</strong>.</>
+                    : <>Results sent to <strong>{email}</strong>.</>} Not there? Check spam.</>}
         </div>
 
         {submitState !== 'sending' && (

@@ -8,8 +8,14 @@
 // The per-sector "Our Camp's Idea" topic (id `X-camp`) is the write-in slot:
 // the UI collects a free-text description alongside the Yes/No, submitted as
 // an `X-camp-note` entry in the answers map (see docs/architecture.md).
+// Isomorphic (browser + Worker), same pattern as rank.js: the game reads
+// window.SECTORS; the Worker imports it to build the completion email's
+// Green-Up Plan from the player's "No" answers.
 
-window.SECTORS = [
+(function (global) {
+'use strict';
+
+global.SECTORS = [
   // ── FOOD ────────────────────────────────────────────────────────────────
   {
     id: 'food', code: 'F', name: 'Food', icon: 'food',
@@ -335,4 +341,9 @@ window.SECTORS = [
 // imperial-first units (ids and meaning unchanged; four prompts reworded only
 // to lead with the imperial measurement); X-camp topics gained a prompt and
 // answers may carry free-text `X-camp-note` entries (the write-in Level 4 idea).
-window.SCHEMA_VERSION = 'frog-v12.1';
+global.SCHEMA_VERSION = 'frog-v12.1';
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { SECTORS: global.SECTORS, SCHEMA_VERSION: global.SCHEMA_VERSION };
+}
+})(typeof globalThis !== 'undefined' ? globalThis : this);

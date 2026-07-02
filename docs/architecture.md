@@ -36,7 +36,7 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
    (green-radius.jsx)              │
                                    └─►  POST /api/complete (worker/index.js)
                                           ├─► appendToSheet → Apps Script web app → "2026 Results" tab
-                                          └─► sendEmail     → Resend → emails the /result/ link
+                                          └─► sendEmail     → Resend → emails the /result/ link + the Green-Up Plan
                                         returns { sheet: ok|err, email: sent|err }
 
 /result/ (result/index.html):  decode(?r= payload, legacy #hash fallback) → <ShareCard> (read-only, stateless)
@@ -110,6 +110,13 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   the sheet: campName/leadName ≤ 80, email ≤ 254, and any value starting with
   `= + - @` (a Google Sheets formula trigger) gets a leading `'`. Keep names
   flowing through `sheetCell` — it's the anti-formula-injection guard.
+- **The email body is server-built.** `sendEmail` composes the result link plus a
+  Green-Up Plan rebuilt from the *sanitized* `answers` map against `game-data.js`
+  (`greenUpEmailHtml`, mirroring `greenUpSteps` in `green-radius.jsx`): every "No"
+  becomes its question title; a "No" write-in shows the camp's own note
+  (HTML-escaped, `sheetCell` guard apostrophe stripped for display). Client prose
+  must never flow into the email directly — `/api/complete` mails any address the
+  caller supplies, so free-form body text would turn it into a phishing relay.
 
 ## External integrations
 
@@ -186,10 +193,12 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   already lands in the Sheet on completion and in any link the camp shares, so the
   marginal exposure is low-sensitivity. `safeResultUrl` still passes the emailed `?r=`
   link (it checks `pathname`, which the query doesn't change).
-- **`rank.js`** is isomorphic (`module.exports` + a `globalThis.Rank` assign) so the
-  browser (done-screen headline, Web Share text) and the Worker (OG description)
-  compute the playa-rank title from one source. `result-state.js` resolves its global
-  via `globalThis` too, so both import into the Worker bundle without a module-eval throw.
+- **`rank.js` and `game-data.js` are isomorphic** (`module.exports` + a `globalThis`
+  assign) so the browser and the Worker share one source: `rank.js` for the playa-rank
+  title (done-screen headline, Web Share text, OG description), `game-data.js` for the
+  question content (game UI; the Worker's Green-Up Plan email section). `result-state.js`
+  resolves its global via `globalThis` too, so all three import into the Worker bundle
+  without a module-eval throw.
 
 ## Gotchas (hard-won)
 
