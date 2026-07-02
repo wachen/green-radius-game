@@ -1,7 +1,11 @@
 import ResultState from '../result-state.js';
 import Rank from '../rank.js';
+import GameData from '../game-data.js';
 
 const SECTOR_IDS = ['food', 'water', 'waste', 'transport', 'shelter', 'power'];
+// The six write-in note keys (one "Our Camp's Idea" per sector, game-data.js
+// `X-camp` topics) — the only free-text answers entries accepted.
+const NOTE_KEYS = new Set(['F-camp-note', 'H-camp-note', 'W-camp-note', 'T-camp-note', 'S-camp-note', 'P-camp-note']);
 const ALLOWED_ORIGIN = 'https://greenradi.us';
 
 export default {
@@ -25,7 +29,9 @@ async function handleComplete(request, env) {
   if (origin !== ALLOWED_ORIGIN && !isLocalhost) return json({ error: 'forbidden' }, 403);
 
   const raw = await request.text();
-  if (raw.length > 4096) return json({ error: 'too_large' }, 413);
+  // 8 KB: 60 answers + six 160-char write-in notes + maxed name/email/url
+  // fields still fit with headroom (worst case is ~4 KB).
+  if (raw.length > 8192) return json({ error: 'too_large' }, 413);
   let body;
   try { body = JSON.parse(raw); } catch { return json({ error: 'bad_json' }, 400); }
   if (!body || typeof body !== 'object') return json({ error: 'bad_json' }, 400);
@@ -38,14 +44,25 @@ async function handleComplete(request, env) {
   for (const id of SECTOR_IDS) greens[id] = Math.max(0, Math.min(10, (body.greens && body.greens[id]) | 0));
 
   // Granular per-question answers (backend-only). Keep it bounded and clean:
-  // string keys <= 40 chars, values strictly 'yes'/'no', at most 120 entries.
+  // string keys <= 40 chars; values strictly 'yes'/'no' (at most 120 entries),
+  // except the whitelisted NOTE_KEYS, the write-in "Our Camp's Idea" text:
+  // free text, trimmed + clamped to 160 chars + formula-guarded.
   const answers = {};
   if (body.answers && typeof body.answers === 'object') {
     let n = 0;
     for (const k of Object.keys(body.answers)) {
-      if (n >= 120) break;
+      if (typeof k !== 'string' || k.length > 40) continue;
       const v = body.answers[k];
-      if (typeof k === 'string' && k.length <= 40 && (v === 'yes' || v === 'no')) { answers[k] = v; n++; }
+      if (v === 'yes' || v === 'no') {
+        if (n < 120) { answers[k] = v; n++; }
+      } else if (NOTE_KEYS.has(k) && typeof v === 'string' && v.trim()) {
+        answers[k] = sheetCell(clampField(v.trim(), 160));
+      }
+    }
+    // A note only means something alongside its topic's Yes/No — drop orphans
+    // (also keeps forged note-only rows out of the sheet/admin).
+    for (const k of Object.keys(answers)) {
+      if (k.endsWith('-note') && answers[k.slice(0, -5)] !== 'yes' && answers[k.slice(0, -5)] !== 'no') delete answers[k];
     }
   }
   const source = body.mode === 'form' ? 'form' : 'board';
@@ -68,7 +85,7 @@ async function handleComplete(request, env) {
 
   const [sheetRes, emailRes] = await Promise.allSettled([
     appendToSheet(env, row),
-    sendEmail(env, email, campName, resultUrl),
+    sendEmail(env, email, campName, resultUrl, answers),
   ]);
   return json({
     sheet: sheetRes.status === 'fulfilled' && sheetRes.value ? 'ok' : 'err',
@@ -102,7 +119,7 @@ async function appendToSheet(env, row) {
   return j.ok === true;
 }
 
-async function sendEmail(env, to, campName, resultUrl) {
+async function sendEmail(env, to, campName, resultUrl, answers) {
   if (!env.RESEND_API_KEY || !resultUrl) return false;
   const href = escAttr(resultUrl);
   const r = await fetch('https://api.resend.com/emails', {
@@ -113,10 +130,47 @@ async function sendEmail(env, to, campName, resultUrl) {
       reply_to: 'greenthemecamps@burningman.org',
       to: [to],
       subject: `Your Green Radius — ${campName}`,
-      html: `<p>Thanks for playing the Green Radius Game!</p><p><a href="${href}">View &amp; share your Green Radius →</a></p><p style="color:#888;font-size:12px">Questions? Just reply to this email — it reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
+      html: `<p>Thanks for playing the Green Radius Game!</p><p><a href="${href}">View &amp; share your Green Radius →</a></p>${greenUpEmailHtml(answers)}<p style="color:#888;font-size:12px">Questions? Just reply to this email — it reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
     }),
   });
   return r.ok;
+}
+
+// The email copy of the done screen's Green-Up Plan, mirroring greenUpSteps in
+// green-radius.jsx: every "No" answer becomes a next-year step, grouped by
+// sector; a written-in "Our Camp's Idea" answered No shows the camp's own
+// words. Built server-side from the sanitized answers map (never from client
+// prose) so the only client-authored text an email can carry is the six
+// bounded, HTML-escaped write-in notes. Empty plan (all Yes) → empty string.
+function greenUpEmailHtml(answers) {
+  if (!answers) return '';
+  const groups = [];
+  for (const s of GameData.SECTORS) {
+    const steps = [];
+    (s.levels || []).forEach((qs, li) => {
+      (qs || []).forEach(q => { if (answers[q.id] === 'no') steps.push({ level: li + 1, title: q.title, url: q.link && q.link.url }); });
+    });
+    (s.tier4Topics || []).forEach(t => {
+      if (answers[t.id] !== 'no') return;
+      const rawNote = answers[t.id + '-note'];
+      // Display copy of the note: drop the sheetCell formula-guard apostrophe.
+      const note = typeof rawNote === 'string' ? rawNote.replace(/^'(?=[=+\-@\t\r])/, '').trim() : '';
+      steps.push({ level: 4, title: note ? `${t.title}: ${note}` : t.title, url: t.link && t.link.url });
+    });
+    if (steps.length) groups.push({ name: s.name, steps });
+  }
+  if (!groups.length) return '';
+  const count = groups.reduce((n, g) => n + g.steps.length, 0);
+  return `<p style="margin:22px 0 2px"><strong>🌱 Your Green-Up Plan</strong> · ${count} ${count === 1 ? 'idea' : 'ideas'} to grow your radius next year</p>` +
+    groups.map(g =>
+      `<p style="margin:12px 0 2px;font-size:12px;letter-spacing:0.08em;color:#558040"><strong>${escAttr(g.name.toUpperCase())}</strong></p>` +
+      `<p style="margin:0;line-height:1.7">` +
+      g.steps.map(st =>
+        `<span style="color:#888">L${st.level} · </span>` +
+        (st.url ? `<a href="${escAttr(st.url)}" style="color:#558040">${escAttr(st.title)}</a>` : escAttr(st.title))
+      ).join('<br>') +
+      `</p>`
+    ).join('');
 }
 
 function safeResultUrl(raw) {

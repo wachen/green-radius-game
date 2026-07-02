@@ -12,8 +12,11 @@
   function advYesCount(sector, answers) {
     return Math.min(4, (sector.tier4Topics || []).filter(t => answers[t.id] === 'yes').length);
   }
+  // Only yes/no entries make a row "answered" — `X-camp-note` write-in strings
+  // may share the answers map and must not inflate denominators.
   function rowsWithAnswers(rows) {
-    return rows.filter(r => r.answers && Object.keys(r.answers).length > 0);
+    return rows.filter(r => r.answers &&
+      Object.keys(r.answers).some(function (k) { return r.answers[k] === 'yes' || r.answers[k] === 'no'; }));
   }
   // Pre-rework rows (before the 0-10 per-question capture) have no schema tag and
   // no per-question answers; their greens mean levels-lit 0-4, not questions 0-10.

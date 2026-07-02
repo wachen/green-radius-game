@@ -4,7 +4,14 @@
   "compatibility_date": "2026-05-22",
   "main": "worker/index.js",
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": true
+    }
   },
   "assets": {
     "directory": ".",
