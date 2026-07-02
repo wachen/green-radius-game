@@ -17,9 +17,11 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
   `@babel/standalone` from the committed **`vendor/`** directory (same-origin, no
   CDN at runtime); Babel compiles the JSX *in the browser*, then mounts
   `<GreenRadiusGame/>`.
-- **One small Cloudflare Worker.** `worker/index.js` handles three dynamic routes —
+- **One small Cloudflare Worker.** `worker/index.js` handles four dynamic routes —
   `POST /api/complete` (result capture), the Access-gated
-  `GET /api/admin/responses` (admin viewer read path), and
+  `GET /api/admin/responses` (admin viewer read path),
+  `GET /api/health` (liveness probe for the external uptime monitor — returns
+  `{ok:true}`, no secrets/upstreams, `no-store`), and
   `GET /result/?r=<payload>` (per-camp OG unfurl — see below) — and serves
   everything else as static assets (the `ASSETS` binding in `wrangler.jsonc`,
   directory `.`).
