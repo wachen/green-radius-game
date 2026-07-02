@@ -1,6 +1,7 @@
 // Green Radius Game — content from official PDF (Frog v12 FINAL, 2026), with
-// bigGoal/description wording lightly tightened for the app (PR #41); question
-// ids, titles, prompts, links, and every number are unchanged from the PDF.
+// bigGoal/description wording lightly tightened for the app and measurements
+// shown imperial-first with the PDF's metric value in parentheses (PR #41);
+// question ids, titles, links, and every underlying quantity match the PDF.
 // Structure: 6 sectors × 4 tiers × (1, 2, 3, 4) questions = 60 steps total.
 // Tiers 1–3 are fixed steps. Tier 4 is "advanced" — for each of its 4 slots,
 // the player picks a topic from a dropdown and answers Yes/No on it.
@@ -20,14 +21,14 @@ window.SECTORS = [
       [{
         id: 'F1', code: 'F1', step: 1, title: 'Meal Plan',
         prompt: "Have you whipped up a Meal Plan for your camp?",
-        description: "Forgot milk? Forgot vegan? Forgot time? The closest grocery is 100 km away, and you can't leave anyway. Feed everyone, special diets included, with less waste. Leftovers become another meal.",
+        description: "Forgot milk? Forgot vegan? Forgot time? The closest grocery is 60 miles (100 km) away, and you can't leave anyway. Feed everyone, special diets included, with less waste. Leftovers become another meal.",
         link: { label: 'Whip up a Meal Plan', url: 'https://southernsustainabilityinstitute.org/meal-planning-for-the-planet-how-reducing-food-waste-starts-in-your-kitchen/' }
       }],
       // Tier 2 (2 questions)
       [{
         id: 'F2', code: 'F2', step: 2, title: '25% Food Waste Reduction',
-        prompt: "Are you below 0.35 kg of food waste / person / day?",
-        description: "US average is 0.45 kg / person / day (1 lb). 0.45 × 75% = 0.34 kg. About 30–40% of the US food supply is discarded every year. Avoid spoiling, eat leftovers soon, bring the rest to a BRC Compost Collection Station.",
+        prompt: "Are you below 0.75 lb (0.35 kg) of food waste / person / day?",
+        description: "US average is 1 lb / person / day (0.45 kg). 1 × 75% = 0.75 lb. About 30–40% of the US food supply is discarded every year. Avoid spoiling, eat leftovers soon, bring the rest to a BRC Compost Collection Station.",
         link: { label: 'EPA — Food Waste in America', url: 'https://www.epa.gov/sustainable-management-food' }
       }, {
         id: 'F3', code: 'F3', step: 3, title: 'Share Food Ideas in Camp',
@@ -80,14 +81,14 @@ window.SECTORS = [
     levels: [
       [{
         id: 'H1', code: 'H1', step: 1, title: 'Estimate Water',
-        prompt: "Have you centrally planned at least 6 L / person / day of water?",
+        prompt: "Have you centrally planned at least 1.5 gal (6 L) / person / day of water?",
         description: "Hydrate, Hydrate, Hydrate. The Survival Guide minimum is 1.5 gallons (6 litres) per person per day. Plus cooking, washing, showering, gifting. Plus spills, evaporation, contingency. Don't die.",
         link: { label: 'Potable Water — Burning Man', url: 'https://burningman.org/black-rock-city/preparation/camping-tips/water/' }
       }],
       [{
         id: 'H2', code: 'H2', step: 2, title: '75% Water Reduction',
-        prompt: "Are you below 75 L / person / day of water consumption?",
-        description: "US average is 310 L / person / day (82 gal). 310 × 25% = 78 L. Should be easy: no water utility, no flush toilets, no lawns to irrigate.",
+        prompt: "Are you below 20 gal (75 L) / person / day of water consumption?",
+        description: "US average is 82 gal / person / day (310 L). 82 × 25% = 20.5 gal. Should be easy: no water utility, no flush toilets, no lawns to irrigate.",
         link: { label: 'EPA — US Water Consumption', url: 'https://www.epa.gov/watersense' }
       }, {
         id: 'H3', code: 'H3', step: 3, title: 'Share Water Ideas in Camp',
@@ -136,8 +137,8 @@ window.SECTORS = [
       }],
       [{
         id: 'W2', code: 'W2', step: 2, title: '50% Waste Reduction',
-        prompt: "Are you below 1 kg of waste / person / day?",
-        description: "US average is 2.3 kg / person / day (5 lbs). 2.3 × 50% = 1.2 kg. Reduce, refuse, repurpose.",
+        prompt: "Are you below 2.2 lbs (1 kg) of waste / person / day?",
+        description: "US average is 5 lbs / person / day (2.3 kg). 5 × 50% = 2.5 lbs. Reduce, refuse, repurpose.",
         link: { label: 'EPA — US Waste Generation', url: 'https://www.epa.gov/facts-and-figures-about-materials-waste-and-recycling' }
       }, {
         id: 'W3', code: 'W3', step: 3, title: 'Share Waste Ideas in Camp',
@@ -216,7 +217,7 @@ window.SECTORS = [
       { id: 'T-mv', title: 'Mutant Vehicle', description: "Many MVs gift rides. They take real work, and like bicycles, MVs are our Burning Man-unique CO2e reductions.", link: { label: 'DMV — Department of Mutant Vehicles', url: 'https://burningman.org/black-rock-city/volunteering/dept-of-mutant-vehicles/' } },
       { id: 'T-container', title: 'BM Container', description: "Have a BM Container, vehicle storage, or a spot on the wait-list. The Container program is the BEST: saves time, money, transport, CO2e. Apply even if you haven't gotten one yet.", link: { label: 'BRC Storage Program', url: 'https://burningman.org' } },
       { id: 'T-storelocal', title: 'Store Local', description: "Empire, Fernley, Wadsworth, Sparks, Reno, NW NV, or NE CA. No BM Container? Store anywhere in the region and haul less." },
-      { id: 'T-55', title: 'Drive 55', description: "Or 88 km per hour. Saves gas, money, CO2e. 55 MPH max to and from BRC. An ancient proven green success." },
+      { id: 'T-55', title: 'Drive 55', description: "55 MPH (88 km/h) max to and from BRC. Saves gas, money, CO2e. An ancient proven green success." },
       { id: 'T-ev', title: 'EV Hauling', description: "Electric, wood, steam, corn, hydrogen, wind. Anything but petrol. Make sure you have enough juice to get back home. Black Rock City has no Ethanol farms." },
       { id: 'T-share-haul', title: 'Share Long Hauls', description: "Consolidate long-distance hauling with other Burners in your region. Tubs, crates, containers, pods. Philly camps share a trailer/rail program." },
       { id: 'T-bikes', title: '100% People Bicycles', description: "Real bicycles. Or tricycles, unicycles, any person-powered vehicle. Powered wheelchairs are cool, but E-BIKES DON'T COUNT." },
@@ -315,7 +316,7 @@ window.SECTORS = [
     tier4Topics: [
       { id: 'P-hub', title: 'Be a Power HUB', description: "Provide electricity, equipment, expertise. Share solar panels, batteries, wire-strippers. Plus safety education so Burners don't get shocked. Or burned by acid. Only burned by consent." },
       { id: 'P-no', title: 'NO POWER!!!', description: "Give up electricity for a week. Really experience the desert. Turn off the phone when you leave the pavement. Ice chests. Grill food. Layer clothes. Acoustic guitar. Candles. Bring a flashlight or two for emergencies." },
-      { id: 'P-ac', title: 'Turn Off AC', description: "It's not that hot. Low humidity, wide diurnal swing. BRC may reach 32°C (90°F) for only 2–3 hours in the afternoon. If dusty, run only your fan. Nights get quite cold: bring hoodies and blankets." },
+      { id: 'P-ac', title: 'Turn Off AC', description: "It's not that hot. Low humidity, wide diurnal swing. BRC may reach 90°F (32°C) for only 2–3 hours in the afternoon. If dusty, run only your fan. Nights get quite cold: bring hoodies and blankets." },
       { id: 'P-less', title: 'Less Electricity', description: "Efficient ACs, fridges, freezers, cooking. Bring cycling appliances that match peak loads to supply, like fridges that cool hardest at night." },
       { id: 'P-no-genie', title: 'NO Genie', description: "Nope. Not even for emergencies. Didn't even bring one. No petrol. Didn't bring petrol cans, spill containers, fire extinguishers, and all that other heavy stinky dangerous stuff." },
       { id: 'P-nice-genie', title: 'Nice Genie', description: "Be a nice neighbor. Turn off at night. Direct exhaust fumes away. Minimize generator use. Reduce noisy and stinky. Let people sleep and breathe.", link: { label: 'Generators — Burning Man', url: 'https://burningman.org' } },
@@ -330,7 +331,8 @@ window.SECTORS = [
 
 // Content schema stamp — recorded with each response so historical rows stay
 // alignable if questions/topics change later. Bump when question content changes.
-// v12.1: same Frog v12 questions with tightened description wording (ids,
-// prompts, and meaning unchanged); X-camp topics gained a prompt and answers
-// may carry free-text `X-camp-note` entries (the write-in Level 4 idea).
+// v12.1: same Frog v12 questions with tightened description wording and
+// imperial-first units (ids and meaning unchanged; four prompts reworded only
+// to lead with the imperial measurement); X-camp topics gained a prompt and
+// answers may carry free-text `X-camp-note` entries (the write-in Level 4 idea).
 window.SCHEMA_VERSION = 'frog-v12.1';

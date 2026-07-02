@@ -126,7 +126,10 @@ function clearSaved() {
 // sized 1/2/3) + up to 4 advanced picks (Level 4). The radius mirrors the answers
 // exactly — each level's ring fills per question — so a No just leaves its
 // segment empty (no compensation, gaps allowed).
-const LEVEL_COLORS = ['#B91C1C', '#EA580B', '#3B82F6', '#31975B'];
+// A green ramp: Level 1 picks up where the Spin hub's accent green (#7AB85C,
+// set in index.html) leaves off and deepens per level to the Level-4 dark
+// green, so a lit wheel reads as green radiating outward from the center.
+const LEVEL_COLORS = ['#68B05C', '#56A85C', '#439F5B', '#31975B'];
 
 // Per-sector fill: levels[0..2] = one bool per fixed question (in order);
 // levels[3] = 4 slots, the first (advanced-Yes count, capped at 4) set true.
@@ -811,45 +814,24 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
           <div aria-live="polite" aria-atomic="true">
             <div style={{
               fontSize: 11, letterSpacing: '0.15em', fontWeight: 700,
-              color: '#5BA84A', marginBottom: 6,
+              color: '#5BA84A', marginBottom: 8,
             }}>
               {isTier4 ? `STEP ${sector.code}${idx + 7}` : `STEP ${q.code}`}
             </div>
             <div style={{
               fontSize: 22, lineHeight: 1.2, fontWeight: 800,
-              marginBottom: 10, textWrap: 'balance',
+              marginBottom: 12, textWrap: 'balance',
               letterSpacing: '-0.01em',
             }}>
               {q.title}
             </div>
             <div style={{
               fontSize: 17, lineHeight: 1.35, fontWeight: 600,
-              marginBottom: 12, textWrap: 'pretty',
+              marginBottom: 18, textWrap: 'pretty',
               color: palette.text,
             }}>
               {q.prompt || q.title + '?'}
             </div>
-            <div style={{
-              fontSize: 13, lineHeight: 1.5,
-              color: palette.text + 'aa',
-              marginBottom: q.link ? 10 : 20,
-              textWrap: 'pretty',
-              maxHeight: 140, overflowY: 'auto',
-            }}>
-              {q.description}
-            </div>
-            {q.link && (
-              <a href={q.link.url} target="_blank" rel="noreferrer" style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                fontSize: 12, fontWeight: 700, letterSpacing: '0.05em',
-                color: '#5BA84A', textDecoration: 'none',
-                marginBottom: 20,
-                borderBottom: '1px solid #5BA84A55',
-                paddingBottom: 1,
-              }}>
-                {q.link.label} ↗
-              </a>
-            )}
 
             {/* write-in topic: describe the idea before answering Yes/No */}
             {needsIdeaText && (
@@ -899,6 +881,35 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
                 }}
               >Yes</button>
             </div>
+
+            {/* supporting detail sits below the Yes/No so the bold question
+                keeps the focus; the hairline marks it as optional reading */}
+            {(q.description || q.link) && (
+              <div style={{ marginTop: 20, paddingTop: 14, borderTop: `1px solid ${palette.text}1f` }}>
+                {q.description && (
+                  <div style={{
+                    fontSize: 13, lineHeight: 1.5,
+                    color: palette.text + 'aa',
+                    marginBottom: q.link ? 10 : 0,
+                    textWrap: 'pretty',
+                    maxHeight: 140, overflowY: 'auto',
+                  }}>
+                    {q.description}
+                  </div>
+                )}
+                {q.link && (
+                  <a href={q.link.url} target="_blank" rel="noreferrer" style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    fontSize: 12, fontWeight: 700, letterSpacing: '0.05em',
+                    color: '#5BA84A', textDecoration: 'none',
+                    borderBottom: '1px solid #5BA84A55',
+                    paddingBottom: 1,
+                  }}>
+                    {q.link.label} ↗
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         )}
 
