@@ -13,6 +13,14 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/complete' && request.method === 'POST') return handleComplete(request, env);
     if (url.pathname === '/api/admin/responses' && request.method === 'GET') return handleAdminResponses(request, env);
+    // Liveness probe for the external uptime monitor (Cloudflare Free has no
+    // Worker-error alerting): proves routing + Worker execution, touches no
+    // secrets or upstreams. no-store so the monitor always hits the Worker.
+    if (url.pathname === '/api/health' && request.method === 'GET') {
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      });
+    }
     if (request.method === 'GET' && url.pathname === '/result/' && url.searchParams.has('r')) {
       return resultWithOg(request, env, url.searchParams.get('r'));
     }

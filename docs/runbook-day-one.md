@@ -15,7 +15,8 @@
 | Rollback | `git revert <squash-sha>` → PR → merge | Also instant. The ONLY rollback path. |
 | Worker logs | CF dash → Workers & Pages → green-radius-game → Logs | `observability.enabled = true` |
 | Traffic/errors | CF zone Analytics; Workers metrics for /api/* + /result/ | Statics absorbed by Cloudflare; /api/* and /result/ hit the Worker |
-| Abuse | Security → Events (rate limit: 10 req/10s/IP on /api/*, Managed Challenge) | |
+| Abuse | Security → Events (rate limit: 10 req/10s/IP on /api/*, **Block** — Managed Challenge isn't offered on the Free plan) | Deployed + curl-verified 2026-07-02 (11th rapid request → 429; ~10s cooldown) |
+| Worker liveness | External uptime monitor → `GET /api/health` expecting 200 | Cloudflare Free has no Worker-error alerting; the monitor's phone push substitutes. Non-200 = Worker routing/execution broken |
 | Player data | Google Sheet via Apps Script; Apps Script Executions page | "Answers JSON" / "Schema Version" columns |
 | Email | Resend dashboard (sends, bounces, quota) | One email per completion. **Kill switch:** deleting the `RESEND_API_KEY` Worker secret makes the email leg return false gracefully (done screen already handles it); restore by re-adding the secret. |
 | Admin viewer | /admin (Cloudflare Access) | City + Camps tabs |
@@ -27,12 +28,12 @@
 ## 1. Go / no-go gates (before scheduling the announcement)
 
 - [ ] LAUNCH PR merged + verified: `/docs/runbook-day-one.md` → 404, `/wrangler.jsonc` → 404, `/worker/index.js` → 404, `/CLAUDE.md` → 404; favicon shows in the browser tab on `/`, `/result/`, and `/admin` (inline SVG, no `.ico` file); vendor files show `Cache-Control: ...max-age=31536000, immutable`; storage/no-sharing sentence visible near the email field.
-- [ ] WAF rate-limit rule on `/api/*` confirmed **deployed and active** (not draft).
+- [ ] WAF rate-limit rule on `/api/*` confirmed **deployed and active** (not draft). (First verified 2026-07-02: 14 rapid POSTs → 403s through #10, 429s from #11, released after ~10s.)
 - [ ] Resend: plan quota ≥ 500/day for launch week (free tier = 100/day + 3,000/mo; Pro $20/mo = 50k/mo, no daily cap). Domain shows verified; **set a usage/volume alert**. DKIM + custom MAIL FROM DNS verified present 2026-06-11 (resend._domainkey TXT; send.greenradi.us SPF/MX); DMARC p=none exists.
 - [ ] Test email landed in a Gmail **inbox**, not spam.
 - [ ] Google Sheet backup copy made; sharing restricted; Apps Script deployment is the current /exec URL.
-- [ ] Cloudflare notification for Worker error rate configured (must reach your phone).
-- [ ] Cloudflare Access allowlist for /admin verified (you + Marc only).
+- [ ] Uptime monitor on `https://greenradi.us/api/health` (expect 200, 5-min interval) confirmed alerting your phone. (Cloudflare Free offers no Worker-error notifications — this external probe is the substitute.)
+- [ ] Cloudflare Access allowlist for /admin matches the intended admin list (as of 2026-07-02: Wes, Marc, Christopher Breedlove, Tim Barry — remove anyone unexpected).
 - [ ] T-1 drill (section 2) completed without surprises.
 
 Any box unchecked → do not announce. Each is a same-day fix.
@@ -45,7 +46,7 @@ Any box unchecked → do not announce. Each is a same-day fix.
 4. **Download the PNG card on the iPhone, then tap "🔗 Share link"** — the two real-device WebKit tests. Download exercises the SVG-to-canvas PNG export; "Share link" fires the #39 Web Share L2 path, so the native share sheet must open with the card PNG *attached* (`navigator.share({files})`), not just a URL. Neither was ever machine-verified in WebKit; this step is the net. (If the sheet shows only a link, the in-gesture pre-raster failed — it degrades to share-URL then clipboard, but investigate before launch.)
 5. Email arrives in inbox ≤ ~2 min; open the emailed /result/ link; card renders.
 6. Paste a result link into iMessage/Slack: the OG unfurl **title** reads **"TEST ignore's Green Radius"** and the **description** reads **"A &lt;rank&gt; at &lt;total&gt;/60…"** — not just that a card image appears. The image is intentionally static (`og-card.png`), so a generic unfurl that still shows the card means the Worker's `og:title`/`og:description` rewrite (or `run_worker_first: ["/result/"]`) is dead.
-7. Security → Events: your single submission was NOT challenged.
+7. Security → Events: your single submission was NOT rate-limited (no Block event for your IP).
 8. /admin: Access login, TEST row visible in Camps. Then delete/mark the row in the Sheet.
 
 Any failure = hard stop; diagnose tonight, not on announce morning.
@@ -53,10 +54,11 @@ Any failure = hard stop; diagnose tonight, not on announce morning.
 ## 3. Announce-morning smoke test (~10 min, before the newsletter)
 
 ```sh
-# Expect 200 / 200 / 200 / 404 / 404 / 302
+# Expect 200 / 200 / 200 / 200 / 404 / 404 / 302
 curl -so /dev/null -w '%{http_code}\n' https://greenradi.us/
 curl -so /dev/null -w '%{http_code}\n' https://greenradi.us/game-data.js
 curl -so /dev/null -w '%{http_code}\n' https://greenradi.us/result/
+curl -so /dev/null -w '%{http_code}\n' https://greenradi.us/api/health
 curl -so /dev/null -w '%{http_code}\n' https://greenradi.us/.git/config
 curl -so /dev/null -w '%{http_code}\n' https://greenradi.us/wrangler.jsonc
 curl -so /dev/null -w '%{http_code}\n' https://greenradi.us/admin
@@ -66,9 +68,9 @@ One real phone load + a wheel spin (no submission). Glance at Worker logs (no ov
 
 ## 4. Monitoring cadence
 
-First hour: every ~15 min. Rest of day: hourly. Order: (1) zone Analytics request curve + error share, (2) Workers exceptions ≈ 0, (3) Sheet rows vs baseline, (4) Resend sends ≈ new rows + low bounces, (5) Security Events: challenges rare, (6) /admin spot-check new rows look sane.
+First hour: every ~15 min. Rest of day: hourly. Order: (0) uptime monitor still green, (1) zone Analytics request curve + error share, (2) Workers exceptions ≈ 0, (3) Sheet rows vs baseline, (4) Resend sends ≈ new rows + low bounces, (5) Security Events: rate-limit blocks rare, (6) /admin spot-check new rows look sane.
 
-**Healthy:** rows ≈ emails ≈ completions; exceptions ~0; no sustained 5xx; challenges only on outliers.
+**Healthy:** rows ≈ emails ≈ completions; exceptions ~0; no sustained 5xx; rate-limit blocks only on outliers.
 
 ## 5. Thresholds → playbooks
 
@@ -92,7 +94,7 @@ First hour: every ~15 min. Rest of day: hourly. Order: (1) zone Analytics reques
 
 **P4 — Emails not sending.** Resend dash: quota exhausted / key revoked / verification dropped / bounce spike? Quota → upgrade in place (immediate, no deploy). Abuse-driven sends → **kill switch**: delete the `RESEND_API_KEY` Worker secret (graceful degrade by design), tighten the WAF rule, re-add the key when clear. Players still get download + share link meanwhile.
 
-**P5 — WAF challenging real players.** Note: a Managed Challenge served to the game's fetch() POST cannot be solved in-page — challenged players just see the try-again screen. Security → Events: are legit single submissions challenged (shared-IP camps, CGNAT)? Mitigate by RAISING the threshold (e.g. 20 req/10s) or temporarily disabling the rule — the Log action is plan-gated and likely unavailable. Re-tighten after the burst.
+**P5 — WAF rate-limiting real players.** The rule's action is Block (Free plan): an over-limit IP gets 429 on /api/* for ~10s, and the game's fetch() POST shows the try-again screen — nothing is lost, retry works after the window. Security → Events: are legit single submissions being blocked (shared-IP camps, CGNAT)? Mitigate by RAISING the threshold (e.g. 20 req/10s) or temporarily disabling the rule — Log and Managed Challenge actions aren't available on Free. Re-tighten after the burst.
 
 **P6 — Admin viewer down.** Not player-facing; don't deploy hastily. Read the Sheet directly. Debug later (Access JWT vars vs Apps Script doGet).
 
