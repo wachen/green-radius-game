@@ -11,7 +11,7 @@
 | Thing | Where | Notes |
 |---|---|---|
 | Production | https://greenradi.us | Worker `green-radius-game`; repo root served as static assets |
-| Deploy | merge PR to `main` | Instant. No staging. Squash merges. Never force-push `main`. |
+| Deploy | merge PR to `main` | Usually live in ~1 min. No staging. Squash merges. Never force-push `main`. If not live in 10 min → P8. |
 | Rollback | `git revert <squash-sha>` → PR → merge | Also instant. The ONLY rollback path. |
 | Worker logs | CF dash → Workers & Pages → green-radius-game → Logs | `observability.enabled = true` |
 | Traffic/errors | CF zone Analytics; Workers metrics for /api/* + /result/ | Statics absorbed by Cloudflare; /api/* and /result/ hit the Worker |
@@ -83,6 +83,7 @@ First hour: every ~15 min. Rest of day: hourly. Order: (0) uptime monitor still 
 | Players report blocked submits | 2+ independent | P5 |
 | Admin viewer erroring | any | P6 |
 | Rows growing 3x faster than plausible | any | P7 |
+| Merged PR not live | 10+ min | P8 |
 
 ## 6. Incident playbooks
 
@@ -99,6 +100,8 @@ First hour: every ~15 min. Rest of day: hourly. Order: (0) uptime monitor still 
 **P6 — Admin viewer down.** Not player-facing; don't deploy hastily. Read the Sheet directly. Debug later (Access JWT vars vs Apps Script doGet).
 
 **P7 — Junk/flood rows.** Tighten the WAF rule; consider the P4 kill switch if each junk row is also sending mail. Quarantine rows to a second tab (don't delete); aggregates already exclude malformed rows. Append-only junk, not corruption.
+
+**P8 — Merged to main but not live.** Happened 2026-07-02: Cloudflare's build queue backed up and the default-branch build sat "queued" for ~23 min before completing normally. Check dash → Workers & Pages → green-radius-game → **Builds**: a queued "Deploy default branch" build means queue backlog, not a code problem (a failed build shows logs instead). Options, in order: (1) wait or Retry the build from the dashboard; (2) stopgap: promote the PR branch's preview version to 100% (Deployments → the version built from the branch → Promote) — safe because a squash-merged PR's tree is identical to its branch tip; the eventual main build then supersedes it with the same content. Note the non-main branch builds run `wrangler versions upload --alias <branch>` (preview only, no deploy) **by design**; only the default-branch build deploys.
 
 ## 7. Rollback (the only one)
 
