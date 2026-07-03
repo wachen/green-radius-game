@@ -1,5 +1,6 @@
-// admin/admin.jsx — gated viewer. Reuses RadialBadge + sectorFill (bare names from
-// green-radius.jsx) and window.AdminAggregate. CommunityTally + CampsView added in Tasks 5-6.
+// admin/admin.jsx — gated viewer. Reuses RadialBadge, fillsFromAnswers and
+// LEVEL_COLORS (bare names from green-radius.jsx) and window.AdminAggregate.
+// City tab = community tally; Camps tab = full-width all-data rows.
 const A = window.AdminAggregate;
 const useMQ = (q) => {
   const [m, setM] = React.useState(() => window.matchMedia(q).matches);
@@ -9,13 +10,15 @@ const useMQ = (q) => {
 };
 
 function useResponses() {
+  // Refreshes keep the last rows on screen (dimmed) instead of blanking to a
+  // spinner — the admin skims during launch-day monitoring; don't yank the page.
   const [state, setState] = React.useState({ status: 'loading', rows: [] });
   const load = React.useCallback(() => {
-    setState({ status: 'loading', rows: [] });
+    setState(s => ({ ...s, status: 'loading' }));
     fetch('/api/admin/responses', { headers: { 'Accept': 'application/json' } })
       .then(r => r.ok ? r.json() : Promise.reject(new Error('http ' + r.status)))
       .then(d => setState({ status: 'ready', rows: d.rows || [] }))
-      .catch(e => setState({ status: 'error', rows: [], error: String(e) }));
+      .catch(e => setState(s => ({ status: 'error', rows: s.rows, error: String(e) })));
   }, []);
   React.useEffect(load, [load]);
   return { ...state, reload: load };
@@ -37,8 +40,8 @@ function AdminApp({ sectors }) {
   );
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 14 }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10, borderBottom: '1px solid #26382e' }}>
+    <div style={{ maxWidth: tab === 'camps' ? 1240 : 900, margin: '0 auto', padding: 14 }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', rowGap: 6, paddingBottom: 10, borderBottom: '1px solid #26382e' }}>
         <b style={{ fontWeight: 800 }}>Green<span style={{ color: '#45c483' }}>Radius</span> · Admin</b>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 4 }}><Tab id="city" label="City" /><Tab id="camps" label="Camps" /></div>
@@ -48,15 +51,28 @@ function AdminApp({ sectors }) {
         <select value={source} onChange={e => setSource(e.target.value)} style={selStyle}>
           <option value="all">All</option><option value="board">Board</option><option value="form">Form</option>
         </select>
+        <button data-refresh type="button" onClick={reload} disabled={status === 'loading'} aria-label="Refresh responses"
+          style={{ ...selStyle, cursor: status === 'loading' ? 'wait' : 'pointer', fontWeight: 700 }}>
+          {status === 'loading' ? 'Loading…' : 'Refresh'}
+        </button>
       </header>
 
-      {status === 'loading' && <Centered>Loading the community tally…</Centered>}
-      {status === 'error' && <Centered>Couldn't load responses ({error}). <button onClick={reload} style={btnStyle}>Retry</button></Centered>}
-      {status === 'ready' && filtered.length === 0 && <Centered>No camps yet for {year}.</Centered>}
-      {status === 'ready' && filtered.length > 0 && (
-        tab === 'city'
-          ? <CommunityTally sectors={sectors} rows={filtered} />
-          : <CampsView sectors={sectors} rows={filtered} />
+      {status === 'loading' && rows.length === 0 && <Centered>Loading the community tally…</Centered>}
+      {status === 'error' && rows.length === 0 && <Centered>Couldn't load responses ({error}). <button onClick={reload} style={btnStyle}>Retry</button></Centered>}
+      {rows.length > 0 && (
+        <div style={{ opacity: status === 'loading' ? 0.55 : 1, transition: 'opacity .15s' }}>
+          {status === 'error' && (
+            <div style={{ background: '#2a1c14', border: '1px solid #573a26', borderRadius: 8, padding: '7px 11px', margin: '10px 0 0', fontSize: 12, color: '#e8c15a' }}>
+              Refresh failed ({error}) — showing the previous data. <button onClick={reload} style={{ ...btnStyle, padding: '2px 8px', marginLeft: 6 }}>Retry</button>
+            </div>
+          )}
+          {filtered.length === 0 && <Centered>No camps yet for {year}.</Centered>}
+          {filtered.length > 0 && (
+            tab === 'city'
+              ? <CommunityTally sectors={sectors} rows={filtered} />
+              : <CampsView sectors={sectors} rows={filtered} />
+          )}
+        </div>
       )}
     </div>
   );
@@ -138,117 +154,258 @@ function CommunityTally({ sectors, rows }) {
 const SecHead = ({ children }) => <div style={{ fontSize: 10.5, letterSpacing: '.16em', color: '#93a89b', fontWeight: 800, margin: '16px 0 6px' }}>{String(children).toUpperCase()}</div>;
 const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px dashed #21332a', fontSize: 13 };
 
-function CampsView({ sectors, rows }) {
-  const wide = useMQ('(min-width: 760px)');
-  const [q, setQ] = React.useState('');
-  const [sort, setSort] = React.useState('score');
-  const [selId, setSelId] = React.useState(null);
-  const list = React.useMemo(() => {
-    const ql = q.trim().toLowerCase();
-    let xs = rows.filter(r => !ql || (r.campName + ' ' + r.leadName + ' ' + r.email).toLowerCase().includes(ql));
-    xs = xs.slice().sort(sort === 'score' ? (a, b) => b.total - a.total : (a, b) => a.campName.localeCompare(b.campName));
-    return xs;
-  }, [rows, q, sort]);
-  const selected = list.find((r, i) => (selId == null ? i === 0 : rowKey(r) === selId)) || list[0];
+// ── Camps: full-width scannable rows ─────────────────────────────────────────
+// Every row shows everything — identity, submitted date/time, all six sector
+// scores with per-question fill bars, Level-4 picks and the camp's write-in —
+// no click-to-reveal. Desktop-first: sectors align as columns across rows so
+// the eye can scan one sector down the whole list.
 
-  const List = (
-    <div style={{ borderRight: wide ? '1px solid #26382e' : 'none' }}>
-      <div style={{ display: 'flex', gap: 6, padding: 10, borderBottom: '1px solid #26382e' }}>
-        <input data-search value={q} onChange={e => setQ(e.target.value)} placeholder="Search camps…"
-          style={{ flex: 1, ...selStyle, borderRadius: 7 }} />
-        <select value={sort} onChange={e => setSort(e.target.value)} style={selStyle}><option value="score">Score</option><option value="name">Name</option></select>
+function fmtWhen(ts) {
+  if (!ts) return 'date unknown';
+  return new Date(ts).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+}
+
+// Whether a row carries real per-question yes/no data (an `X-camp-note` string
+// alone must not count — same rule as aggregate.js's rowsWithAnswers).
+function rowHasAnswers(camp) {
+  return !!camp.answers && Object.keys(camp.answers).some(k =>
+    camp.answers[k] === 'yes' || camp.answers[k] === 'no');
+}
+
+// Level-4 material per sector: chosen advanced topics + the write-in idea.
+// The write-in topic ("Our Camp's Idea", id `X-camp`) may carry the camp's own
+// text as an `X-camp-note` entry; it renders as a quoted idea (with its ✓/✕)
+// instead of an anonymous title in the picks list. The Worker's sheetCell
+// guard bakes a leading ' into notes starting with a formula trigger
+// (= + - @); strip it so the camp's words render verbatim.
+function campL4(sectors, camp) {
+  if (!rowHasAnswers(camp)) return [];
+  return sectors.map(s => {
+    const campTopic = (s.tier4Topics || []).find(t => /-camp$/.test(t.id));
+    const noteVal = campTopic ? camp.answers[campTopic.id + '-note'] : '';
+    const note = (typeof noteVal === 'string' ? noteVal.trim() : '').replace(/^'(?=[=+\-@\t\r])/, '');
+    const picks = (s.tier4Topics || [])
+      .filter(t => camp.answers[t.id] === 'yes' && !(note && t === campTopic))
+      .map(t => t.title);
+    return { id: s.id, name: s.name, picks, note, noteYes: !!note && camp.answers[campTopic.id] === 'yes' };
+  }).filter(x => x.picks.length || x.note);
+}
+
+// One sector's four levels as yes-count digits in the ramp colors (dense
+// text, no bars). The per-question detail lives in tooltips: an L1-3 digit
+// lists that level's questions with ✓/✕; the L4 digit lists the answered
+// advanced topics. Zero digits dim into the background.
+function SectorDigits({ sector, fill, answers, hasAnswers, legacy }) {
+  const counts = fill.levels.map(lvl => lvl.filter(Boolean).length);
+  const titleFor = (li) => {
+    if (!hasAnswers && !legacy) return 'approximate (no per-question data)';
+    if (legacy) return `Level ${li + 1} ${counts[li] ? 'lit' : 'unlit'} (old 0-4 scale)`;
+    if (li < 3) return (sector.levels[li] || [])
+      .map(q => `${answers[q.id] === 'yes' ? '✓' : '✕'} ${q.prompt || q.title || q.id}`).join('\n');
+    const lines = (sector.tier4Topics || [])
+      .filter(t => answers[t.id] === 'yes' || answers[t.id] === 'no')
+      .map(t => `${answers[t.id] === 'yes' ? '✓' : '✕'} ${t.title}`);
+    return lines.join('\n') || 'no advanced picks';
+  };
+  return (
+    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, fontVariantNumeric: 'tabular-nums',
+      opacity: hasAnswers || legacy ? 1 : 0.45, cursor: 'default' }}>
+      {[0, 1, 2, 3].map(li => (
+        <React.Fragment key={li}>
+          {li > 0 && <span style={{ color: '#2a3d31' }}>·</span>}
+          <span title={titleFor(li)} style={{ color: counts[li] ? LEVEL_COLORS[li] : '#2a3d31' }}>
+            {counts[li]}
+          </span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+function CampRow({ sectors, camp, wide }) {
+  const hasAnswers = rowHasAnswers(camp);
+  const legacy = A.isLegacy(camp);
+  const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers)
+    : (legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens));
+  const denom = legacy ? 4 : 10;
+  const l4 = campL4(sectors, camp);
+
+  const badge = (text) => (
+    <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99,
+      padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
+  );
+  const Identity = (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
+      {/* 44px radius thumbnail: round vs lopsided camps read at a glance */}
+      <div data-mini-badge aria-hidden="true" style={{ flexShrink: 0 }}>
+        <RadialBadge sectors={sectors} fills={fills} size={44} dark showLabels={false} showCenter={false}/>
       </div>
-      {list.map(r => {
-        const legacy = A.isLegacy(r);
-        return (
-          <button key={rowKey(r)} type="button" data-camp-row onClick={() => setSelId(rowKey(r))}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 11px', cursor: 'pointer',
-              width: '100%', textAlign: 'left', font: 'inherit', color: 'inherit', border: 'none',
-              borderBottom: '1px solid #1a281f', background: selected && rowKey(selected) === rowKey(r) ? '#16271d' : 'transparent' }}>
-            <div style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.campName}</b><small style={{ display: 'block', color: '#93a89b', fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.leadName}</small></div>
-            {legacy && <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap' }}>old scale</span>}
-            <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap' }}>{r.source}</span>
-            <b style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{legacy ? `${r.total}/24` : r.total}</b>
-          </button>
-        );
-      })}
-      <div style={{ padding: '8px 11px', color: '#93a89b', fontSize: 10 }}>{list.length} camps · sorted by {sort}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 14.5, fontWeight: 800, lineHeight: 1.25, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span>{camp.campName}</span>
+          {badge(camp.source)}{legacy && badge('old scale')}
+        </div>
+        <div style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
+          {camp.leadName} · <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}>{camp.email}</a>
+        </div>
+        <div data-submitted style={{ fontSize: 11, color: '#7f988a', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+          {fmtWhen(camp.timestamp)}
+        </div>
+      </div>
+    </div>
+  );
+  const SectorCells = sectors.map(s => {
+    const n = (camp.greens && camp.greens[s.id]) || 0;
+    return (
+      <div key={s.id} data-sector-cell title={s.name} style={{ textAlign: 'center', alignSelf: 'center' }}>
+        <div aria-hidden="true" style={{ display: 'flex', justifyContent: 'center', marginBottom: 2 }}>
+          <SectorIcon kind={s.icon} size={13} color="#7f988a"/>
+        </div>
+        <div style={{ fontSize: 12.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+          color: n === denom ? '#e8c15a' : '#eaf2ec', marginBottom: 2 }}>
+          {n}<span style={{ color: '#5d7367', fontWeight: 600 }}>/{denom}</span>
+        </div>
+        <SectorDigits sector={s} fill={fills[s.id]} answers={camp.answers || {}} hasAnswers={hasAnswers} legacy={legacy} />
+      </div>
+    );
+  });
+  const Total = (
+    <div style={{ textAlign: 'right', alignSelf: 'center' }}>
+      <div style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <b style={{ fontSize: 19, color: '#fff' }}>{camp.total}</b>
+        <span style={{ color: '#5d7367', fontSize: 12 }}>/{legacy ? 24 : 60}</span>
+      </div>
+      {camp.resultUrl && (
+        <a data-result href={camp.resultUrl} target="_blank" rel="noreferrer"
+          style={{ fontSize: 11, color: '#8fd4ae', textDecoration: 'none' }}>result ↗</a>
+      )}
+    </div>
+  );
+  // Only the write-in ideas surface on the row (the camp's own words are the
+  // interesting part); chosen topic titles live in the L4 digit tooltip + CSV.
+  const ideas = l4.filter(x => x.note);
+  const IdeasLine = ideas.length > 0 && (
+    <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center',
+      borderTop: '1px dashed #1d2c24', paddingTop: 5, marginTop: 2 }}>
+      <span style={{ color: '#45c483', fontWeight: 800, fontSize: 9.5, letterSpacing: '.12em' }}>IDEAS</span>
+      {ideas.map(x => (
+        <span key={x.id} data-camp-note style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 6, fontStyle: 'italic',
+          border: '1px solid ' + (x.noteYes ? '#2e5b43' : '#26382e'),
+          background: x.noteYes ? '#15291e' : 'transparent',
+          color: x.noteYes ? '#8fd4ae' : '#93a89b' }}>
+          {x.noteYes ? '✓' : '✕'} {x.name} · “{x.note}”
+        </span>
+      ))}
     </div>
   );
 
-  const Detail = selected && <CampDetail sectors={sectors} camp={selected} />;
-
-  return wide
-    ? <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', minHeight: 400 }}>{List}{Detail}</div>
-    : (selId ? <div><button type="button" onClick={() => setSelId(null)} style={{ background: 'none', border: 'none', font: 'inherit', fontSize: 13, color: '#45c483', fontWeight: 700, padding: '8px 4px', cursor: 'pointer' }}>‹ All camps</button>{Detail}</div> : List);
+  // content-visibility lets the browser skip layout/paint for offscreen rows —
+  // keeps a long list smooth without windowing machinery.
+  const rowBase = { borderBottom: '1px solid #1a281f', padding: '8px 12px',
+    contentVisibility: 'auto', containIntrinsicSize: 'auto 84px' };
+  return wide ? (
+    <div data-camp-row style={{ ...rowBase, display: 'grid', alignItems: 'center', columnGap: 10,
+      gridTemplateColumns: 'minmax(230px, 1.4fr) repeat(6, minmax(72px, 1fr)) 88px' }}>
+      {Identity}{SectorCells}{Total}{IdeasLine}
+    </div>
+  ) : (
+    <div data-camp-row style={rowBase}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>{Identity}</div>{Total}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '7px 6px', marginTop: 6 }}>
+        {SectorCells}
+      </div>
+      {IdeasLine && <div style={{ display: 'grid' }}>{IdeasLine}</div>}
+    </div>
+  );
 }
-const rowKey = r => `${r.campName}|${r.timestamp}`;
 
-function CampDetail({ sectors, camp }) {
-  const hasAnswers = camp.answers && Object.keys(camp.answers).length > 0;
-  const legacy = A.isLegacy(camp);
-  const fills = React.useMemo(() => hasAnswers ? fillsFromAnswers(sectors, camp.answers)
-    : (legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens)), [sectors, camp, hasAnswers, legacy]);
-  const maxed = legacy ? [] : sectors.filter(s => (camp.greens[s.id] || 0) === 10).map(s => s.id);
+// CSV of the currently filtered/sorted list — everything a row shows, one line
+// per camp. Cells starting with a formula trigger get the same ' guard the
+// sheet uses (the export will be opened in Excel/Sheets).
+function csvEscape(v) {
+  let s = String(v == null ? '' : v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function exportCsv(list, sectors) {
+  const head = ['Submitted', 'Camp', 'Lead', 'Email', 'Source', 'Year', 'Scale',
+    ...sectors.map(s => s.name), 'Total', 'Level 4', 'Result URL', 'Schema'];
+  const lines = [head].concat(list.map(r => {
+    const legacy = A.isLegacy(r);
+    const l4 = campL4(sectors, r)
+      .map(x => `${x.name}: ${x.picks.concat(x.note ? [`"${x.note}" (${x.noteYes ? 'yes' : 'no'})`] : []).join('; ')}`)
+      .join(' | ');
+    return [r.timestamp ? new Date(r.timestamp).toISOString() : '', r.campName, r.leadName, r.email,
+      r.source, r.year, legacy ? '0-4 (old)' : '0-10',
+      ...sectors.map(s => (r.greens && r.greens[s.id]) || 0), r.total, l4, r.resultUrl, r.schemaVersion];
+  })).map(row => row.map(csvEscape).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + lines], { type: 'text/csv' }));
+  a.download = 'green-radius-camps.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+function CampsView({ sectors, rows }) {
+  const wide = useMQ('(min-width: 900px)');
+  const [q, setQ] = React.useState('');
+  const [sort, setSort] = React.useState('date');
+  const list = React.useMemo(() => {
+    const ql = q.trim().toLowerCase();
+    let xs = rows.filter(r => {
+      if (!ql) return true;
+      const notes = Object.keys(r.answers || {})
+        .filter(k => k.endsWith('-note')).map(k => r.answers[k]).join(' ');
+      return (r.campName + ' ' + r.leadName + ' ' + r.email + ' ' + notes).toLowerCase().includes(ql);
+    });
+    const bySector = sectors.some(s => s.id === sort);
+    xs = xs.slice().sort(
+      sort === 'name' ? (a, b) => a.campName.localeCompare(b.campName)
+        : sort === 'score' ? (a, b) => (b.total - a.total) || a.campName.localeCompare(b.campName)
+        : bySector ? (a, b) => (((b.greens && b.greens[sort]) || 0) - ((a.greens && a.greens[sort]) || 0)) || (b.total - a.total)
+        : (a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    return xs;
+  }, [rows, q, sort, sectors]);
+
+  const headBtn = (id, label, align) => (
+    <button key={id} type="button" onClick={() => setSort(id)} title={`Sort by ${label}`}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', padding: '2px 0',
+        fontSize: 10, fontWeight: 800, letterSpacing: '.1em',
+        textAlign: align || 'center', color: sort === id ? '#45c483' : '#93a89b' }}>
+      {label.toUpperCase()}{sort === id ? ' ▾' : ''}
+    </button>
+  );
+
   return (
-    <div style={{ padding: '14px 16px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
-        <div><h3 style={{ margin: 0 }}>{camp.campName}</h3>
-          <p style={{ margin: '2px 0 0', color: '#93a89b', fontSize: 12 }}>{camp.leadName} · {camp.email} · {camp.source}</p></div>
-        <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
-          <a data-email href={`mailto:${camp.email}`} style={{ ...btnStyle, textDecoration: 'none' }}>✉ Email</a>
-          {camp.resultUrl && <a data-result href={camp.resultUrl} target="_blank" rel="noreferrer"
-            style={{ ...btnStyle, background: 'transparent', color: '#eaf2ec', border: '1px solid #26382e' }}>↗ Green Radius result</a>}
-        </div>
+    <div>
+      <div style={{ display: 'flex', gap: 6, padding: '10px 0', alignItems: 'center' }}>
+        <input data-search value={q} onChange={e => setQ(e.target.value)} placeholder="Search camps, emails, ideas…"
+          style={{ flex: 1, maxWidth: 340, ...selStyle, borderRadius: 7 }} />
+        <select value={sort} onChange={e => setSort(e.target.value)} style={selStyle}>
+          <option value="date">Newest</option><option value="score">Score</option><option value="name">Name</option>
+          {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <div style={{ flex: 1 }} />
+        <span style={{ color: '#93a89b', fontSize: 11 }}>{list.length} of {rows.length} camps</span>
+        <button data-export type="button" onClick={() => exportCsv(list, sectors)} style={{ ...selStyle, cursor: 'pointer' }}>
+          ⬇ CSV
+        </button>
       </div>
-      <div style={{ display: 'flex', gap: 16, alignItems: 'center', margin: '12px 0' }}>
-        <RadialBadge sectors={sectors} fills={fills} size={128} dark showLabels={false} />
-        <div style={{ fontSize: 13, color: '#cfe0d4' }}>
-          <b style={{ color: '#fff' }}>{camp.total}/{legacy ? 24 : 60}</b> total{maxed.length ? ` · ${maxed.length} maxed` : ''}
-          {legacy && <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '1px 6px', marginLeft: 6 }}>old scale</span>}
+      {wide && (
+        <div style={{ display: 'grid', columnGap: 10, padding: '4px 12px', position: 'sticky', top: 0,
+          background: '#0e1712f2', backdropFilter: 'blur(2px)', zIndex: 1, borderBottom: '1px solid #26382e',
+          gridTemplateColumns: 'minmax(230px, 1.4fr) repeat(6, minmax(72px, 1fr)) 88px' }}>
+          {headBtn('name', 'Camp', 'left')}
+          {sectors.map(s => headBtn(s.id, s.name))}
+          {headBtn('score', 'Total', 'right')}
         </div>
-      </div>
-      {!hasAnswers && !legacy && <div style={{ fontSize: 12, color: '#93a89b' }}>Per-answer detail appears once granular capture is live.</div>}
-      {(hasAnswers || legacy) && sectors.map(s => {
-        const ids = hasAnswers ? [].concat(...s.levels.slice(0, 3)).map(qq => qq.id) : [];
-        // The write-in topic ("Our Camp's Idea", id `X-camp`) may carry the camp's
-        // own text as an `X-camp-note` answers entry; show it on its own line
-        // (with its ✓/✕) instead of as an anonymous title in the picks list.
-        const campTopic = (s.tier4Topics || []).find(t => /-camp$/.test(t.id));
-        const noteVal = hasAnswers && campTopic ? camp.answers[campTopic.id + '-note'] : '';
-        // The Worker's sheetCell guard bakes a leading ' into notes starting
-        // with a formula trigger (= + - @); strip it so the camp's words render
-        // verbatim (the stored value keeps the guard as defense-in-depth).
-        const note = (typeof noteVal === 'string' ? noteVal.trim() : '').replace(/^'(?=[=+\-@\t\r])/, '');
-        const picks = hasAnswers
-          ? (s.tier4Topics || []).filter(t => camp.answers[t.id] === 'yes' && !(note && t === campTopic))
-          : [];
-        return (
-          <div key={s.id} style={{ marginTop: 10 }}>
-            <div style={{ display: 'flex', gap: 6, fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-              {s.name} <span style={{ color: '#93a89b', fontWeight: 600 }}>{camp.greens[s.id] || 0}/{legacy ? 4 : 10}</span>
-              {maxed.includes(s.id) && <span style={{ color: '#e8c15a' }}>★</span>}
-            </div>
-            {hasAnswers && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {ids.map(id => (
-                  <span key={id} data-token style={{ fontSize: 10.5, padding: '2px 7px', borderRadius: 6,
-                    border: '1px solid ' + (camp.answers[id] === 'yes' ? '#2e5b43' : '#26382e'),
-                    background: camp.answers[id] === 'yes' ? '#15291e' : 'transparent',
-                    color: camp.answers[id] === 'yes' ? '#cdebd8' : '#93a89b' }}>
-                    {camp.answers[id] === 'yes' ? '✓ ' : '✕ '}{id}</span>
-                ))}
-              </div>
-            )}
-            {picks.length > 0 && <div style={{ marginTop: 5, fontSize: 11, color: '#93a89b' }}>Level 4: {picks.map(t => t.title).join(', ')}</div>}
-            {note && (
-              <div data-camp-note style={{ marginTop: 4, fontSize: 11, color: '#cdebd8' }}>
-                {camp.answers[campTopic.id] === 'yes' ? '✓' : '✕'} Camp's own idea: “{note}”
-              </div>
-            )}
-          </div>
-        );
-      })}
+      )}
+      {list.map(r => <CampRow key={`${r.campName}|${r.timestamp}`} sectors={sectors} camp={r} wide={wide} />)}
+      <div style={{ padding: '8px 0', color: '#93a89b', fontSize: 10 }}>{list.length} camps</div>
     </div>
   );
 }
