@@ -46,6 +46,11 @@ const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green 
 const RESOURCE_GUIDE_URL = 'https://www.greenthemecampcommunity.org/resource-guide';
 const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 
+// Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
+// tell at a glance which release is live. No build step = no git SHA to
+// inject, so the convention is manual: bump to the PR number in every PR.
+const APP_VERSION = 'v43';
+
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
 function validQidSet(sectors) {
@@ -1534,46 +1539,6 @@ function FaqModal({ onClose, palette }) {
 }
 
 // ─── mode picker ─────────────────────────────────────────────────────────────
-// Decorative mini wheel for the home screen. The wheel is the game's whole
-// identity, yet it was invisible until after intake — this shows it at first
-// glance. Staircase fills tell the "radius grows outward" story; it drifts
-// slowly (grg-slow-spin, keyframes in index.html) unless reduced motion.
-function MiniWheel({ palette, size = 150 }) {
-  const reduceMotion = typeof window !== 'undefined' &&
-    window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const cx = 100, cy = 100;
-  const rIn = [28, 46, 64, 82], rOut = [46, 64, 82, 100];
-  const tint = ['#c9b89a', '#d3c4a8', '#dcd0b5', '#e4d9c1'];
-  const lit = [4, 2, 3, 1, 3, 2]; // levels lit per sector — varied, mostly green
-  return (
-    <div aria-hidden="true" style={{ width: size, margin: '16px auto 6px', position: 'relative' }}>
-      <svg viewBox="0 0 200 200" width="100%" style={{
-        display: 'block',
-        animation: reduceMotion ? 'none' : 'grg-slow-spin 70s linear infinite',
-      }}>
-        {[0, 1, 2, 3, 4, 5].map(si =>
-          [0, 1, 2, 3].map(li => (
-            <path
-              key={si + '-' + li}
-              d={arcPath(cx, cy, rIn[li], rOut[li], si * 60, (si + 1) * 60)}
-              fill={li < lit[si] ? LEVEL_COLORS[li] : tint[li]}
-              stroke={palette.bg}
-              strokeWidth="2.5"
-            />
-          ))
-        )}
-        <circle cx={cx} cy={cy} r={26} fill={palette.accent} stroke={palette.bg} strokeWidth="2.5"/>
-      </svg>
-      <div style={{
-        position: 'absolute', left: '50%', top: -5, transform: 'translateX(-50%)',
-        width: 0, height: 0,
-        borderLeft: '7px solid transparent', borderRight: '7px solid transparent',
-        borderTop: `10px solid ${palette.accentDark}`,
-      }}/>
-    </div>
-  );
-}
-
 function ModePicker({ onPick, palette }) {
   const tileBase = {
     display: 'block', width: '100%', border: 'none', cursor: 'pointer',
@@ -1593,7 +1558,14 @@ function ModePicker({ onPick, palette }) {
         <span style={{ whiteSpace: 'nowrap' }}>What's Your</span> <span style={{ whiteSpace: 'nowrap' }}>Green Radius?</span>
       </h1>
 
-      <MiniWheel palette={palette}/>
+      <div style={{
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        gap: 14, margin: '12px 0 14px',
+      }} aria-hidden="true">
+        {window.SECTORS.map(s => (
+          <SectorIcon key={s.id} kind={s.icon} size={24} color={palette.accent}/>
+        ))}
+      </div>
 
       <div style={{
         fontSize: 15, lineHeight: 1.45, color: palette.text + 'cc',
@@ -1613,13 +1585,15 @@ function ModePicker({ onPick, palette }) {
       >
         <svg viewBox="0 0 64 64" width="54" height="54" aria-hidden="true"
           style={{ display: 'block', margin: '0 auto 10px' }}>
-          <g transform="rotate(-14 32 33)">
-            {[0.95, 0.5, 0.78, 0.4, 0.68, 0.55].map((op, i) => {
+          {/* Same wedge sequence as apple-touch-icon.png: NON-alternating greens/
+              sands — a light/dark alternation reads as the radiation trefoil. */}
+          <g transform="rotate(-15 32 33)">
+            {['#68B05C', '#56A85C', '#d3c4a8', '#439F5B', '#e4d9c1', '#31975B'].map((c, i) => {
               const a0 = (i * 60 - 90) * Math.PI / 180;
               const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
               const r = 23;
               return (
-                <path key={i} fill="#fff" opacity={op}
+                <path key={i} fill={c} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round"
                   d={`M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`}/>
               );
             })}
@@ -1706,6 +1680,14 @@ function ModePicker({ onPick, palette }) {
         CREATED BY THE<br/>
         GREEN THEME CAMP COMMUNITY
       </a>
+
+      <div aria-hidden="true" style={{
+        marginTop: 18, fontSize: 9, fontWeight: 600,
+        letterSpacing: '0.18em', color: palette.text + '40',
+        fontVariantNumeric: 'tabular-nums', userSelect: 'all',
+      }}>
+        {APP_VERSION}
+      </div>
 
       {faqOpen && <FaqModal onClose={closeFaq} palette={palette}/>}
     </div>

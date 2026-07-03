@@ -61,13 +61,11 @@
     80%  { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-3deg); }
     100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95) rotate(-3deg); }
   }
-  @keyframes grg-slow-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
     @keyframes qm-fade { from { opacity: 1; } to { opacity: 1; } }
     @keyframes qm-up   { from { opacity: 1; transform: none; } to { opacity: 1; transform: none; } }
     @keyframes grg-splat { from { opacity: 0; } to { opacity: 0; } }
     @keyframes grg-celeb { from { opacity: 1; transform: translate(-50%, -50%); } to { opacity: 1; transform: translate(-50%, -50%); } }
-    @keyframes grg-slow-spin { from { transform: none; } to { transform: none; } }
   }
 
   /* Loading placeholder shown until React mounts (root.render clears it). */
