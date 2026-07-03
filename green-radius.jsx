@@ -38,10 +38,18 @@ const STORAGE_KEY = 'green-radius-game/v1';
 const STORAGE_VERSION = 6;
 
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
-const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- Board Game - Coloring Wheel - Matrix -- v 26 FINAL .pdf');
-const HOW_TO_PLAY_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- How-to-Play - Board Game - Matrix - Detail -- v 26 FINAL .pdf');
+// One player download on the home screen. The "How-to-Play" file is the
+// superset PDF (how-to-play + board + coloring wheel + matrix), so the single
+// "Board Game PDF" link serves it; the board-only PDF stays in /downloads/
+// but is no longer linked.
+const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green Radius Game -- Download for Players -- How-to-Play - Board Game - Matrix - Detail -- v 26 FINAL .pdf');
 const RESOURCE_GUIDE_URL = 'https://www.greenthemecampcommunity.org/resource-guide';
 const REPORT_EMAIL = 'greenthemecamps@burningman.org';
+
+// Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
+// tell at a glance which release is live. No build step = no git SHA to
+// inject, so the convention is manual: bump to the PR number in every PR.
+const APP_VERSION = 'v43';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -1309,44 +1317,35 @@ function ResultCardSVG({ sectors, fills, campName, leadName, year, svgRef }) {
   );
 }
 
-// ─── FAQ (home screen only) ─────────────────────────────────────────────────
-// Content is data; FaqModal renders it all expanded. The two link answers are
-// JSX with hard-coded accent colors (the app has a single fixed palette).
+// ─── FAQ / About (home screen only) ─────────────────────────────────────────
+// The modal is a designed "About the Game": why-this-exists, the six sectors,
+// the four levels (in their live LEVEL_COLORS), results, then leftover Q&A.
+// Link answers hard-code accent colors (the app has a single fixed palette).
+const SECTOR_ONE_LINERS = {
+  food: 'Purchase mindfully, share cooking, cut food waste.',
+  water: 'Drink it. Share it. Reuse it.',
+  waste: 'Leave No Trace. Simple.',
+  transport: 'Share rides, share stuff, shrink CO2e.',
+  shelter: 'Sun, wind, dust, and a good sleep even by day.',
+  power: 'Reduction first, alternative sources second.',
+};
+
+const LEVEL_ROWS = [
+  { name: 'Start Here', count: '1 question', blurb: 'The one thing every camp can do' },
+  { name: 'Beginner', count: '2 questions', blurb: 'Easy wins with big reach' },
+  { name: 'Intermediate', count: '3 questions', blurb: 'Takes planning, pays off' },
+  { name: 'Advanced', count: 'up to 4 topics', blurb: 'Pick your own, or write one in' },
+];
+
 const FAQ_ITEMS = [
-  {
-    q: 'What is the Green Radius?',
-    a: "A six-spoke snapshot of your camp's sustainability: one spoke each for food, water, waste, power, transport, and shelter. The greener your choices in an area, the further its spoke reaches. Together they make your camp's Green Radius.",
-  },
-  {
-    q: 'How do I play?',
-    a: 'Spin the wheel to draw a sector, then answer its yes/no questions across four levels, easiest to hardest. Every yes lights its own segment, so an early no never blocks later progress. Your score is how many segments you light. Six spins, one per sector, complete your Green Radius.',
-  },
   {
     q: 'Do I need to both play the game and fill out the form?',
     a: "Nope! Pick one; they're two paths through the same assessment. The game is the playful way, the form is the classic questionnaire in a single list. Same Green Radius either way.",
   },
   {
-    q: 'What happens to my results?',
-    a: "When you finish, you'll see your Green Radius and can email yourself a shareable results card. Add your camp's details and your results join the community tally, so we can celebrate progress together. It's an honor-system self-assessment: no proof, just honesty.",
-  },
-  {
     q: "What's happening to BLAST?",
     a: (
       <>Nothing's disappearing; it's evolving. The Green Radius <em>is</em> BLAST in a more playable form: same six-area framework, same goals. You're still measuring your camp's "blast radius," just with a wheel instead of a worksheet. All the original BLAST guidance lives on in the Resource Guide below.</>
-    ),
-  },
-  {
-    q: 'Where can I learn more?',
-    a: (
-      <>
-        Dig into the full guidance for every area and level in the Green Theme Camp Community's Resource Guide.<br/>
-        <a href={RESOURCE_GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{
-          display: 'inline-block', marginTop: 8,
-          background: '#7AB85C', color: '#fff', fontWeight: 700, fontSize: 13,
-          padding: '8px 13px', borderRadius: 11, boxShadow: '0 4px 0 #558040',
-          textDecoration: 'none',
-        }}>Open the Resource Guide →</a>
-      </>
     ),
   },
   {
@@ -1356,6 +1355,24 @@ const FAQ_ITEMS = [
     ),
   },
 ];
+
+// Section header for the About modal: a small tinted chip + title, echoing the
+// sector-chip language used across the app.
+function AboutSection({ icon, title, palette, children }) {
+  return (
+    <div style={{ marginTop: 22 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
+        <span aria-hidden="true" style={{
+          width: 27, height: 27, borderRadius: 8, background: '#7AB85C26',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 13, flexShrink: 0,
+        }}>{icon}</span>
+        <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.01em' }}>{title}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 function FaqButton({ onClick, palette, btnRef, expanded }) {
   return (
@@ -1425,22 +1442,97 @@ function FaqModal({ onClose, palette }) {
           textAlign: 'center',
         }}>
           <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, color: palette.accent, textTransform: 'uppercase' }}>Green Radius</div>
-          <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3, padding: '0 30px' }}>Frequently Asked Questions</div>
+          <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3, padding: '0 30px' }}>About the Game</div>
           <button
             ref={closeRef} onClick={onClose} aria-label="Close"
             style={{ position: 'absolute', top: 12, right: 0, border: 'none', background: palette.text + '0f', width: 40, height: 40, borderRadius: '50%', fontSize: 15, cursor: 'pointer', color: palette.text, lineHeight: 1 }}
           >✕</button>
         </div>
 
-        {FAQ_ITEMS.map((item, i) => (
-          <div key={i} style={{
-            borderTop: i === 0 ? 'none' : '1px solid ' + palette.text + '1a',
-            paddingTop: i === 0 ? 2 : 14, paddingBottom: 2,
-          }}>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 5 }}>{item.q}</div>
-            <div style={{ fontSize: 13.5, lineHeight: 1.55, color: palette.text + 'd1' }}>{item.a}</div>
+        <AboutSection icon="💡" title="Why this exists" palette={palette}>
+          <div style={{ fontSize: 13.5, lineHeight: 1.55, color: palette.text + 'd1', textWrap: 'pretty' }}>
+            The playa doesn't need another form. The Green Radius is not a compliance
+            audit; it's a mirror. See where your camp stands across six sustainability
+            sectors, celebrate what you already do well, and discover what's possible
+            next. The greener your choices, the further your radius reaches. And every
+            segment one camp lights nudges the whole city greener.
           </div>
-        ))}
+        </AboutSection>
+
+        <AboutSection icon="🧭" title="The six sectors" palette={palette}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {window.SECTORS.map(s => (
+              <div key={s.id} style={{
+                border: '1px solid ' + palette.text + '14', borderRadius: 12,
+                background: palette.text + '06', padding: '10px 11px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                  <SectorIcon kind={s.icon} size={16} color="#558040"/>
+                  <span style={{ fontWeight: 800, fontSize: 12.5 }}>{s.name}</span>
+                </div>
+                <div style={{ fontSize: 11.5, lineHeight: 1.45, color: palette.text + 'b3' }}>
+                  {SECTOR_ONE_LINERS[s.id]}
+                </div>
+              </div>
+            ))}
+          </div>
+        </AboutSection>
+
+        <AboutSection icon="🎯" title="Four levels per sector" palette={palette}>
+          {LEVEL_ROWS.map((lv, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0' }}>
+              <span aria-hidden="true" style={{
+                width: 24, height: 24, borderRadius: 7, background: LEVEL_COLORS[i],
+                color: '#fff', fontSize: 12, fontWeight: 800, flexShrink: 0,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              }}>{i + 1}</span>
+              <span style={{ fontWeight: 700, fontSize: 13.5 }}>{lv.name}</span>
+              <span style={{ fontSize: 11.5, color: palette.text + '99', flex: 1, textAlign: 'right' }}>{lv.count}</span>
+            </div>
+          ))}
+          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: palette.text + 'b3', marginTop: 8, textWrap: 'pretty' }}>
+            Every yes lights its own segment: 10 per sector, 60 total. An early no never
+            blocks later progress, and Level 4 is optional extra credit with a write-in
+            slot for your camp's own idea.
+          </div>
+        </AboutSection>
+
+        <AboutSection icon="🌱" title="Your results" palette={palette}>
+          <div style={{ fontSize: 13.5, lineHeight: 1.55, color: palette.text + 'd1', textWrap: 'pretty' }}>
+            When you finish, you'll see your Green Radius and get your shareable results
+            card plus a personal Green-Up Plan by email. Your results join the community
+            tally, so we can celebrate progress together. It's an honor-system
+            self-assessment: no proof, just honesty.
+          </div>
+        </AboutSection>
+
+        <AboutSection icon="❓" title="More questions" palette={palette}>
+          {FAQ_ITEMS.map((item, i) => (
+            <div key={i} style={{
+              borderTop: i === 0 ? 'none' : '1px solid ' + palette.text + '1a',
+              paddingTop: i === 0 ? 0 : 12, paddingBottom: i === FAQ_ITEMS.length - 1 ? 0 : 12,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 4 }}>{item.q}</div>
+              <div style={{ fontSize: 13, lineHeight: 1.55, color: palette.text + 'd1' }}>{item.a}</div>
+            </div>
+          ))}
+        </AboutSection>
+
+        <div style={{
+          marginTop: 20, padding: '14px 12px', borderRadius: 14, textAlign: 'center',
+          background: '#7AB85C14', border: '1px solid #7AB85C33',
+        }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: palette.text + 'd1', marginBottom: 10, textWrap: 'pretty' }}>
+            Full guidance for every sector and level lives in the Green Theme Camp
+            Community's Resource Guide.
+          </div>
+          <a href={RESOURCE_GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{
+            display: 'inline-block',
+            background: '#7AB85C', color: '#fff', fontWeight: 700, fontSize: 13,
+            padding: '9px 14px', borderRadius: 11, boxShadow: '0 4px 0 #558040',
+            textDecoration: 'none',
+          }}>Open the Resource Guide →</a>
+        </div>
       </div>
     </div>
   );
@@ -1491,16 +1583,25 @@ function ModePicker({ onPick, palette }) {
           boxShadow: `0 5px 0 ${palette.accentDark}`,
         }}
       >
-        <svg viewBox="0 0 60 60" width="46" height="46" fill="none"
-          stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"
-          aria-hidden="true" style={{ display: 'block', margin: '0 auto 8px' }}>
-          <circle cx="30" cy="30" r="22"/>
-          <line x1="30" y1="8" x2="30" y2="52"/>
-          <line x1="8" y1="30" x2="52" y2="30"/>
-          <line x1="14.5" y1="14.5" x2="45.5" y2="45.5"/>
-          <line x1="14.5" y1="45.5" x2="45.5" y2="14.5"/>
-          <circle cx="30" cy="30" r="5" fill="currentColor" stroke="none"/>
-          <polygon points="30,3 24,12 36,12" fill="currentColor" stroke="none"/>
+        <svg viewBox="0 0 64 64" width="54" height="54" aria-hidden="true"
+          style={{ display: 'block', margin: '0 auto 10px' }}>
+          {/* Same wedge sequence as apple-touch-icon.png: NON-alternating greens/
+              sands — a light/dark alternation reads as the radiation trefoil. */}
+          <g transform="rotate(-15 32 33)">
+            {['#68B05C', '#56A85C', '#d3c4a8', '#439F5B', '#e4d9c1', '#31975B'].map((c, i) => {
+              const a0 = (i * 60 - 90) * Math.PI / 180;
+              const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
+              const r = 23;
+              return (
+                <path key={i} fill={c} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round"
+                  d={`M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`}/>
+              );
+            })}
+          </g>
+          <circle cx="32" cy="33" r="23" fill="none" stroke="#fff" strokeWidth="3"/>
+          <circle cx="32" cy="33" r="7.5" fill="#fff"/>
+          <circle cx="32" cy="33" r="3" fill={palette.accent}/>
+          <polygon points="32,12 26.8,3 37.2,3" fill="#fff"/>
         </svg>
         <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
           Play the Game
@@ -1522,16 +1623,22 @@ function ModePicker({ onPick, palette }) {
           boxShadow: `0 5px 0 ${palette.text}1f`,
         }}
       >
-        <svg viewBox="0 0 60 60" width="46" height="46" fill="none"
-          stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"
-          aria-hidden="true" style={{ display: 'block', margin: '0 auto 8px' }}>
-          <rect x="14" y="12" width="32" height="42" rx="3"/>
-          <rect x="22" y="6" width="16" height="10" rx="2" fill="currentColor" stroke="none"/>
-          <rect x="19" y="24" width="7" height="7" rx="1.5" fill="currentColor" stroke="none"/>
-          <line x1="30" y1="28" x2="42" y2="28"/>
-          <rect x="19" y="36" width="7" height="7" rx="1.5" fill="currentColor" stroke="none"/>
-          <line x1="30" y1="40" x2="42" y2="40"/>
-          <rect x="19" y="48" width="7" height="7" rx="1.5"/>
+        <svg viewBox="0 0 64 64" width="54" height="54" aria-hidden="true"
+          style={{ display: 'block', margin: '0 auto 10px' }}>
+          <rect x="13" y="6" width="38" height="52" rx="6" fill="#fff" stroke="currentColor" strokeWidth="2.5"/>
+          {[['#68B05C', 15], ['#56A85C', 26], ['#439F5B', 37]].map(([c, y]) => (
+            <g key={y}>
+              <rect x="19" y={y} width="9.5" height="9.5" rx="2.5" fill={c}/>
+              <path d={`M${21.4} ${y + 5} l2 2.2 l3.7 -4.6`} stroke="#fff" strokeWidth="1.8"
+                fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              <line x1="33.5" y1={y + 4.8} x2="45" y2={y + 4.8} stroke="currentColor"
+                strokeWidth="2.5" strokeLinecap="round" opacity="0.4"/>
+            </g>
+          ))}
+          <rect x="19" y="48" width="9.5" height="9.5" rx="2.5" fill="none"
+            stroke="currentColor" strokeWidth="2" opacity="0.45"/>
+          <line x1="33.5" y1="52.8" x2="45" y2="52.8" stroke="currentColor"
+            strokeWidth="2.5" strokeLinecap="round" opacity="0.4"/>
         </svg>
         <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
           Fill the Form
@@ -1544,11 +1651,7 @@ function ModePicker({ onPick, palette }) {
         </div>
       </button>
 
-      <div style={{
-        marginTop: 4, marginBottom: 14,
-        display: 'flex', justifyContent: 'center', gap: 18,
-        flexWrap: 'wrap', rowGap: 8,
-      }}>
+      <div style={{ marginTop: 4, marginBottom: 14, display: 'flex', justifyContent: 'center' }}>
         <a
           href={BOARD_GAME_PDF_URL}
           download
@@ -1561,18 +1664,6 @@ function ModePicker({ onPick, palette }) {
             textDecorationColor: palette.text + '44',
           }}
         >Board Game PDF Download ↓</a>
-        <a
-          href={HOW_TO_PLAY_PDF_URL}
-          download
-          style={{
-            display: 'inline-block', padding: '10px 4px',
-            color: palette.text + '99', fontSize: 11, fontWeight: 600,
-            letterSpacing: '0.12em', textTransform: 'uppercase',
-            textDecoration: 'underline',
-            textUnderlineOffset: '3px',
-            textDecorationColor: palette.text + '44',
-          }}
-        >How to Play ↓</a>
       </div>
 
       <div style={{ margin: '9px 0' }}>
@@ -1589,6 +1680,14 @@ function ModePicker({ onPick, palette }) {
         CREATED BY THE<br/>
         GREEN THEME CAMP COMMUNITY
       </a>
+
+      <div aria-hidden="true" style={{
+        marginTop: 18, fontSize: 9, fontWeight: 600,
+        letterSpacing: '0.18em', color: palette.text + '40',
+        fontVariantNumeric: 'tabular-nums', userSelect: 'all',
+      }}>
+        {APP_VERSION}
+      </div>
 
       {faqOpen && <FaqModal onClose={closeFaq} palette={palette}/>}
     </div>
@@ -1653,14 +1752,14 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
       <div style={{ marginBottom: 14 }}>
         <button
           onClick={onBack}
-          aria-label="Close form"
+          aria-label="Back to your camp details"
           style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
             color: palette.text + '99', fontSize: 12, fontWeight: 700,
             letterSpacing: '0.1em', textTransform: 'uppercase',
             padding: '4px 0', fontFamily: 'inherit',
           }}
-        >✕ Close</button>
+        >← Back</button>
       </div>
 
       {/* sector progress stepper */}
@@ -1944,10 +2043,12 @@ function YesNoRow({ qid, text, subtext, answer, setAnswer, palette, missing }) {
 }
 
 // ─── intro / camp setup ───────────────────────────────────────────────────────
-function Intro({ onStart, onBack, palette, description }) {
-  const [campName, setCampName] = useState('');
-  const [leadName, setLeadName] = useState('');
-  const [email, setEmail] = useState('');
+// `initial` prefills the fields from the running game's camp info, so stepping
+// back from the board/form lets the player fix a typo'd detail and continue.
+function Intro({ onStart, onBack, palette, description, initial }) {
+  const [campName, setCampName] = useState((initial && initial.campName) || '');
+  const [leadName, setLeadName] = useState((initial && initial.leadName) || '');
+  const [email, setEmail] = useState((initial && initial.email) || '');
   const [tried, setTried] = useState(false);
 
   const campOk = !!campName.trim();
@@ -2400,6 +2501,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         onBack={() => setPhase('pick-mode')}
         palette={palette}
         description="Answer as best you can. Progress autosaves unless you reset."
+        initial={camp}
       />
     );
   }
@@ -2415,7 +2517,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           notes={customNotes}
           setNote={setCustomNote}
           onSubmit={submitForm}
-          onBack={() => setPhase('pick-mode')}
+          onBack={() => setPhase('form-intro')}
           onClear={() => { setAnswers({}); setCustomNotes({}); }}
           palette={palette}
         />
@@ -2430,6 +2532,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         onBack={() => setPhase('pick-mode')}
         palette={palette}
         description="Spin the wheel and answer as best you can. Progress autosaves unless you reset."
+        initial={camp}
       />
     );
   }
@@ -2607,6 +2710,21 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   return (
     <div style={{ padding: '20px 16px 32px', maxWidth: 480, margin: '0 auto' }}>
       {restored && <div style={{ margin: '0 0 12px' }}><RestoredBanner onDismiss={() => setRestored(false)} /></div>}
+      {/* back to intake: fix a typo'd detail (or step further back to home).
+          Progress is safe — the autosave persists and startGame only resets
+          when the mode actually changes. */}
+      <div style={{ marginBottom: 10 }}>
+        <button
+          onClick={() => setPhase('intro')}
+          aria-label="Back to your camp details"
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: palette.text + '99', fontSize: 12, fontWeight: 700,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            padding: '4px 0', fontFamily: 'inherit',
+          }}
+        >← Back</button>
+      </div>
       {/* header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
