@@ -193,27 +193,33 @@ function campL4(sectors, camp) {
   }).filter(x => x.picks.length || x.note);
 }
 
-// One sector's 10 questions as a tiny bar chart: cell height steps up per
-// level (the "radius grows outward" story in miniature), colored with the
-// live LEVEL_COLORS ramp when Yes.
-function SectorBar({ sector, fill, hasAnswers, legacy }) {
-  const cellH = [7, 9, 11, 13];
-  const cells = [];
-  fill.levels.forEach((lvl, li) => lvl.forEach((on, qi) => {
-    const q = li < 3 ? (sector.levels[li] || [])[qi] : null;
-    const label = legacy ? `Level ${li + 1} ${on ? 'lit' : 'unlit'} (old 0-4 scale)`
-      : q ? `${on ? '✓' : '✕'} ${q.prompt || q.title || q.id}`
-      : `${on ? '✓' : '✕'} advanced pick ${qi + 1} of 4`;
-    cells.push(
-      <span key={li + '-' + qi} title={hasAnswers || legacy ? label : 'approximate (no per-question data)'}
-        style={{ width: 5, height: cellH[li], borderRadius: 1.5,
-          background: on ? LEVEL_COLORS[li] : '#1d2c24' }} />
-    );
-  }));
+// One sector's four levels as yes-count digits in the ramp colors (dense
+// text, no bars). The per-question detail lives in tooltips: an L1-3 digit
+// lists that level's questions with ✓/✕; the L4 digit lists the answered
+// advanced topics. Zero digits dim into the background.
+function SectorDigits({ sector, fill, answers, hasAnswers, legacy }) {
+  const counts = fill.levels.map(lvl => lvl.filter(Boolean).length);
+  const titleFor = (li) => {
+    if (!hasAnswers && !legacy) return 'approximate (no per-question data)';
+    if (legacy) return `Level ${li + 1} ${counts[li] ? 'lit' : 'unlit'} (old 0-4 scale)`;
+    if (li < 3) return (sector.levels[li] || [])
+      .map(q => `${answers[q.id] === 'yes' ? '✓' : '✕'} ${q.prompt || q.title || q.id}`).join('\n');
+    const lines = (sector.tier4Topics || [])
+      .filter(t => answers[t.id] === 'yes' || answers[t.id] === 'no')
+      .map(t => `${answers[t.id] === 'yes' ? '✓' : '✕'} ${t.title}`);
+    return lines.join('\n') || 'no advanced picks';
+  };
   return (
-    <div style={{ display: 'flex', gap: 2, justifyContent: 'center', alignItems: 'flex-end',
-      opacity: hasAnswers || legacy ? 1 : 0.45 }}>
-      {cells}
+    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, fontVariantNumeric: 'tabular-nums',
+      opacity: hasAnswers || legacy ? 1 : 0.45, cursor: 'default' }}>
+      {[0, 1, 2, 3].map(li => (
+        <React.Fragment key={li}>
+          {li > 0 && <span style={{ color: '#2a3d31' }}>·</span>}
+          <span title={titleFor(li)} style={{ color: counts[li] ? LEVEL_COLORS[li] : '#2a3d31' }}>
+            {counts[li]}
+          </span>
+        </React.Fragment>
+      ))}
     </div>
   );
 }
@@ -231,29 +237,37 @@ function CampRow({ sectors, camp, wide }) {
       padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
   );
   const Identity = (
-    <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: 14.5, fontWeight: 800, lineHeight: 1.25, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span>{camp.campName}</span>
-        {badge(camp.source)}{legacy && badge('old scale')}
+    <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
+      {/* 44px radius thumbnail: round vs lopsided camps read at a glance */}
+      <div data-mini-badge aria-hidden="true" style={{ flexShrink: 0 }}>
+        <RadialBadge sectors={sectors} fills={fills} size={44} dark showLabels={false} showCenter={false}/>
       </div>
-      <div style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
-        {camp.leadName} · <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}>{camp.email}</a>
-      </div>
-      <div data-submitted style={{ fontSize: 11, color: '#7f988a', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
-        {fmtWhen(camp.timestamp)}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 14.5, fontWeight: 800, lineHeight: 1.25, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span>{camp.campName}</span>
+          {badge(camp.source)}{legacy && badge('old scale')}
+        </div>
+        <div style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
+          {camp.leadName} · <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}>{camp.email}</a>
+        </div>
+        <div data-submitted style={{ fontSize: 11, color: '#7f988a', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+          {fmtWhen(camp.timestamp)}
+        </div>
       </div>
     </div>
   );
   const SectorCells = sectors.map(s => {
     const n = (camp.greens && camp.greens[s.id]) || 0;
     return (
-      <div key={s.id} data-sector-cell style={{ textAlign: 'center', alignSelf: 'center' }}>
-        {!wide && <div style={{ fontSize: 9, letterSpacing: '.08em', color: '#7f988a', fontWeight: 700 }}>{s.name.toUpperCase()}</div>}
+      <div key={s.id} data-sector-cell title={s.name} style={{ textAlign: 'center', alignSelf: 'center' }}>
+        <div aria-hidden="true" style={{ display: 'flex', justifyContent: 'center', marginBottom: 2 }}>
+          <SectorIcon kind={s.icon} size={13} color="#7f988a"/>
+        </div>
         <div style={{ fontSize: 12.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-          color: n === denom ? '#e8c15a' : '#eaf2ec', marginBottom: 3 }}>
+          color: n === denom ? '#e8c15a' : '#eaf2ec', marginBottom: 2 }}>
           {n}<span style={{ color: '#5d7367', fontWeight: 600 }}>/{denom}</span>
         </div>
-        <SectorBar sector={s} fill={fills[s.id]} hasAnswers={hasAnswers} legacy={legacy} />
+        <SectorDigits sector={s} fill={fills[s.id]} answers={camp.answers || {}} hasAnswers={hasAnswers} legacy={legacy} />
       </div>
     );
   });
@@ -269,19 +283,19 @@ function CampRow({ sectors, camp, wide }) {
       )}
     </div>
   );
-  const L4Line = l4.length > 0 && (
-    <div style={{ gridColumn: '1 / -1', fontSize: 11.5, color: '#93a89b', lineHeight: 1.5,
-      borderTop: '1px dashed #1d2c24', paddingTop: 6, marginTop: 2 }}>
-      <span style={{ color: '#45c483', fontWeight: 800, fontSize: 9.5, letterSpacing: '.12em' }}>LEVEL 4</span>
-      {l4.map(x => (
-        <span key={x.id} style={{ marginLeft: 10, display: 'inline-block' }}>
-          <b style={{ color: '#cdebd8', fontWeight: 700 }}>{x.name}:</b>{' '}
-          {x.picks.join(', ')}
-          {x.note && (
-            <span data-camp-note style={{ color: '#8fd4ae', fontStyle: 'italic' }}>
-              {x.picks.length ? ' · ' : ' '}{x.noteYes ? '✓' : '✕'} “{x.note}”
-            </span>
-          )}
+  // Only the write-in ideas surface on the row (the camp's own words are the
+  // interesting part); chosen topic titles live in the L4 digit tooltip + CSV.
+  const ideas = l4.filter(x => x.note);
+  const IdeasLine = ideas.length > 0 && (
+    <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center',
+      borderTop: '1px dashed #1d2c24', paddingTop: 5, marginTop: 2 }}>
+      <span style={{ color: '#45c483', fontWeight: 800, fontSize: 9.5, letterSpacing: '.12em' }}>IDEAS</span>
+      {ideas.map(x => (
+        <span key={x.id} data-camp-note style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 6, fontStyle: 'italic',
+          border: '1px solid ' + (x.noteYes ? '#2e5b43' : '#26382e'),
+          background: x.noteYes ? '#15291e' : 'transparent',
+          color: x.noteYes ? '#8fd4ae' : '#93a89b' }}>
+          {x.noteYes ? '✓' : '✕'} {x.name} · “{x.note}”
         </span>
       ))}
     </div>
@@ -289,22 +303,22 @@ function CampRow({ sectors, camp, wide }) {
 
   // content-visibility lets the browser skip layout/paint for offscreen rows —
   // keeps a long list smooth without windowing machinery.
-  const rowBase = { borderBottom: '1px solid #1a281f', padding: '11px 12px',
-    contentVisibility: 'auto', containIntrinsicSize: 'auto 96px' };
+  const rowBase = { borderBottom: '1px solid #1a281f', padding: '8px 12px',
+    contentVisibility: 'auto', containIntrinsicSize: 'auto 84px' };
   return wide ? (
     <div data-camp-row style={{ ...rowBase, display: 'grid', alignItems: 'center', columnGap: 10,
       gridTemplateColumns: 'minmax(230px, 1.4fr) repeat(6, minmax(72px, 1fr)) 88px' }}>
-      {Identity}{SectorCells}{Total}{L4Line}
+      {Identity}{SectorCells}{Total}{IdeasLine}
     </div>
   ) : (
     <div data-camp-row style={rowBase}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>{Identity}</div>{Total}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px 6px', marginTop: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '7px 6px', marginTop: 6 }}>
         {SectorCells}
       </div>
-      {L4Line && <div style={{ display: 'grid' }}>{L4Line}</div>}
+      {IdeasLine && <div style={{ display: 'grid' }}>{IdeasLine}</div>}
     </div>
   );
 }
