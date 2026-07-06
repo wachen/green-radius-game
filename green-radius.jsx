@@ -545,9 +545,50 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
   const reduceMotion = typeof window !== 'undefined' &&
     window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  const svgRef = useRef(null);
+  const prevFilledRef = useRef(null); // Set of filled cell keys from the last commit; null = first commit
+
   // Empty cells use a neutral/sandy ramp (L1 darkest → L4 lightest); a Yes lights
   // the cell in its level color (LEVEL_COLORS). Each question is its own cell.
   const ringTint = ['#c9b89a', '#d3c4a8', '#dcd0b5', '#e4d9c1'];
+
+  // On a new commit where previously-unfilled cells are now filled, clone each
+  // newly filled cell path to a white, fading overlay and fire sparkles at its
+  // screen position, staggered so a full sector cascades.
+  useEffect(() => {
+    if (reduceMotion) return; // clone is CSS-animated (neutralized) + sparkles are gated; skip the work entirely
+    const svg = svgRef.current;
+    if (!svg) return;
+    const cur = new Set();
+    sectors.forEach(sector => {
+      const lv = (fills[sector.id] && fills[sector.id].levels) || [[], [], [], []];
+      [0, 1, 2, 3].forEach(li => (lv[li] || []).forEach((v, qi) => { if (v) cur.add(`${sector.id}-${li}-${qi}`); }));
+    });
+    const prev = prevFilledRef.current;
+    prevFilledRef.current = cur;
+    if (prev == null) return; // first commit: establish baseline, no shine
+    const added = [];
+    cur.forEach(k => { if (!prev.has(k)) added.push(k); });
+    if (!added.length) return;
+    const timers = [];
+    added.forEach((key, i) => {
+      timers.push(setTimeout(() => {
+        const path = svg.querySelector(`path[data-cell="${key}"]`);
+        if (!path) return;
+        const clone = path.cloneNode(true);
+        clone.setAttribute('fill', '#ffffff');
+        clone.removeAttribute('data-cell');
+        clone.setAttribute('class', 'grg-shine'); // opacity 0→0.8→0 over 0.95s
+        clone.style.pointerEvents = 'none';
+        path.parentNode.appendChild(clone); // append last in the <g> → drawn on top
+        const rm = setTimeout(() => clone.remove(), 1000);
+        timers.push(rm);
+        const r = path.getBoundingClientRect();
+        Fx.sparkle(r.left + r.width / 2, r.top + r.height / 2); // 2-3 glints
+      }, i * 120));
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [fills, sectors, reduceMotion]);
 
   return (
     <div style={{
@@ -565,6 +606,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
       )}
 
       <svg
+        ref={svgRef}
         width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`}
         role="img"
         aria-label={`Green radius wheel. ${sectors.map(s => `${s.name} ${(fills[s.id] && fills[s.id].totalYes) || 0} of 10`).join(', ')}.`}
@@ -598,6 +640,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
               return (
                 <g key={`${sector.id}-${li}-${qi}`}>
                   <path
+                    data-cell={filled ? `${sector.id}-${li}-${qi}` : undefined}
                     d={arcPath(cx, cy, ringRadii[li], ringOuter[li], s0, s1)}
                     fill={filled ? LEVEL_COLORS[li] : ringTint[li]}
                     stroke={palette.bg}
