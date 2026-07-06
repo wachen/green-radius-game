@@ -531,7 +531,7 @@ function segAngles(a0, a1, n, gap = 0) {
 // ─── the wheel ────────────────────────────────────────────────────────────────
 // Sectors render as 4 stacked rings (level 1 inner → level 4 outer).
 // Each ring cell has its own state: 'locked' | 'open' | 'green' | 'failed'.
-function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, palette }) {
+function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, palette, shinePaused }) {
   // Internal SVG coordinate space. Wheel outer radius is 200, so SIZE needs at
   // least 400 + headroom for the drop-shadow filter and dust-ring glow.
   const SIZE = 420;
@@ -557,6 +557,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
   // screen position, staggered so a full sector cascades.
   useEffect(() => {
     if (reduceMotion) return; // clone is CSS-animated (neutralized) + sparkles are gated; skip the work entirely
+    if (shinePaused) return; // modal still open: hold the shine, don't touch prevFilledRef, so closing diffs against the pre-modal baseline
     const svg = svgRef.current;
     if (!svg) return;
     const cur = new Set();
@@ -590,7 +591,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
       }, i * 120));
     });
     return () => timers.forEach(clearTimeout);
-  }, [fills, sectors, reduceMotion]);
+  }, [fills, sectors, reduceMotion, shinePaused]);
 
   return (
     <div style={{
@@ -3037,6 +3038,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         onSpin={onSpin}
         variant={variant}
         palette={palette}
+        shinePaused={!!activeQuestion}
       />
 
       {/* status / hint */}
