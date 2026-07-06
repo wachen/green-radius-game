@@ -581,8 +581,10 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
         clone.setAttribute('class', 'grg-shine'); // opacity 0→0.8→0 over 0.95s
         clone.style.pointerEvents = 'none';
         path.parentNode.appendChild(clone); // append last in the <g> → drawn on top
-        const rm = setTimeout(() => clone.remove(), 1000);
-        timers.push(rm);
+        // Not tracked in `timers`: this removal must survive the next commit's
+        // cleanup so every clone reliably gets removed ~1s after its animation.
+        // Firing after unmount is harmless (remove() on a detached node is a no-op).
+        setTimeout(() => clone.remove(), 1000);
         const r = path.getBoundingClientRect();
         Fx.sparkle(r.left + r.width / 2, r.top + r.height / 2); // 2-3 glints
       }, i * 120));
