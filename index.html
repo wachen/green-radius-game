@@ -61,11 +61,15 @@
     80%  { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-3deg); }
     100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95) rotate(-3deg); }
   }
+  @keyframes grg-spring      { 0% { transform: scale(1); } 35% { transform: scale(0.88); } 70% { transform: scale(1.08); } 100% { transform: scale(1); } }
+  @keyframes grg-spring-soft { 0% { transform: scale(1); } 45% { transform: scale(0.95); } 100% { transform: scale(1); } }
   @media (prefers-reduced-motion: reduce) {
     @keyframes qm-fade { from { opacity: 1; } to { opacity: 1; } }
     @keyframes qm-up   { from { opacity: 1; transform: none; } to { opacity: 1; transform: none; } }
     @keyframes grg-splat { from { opacity: 0; } to { opacity: 0; } }
     @keyframes grg-celeb { from { opacity: 1; transform: translate(-50%, -50%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+    @keyframes grg-spring      { from { transform: none; } to { transform: none; } }
+    @keyframes grg-spring-soft { from { transform: none; } to { transform: none; } }
   }
 
   /* Loading placeholder shown until React mounts (root.render clears it). */

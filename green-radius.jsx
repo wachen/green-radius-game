@@ -746,6 +746,8 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
   const [notes, setNotes] = useState({}); // write-in idea text, keyed by topic id
   const [customText, setCustomText] = useState(''); // draft text of the open write-in
   const cardRef = useRef(null);
+  const yesBtnRef = useRef(null);
+  const noBtnRef = useRef(null);
   useModalA11y(cardRef); // scroll-lock + Tab focus trap
   // Move focus into the dialog on open. The Spin button the player just pressed
   // gets disabled as the modal mounts, which otherwise drops focus to <body> and
@@ -773,6 +775,18 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
   const canAnswer = !needsIdeaText || customText.trim().length > 0;
 
   function answer(yes) {
+    // PR46 juice: spring the tapped button + fire particles from its rect.
+    // Fire-and-forget — Fx draws to the body-level canvas, so it survives this
+    // modal unmounting when the last answer calls onComplete. Reduced motion:
+    // Fx.* is a no-op and the keyframes are neutralized, so this is silent.
+    const btn = (yes ? yesBtnRef : noBtnRef).current;
+    if (btn) {
+      btn.style.animation = 'none';
+      void btn.offsetWidth; // reflow so a repeat tap replays the keyframe
+      btn.style.animation = (yes ? 'grg-spring' : 'grg-spring-soft') + ' 0.42s cubic-bezier(.34,1.56,.64,1)';
+      if (yes) Fx.leafBurst(btn); else Fx.dustPuff(btn);
+    }
+    // ── existing logic below is UNCHANGED ──
     // Persist each Level 1–3 answer to the shared map immediately so a refresh
     // mid-sector resumes at the next question instead of losing the run. (Tier 4
     // is optional and restarts on resume, so it stays modal-local.)
@@ -1021,6 +1035,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button
+                ref={noBtnRef}
                 onClick={() => answer(false)}
                 disabled={!canAnswer}
                 style={{
@@ -1034,6 +1049,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
                 }}
               >No</button>
               <button
+                ref={yesBtnRef}
                 onClick={() => answer(true)}
                 disabled={!canAnswer}
                 style={{
