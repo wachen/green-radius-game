@@ -424,7 +424,7 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
   const groups = greenUpSteps(sectors, answers, notes);
   if (!groups.length) return null;
   return (
-    <div style={{ marginTop: 20, textAlign: 'left', background: '#33502b', borderRadius: 12, overflow: 'hidden' }}>
+    <div style={{ marginTop: 20, textAlign: 'left', background: 'linear-gradient(160deg, #3d5d31 0%, #33502b 45%, #294021 100%)', borderRadius: 12, overflow: 'hidden' }}>
       <div style={{ padding: '20px 16px 16px' }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', textAlign: 'center', margin: '0 0 18px' }}>Your Green-Up Plan</div>
         <div style={{ fontSize: 13, color: '#fff', opacity: 0.7, textAlign: 'center', margin: '0 0 14px' }}>Some ideas to grow your radius next year</div>
@@ -1418,14 +1418,14 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette, reveal =
         {/* header: eyebrow + camp name, centered (logomark + lead line removed) */}
         <div style={{ textAlign: 'center', marginBottom: 14 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, opacity: 0.6, marginBottom: 4 }}>
-            GREEN RADIUS · {year}
+            GREEN RADIUS · BLAST {year}
           </div>
           <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.12, textWrap: 'balance' }}>
             {campName || 'Theme Camp'}
           </div>
           <div style={{ marginTop: 8 }}>
             <span ref={totalRef} style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{total}</span>
-            <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> / 60 green</span>
+            <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> / 60 achieved</span>
           </div>
         </div>
 
@@ -1513,14 +1513,14 @@ function ResultCardSVG({ sectors, fills, campName, leadName, year, svgRef }) {
       <rect x="0" y="0" width={CARD_W} height={CARD_H} rx="24" fill="url(#rcGlow)"/>
 
       <text x={CARD_W / 2} y="46" textAnchor="middle" fontSize="10" fontWeight="700" letterSpacing="2.4" fill="#fff" opacity="0.6">
-        GREEN RADIUS · {year}
+        GREEN RADIUS · BLAST {year}
       </text>
       {name.lines.map((ln, i) => (
         <text key={i} x={CARD_W / 2} y={name.ys[i]} textAnchor="middle" fontSize={name.size} fontWeight="800" fill="#fff">{ln}</text>
       ))}
       <text x={CARD_W / 2} y={totalY} textAnchor="middle">
         <tspan fontSize="30" fontWeight="900" fill="#7fc46a">{total}</tspan>
-        <tspan fontSize="13" fontWeight="700" fill="#fff" opacity="0.65"> / 60 green</tspan>
+        <tspan fontSize="13" fontWeight="700" fill="#fff" opacity="0.65"> / 60 achieved</tspan>
       </text>
 
       <g transform={`translate(${(CARD_W - 300) / 2}, 124)`}>
@@ -2910,7 +2910,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           {submitState === 'sending'
             ? <>Emailing your results to <strong>{email}</strong>…</>
             : submitState === 'error'
-              ? <>We couldn't reach the server. Your card is safe: download it or copy the share link below, then tap Try again.</>
+              ? <>We couldn't reach the server, but your card is safe. Download it or copy the share link below, then tap Try Again.</>
               : submitResult && submitResult.email !== 'sent'
                 ? <>You're in the community tally, but the email didn't go through. Download your card or copy the share link below.</>
                 : <>{greenUpSteps(sectors, answers, customNotes).length
@@ -2955,20 +2955,22 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             ⬇ Download
           </button>
           <button onClick={handleShare}
-            style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: `1.5px solid ${palette.text}22`,
-              background: 'transparent', color: palette.text, fontSize: 13, fontWeight: 800,
-              letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
+            style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
+              background: '#3B6FD4', color: '#fff', fontSize: 13, fontWeight: 800,
+              letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
+              boxShadow: '0 3px 0 #2b539e' }}>
             {copied ? 'Link copied!' : '↗ Share link'}
           </button>
         </div>
 
         {needsRetry && (
           <button onClick={handleRetry} disabled={submitState === 'sending'}
-            style={{ marginTop: 12, width: '100%', padding: '12px 0', borderRadius: 12,
-              border: `1.5px solid ${palette.text}33`, background: 'transparent', color: palette.text,
+            style={{ marginTop: 12, width: '100%', padding: '13px 0', borderRadius: 12,
+              border: 'none', background: '#C4483B', color: '#fff',
               fontSize: 13, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
+              boxShadow: '0 3px 0 #912F25',
               cursor: submitState === 'sending' ? 'default' : 'pointer', opacity: submitState === 'sending' ? 0.6 : 1 }}>
-            {submitState === 'sending' ? 'Sending…' : '↻ Try again'}
+            {submitState === 'sending' ? 'Sending…' : '↻ Try Again'}
           </button>
         )}
 
@@ -2979,9 +2981,9 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           <div style={{ fontSize: 14, color: palette.text, marginBottom: 16 }}>Thoughts? We'd love to hear them.</div>
           <a href={'mailto:' + REPORT_EMAIL}
             style={{ display: 'inline-block', padding: '14px 28px', borderRadius: 12, border: 'none',
-              background: '#3B6FD4', color: '#fff', fontSize: 13, fontWeight: 800,
+              background: '#E07C39', color: '#fff', fontSize: 13, fontWeight: 800,
               letterSpacing: '0.12em', textTransform: 'uppercase', textDecoration: 'none',
-              boxShadow: '0 3px 0 #2b539e' }}>
+              boxShadow: '0 3px 0 #A9531C' }}>
             Send Feedback
           </a>
         </div>
@@ -3020,7 +3022,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 9, letterSpacing: '0.25em', fontWeight: 700, color: palette.text + '99' }}>
-            GREEN RADIUS · {new Date().getFullYear()}
+            GREEN RADIUS · BLAST {new Date().getFullYear()}
           </div>
           <div style={{ fontSize: 18, fontWeight: 800, color: palette.heading, lineHeight: 1.1, marginTop: 2, textWrap: 'balance' }}>
             {camp.campName}
