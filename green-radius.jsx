@@ -49,7 +49,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v44';
+const APP_VERSION = 'v45';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -138,6 +138,165 @@ function clearSaved() {
 // set in index.html) leaves off and deepens per level to the Level-4 dark
 // green, so a lit wheel reads as green radiating outward from the center.
 const LEVEL_COLORS = ['#68B05C', '#56A85C', '#439F5B', '#31975B'];
+
+// ─── particle FX (hand-rolled canvas layer, PR #46) ─────────────────────────
+// One fixed full-viewport <canvas> (FxLayer) + a module-scope emitter (Fx).
+// Bare names in the shared Babel scope — NOT window.* (repo convention).
+// Guardrails all live here: reduced-motion no-op, loop stops when the pool
+// empties, ~300 live-particle cap (drop oldest), DPR capped at 2, canvas
+// re-fits on resize/orientation, pool cleared + loop halted when the tab hides.
+const FX_TAU = Math.PI * 2;
+const FX_LEAF_COLORS = ['#68B05C', '#7AB85C', '#A3D178', '#439F5B'];
+const FX_SPARK = '#D9F2A8';
+const FX_DUST = '#d8cbb6';
+const FX_CAP = 300;
+
+const _fx = { canvas: null, ctx: null, ps: [], running: false, w: 0, h: 0, dpr: 1 };
+
+function _fxReduce() {
+  return typeof window !== 'undefined' && window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function _fxDraw(ctx, p, a) {
+  ctx.globalAlpha = a;
+  if (p.kind === 'leaf') {
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.ellipse(0, 0, p.size, p.size * 0.48, 0, 0, FX_TAU); ctx.fill();
+    ctx.restore();
+  } else if (p.kind === 'spark') {
+    ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x - p.vx * 2.4, p.y - p.vy * 2.4); ctx.stroke();
+  } else if (p.kind === 'ring') {
+    ctx.strokeStyle = p.color; ctx.lineWidth = Math.max(1, p.size * (1 - p.age / p.life));
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, FX_TAU); ctx.stroke();
+  } else { // dust / dot
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, FX_TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function _fxTick() {
+  const st = _fx;
+  if (!st.ctx) { st.running = false; return; }
+  st.ctx.clearRect(0, 0, st.w, st.h);
+  if (!st.ps.length) { st.running = false; return; } // pool empty → stop the loop
+  const alive = [];
+  for (let i = 0; i < st.ps.length; i++) {
+    const p = st.ps[i];
+    p.age++;
+    if (p.age >= p.life) continue;
+    p.vx *= p.drag; p.vy = p.vy * p.drag + p.g;
+    p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.r += p.vrad;
+    const a = p.kind === 'dust' ? 0.4 * (1 - p.age / p.life) : 1 - p.age / p.life;
+    _fxDraw(st.ctx, p, a);
+    alive.push(p);
+  }
+  st.ps = alive;
+  requestAnimationFrame(_fxTick);
+}
+
+function _fxStart() {
+  if (!_fx.running && _fx.ps.length && _fx.ctx) {
+    _fx.running = true;
+    requestAnimationFrame(_fxTick);
+  }
+}
+
+const Fx = {
+  burst(x, y, spec) {
+    if (_fxReduce() || !_fx.ctx) return; // single reduced-motion gate for all juice
+    const n = spec.n || 12;
+    for (let i = 0; i < n; i++) {
+      const ang = (spec.angle == null ? Math.random() * FX_TAU
+        : spec.angle + (Math.random() - 0.5) * (spec.spread || 1.2));
+      const sp = (spec.speed || 3) * (0.4 + Math.random() * 0.9);
+      _fx.ps.push({
+        kind: spec.kind, x: x, y: y,
+        vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - (spec.up || 0),
+        g: spec.g == null ? 0.12 : spec.g, drag: spec.drag == null ? 0.99 : spec.drag,
+        age: 0, life: (spec.life || 40) * (0.7 + Math.random() * 0.6),
+        size: (spec.size || 5) * (0.6 + Math.random() * 0.8),
+        rot: Math.random() * FX_TAU, vr: (Math.random() - 0.5) * 0.3,
+        color: spec.colors ? spec.colors[i % spec.colors.length] : (spec.color || '#fff'),
+        r: spec.r || 0, vrad: spec.vrad || 0,
+      });
+    }
+    if (_fx.ps.length > FX_CAP) _fx.ps.splice(0, _fx.ps.length - FX_CAP); // drop oldest
+    _fxStart();
+  },
+  _center(el) {
+    if (!el || !el.getBoundingClientRect) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  },
+  leafBurst(el) {
+    const c = this._center(el); if (!c) return;
+    this.burst(c.x, c.y, { kind: 'leaf', n: 14, speed: 4.2, up: 2.2, g: 0.14, life: 46, size: 5, colors: FX_LEAF_COLORS });
+    this.burst(c.x, c.y, { kind: 'spark', n: 8, speed: 5.5, up: 1.5, g: 0.05, life: 22, color: FX_SPARK });
+  },
+  dustPuff(el) {
+    const c = this._center(el); if (!c) return;
+    this.burst(c.x, c.y, { kind: 'dust', n: 10, speed: 1.6, up: 0.6, g: -0.01, drag: 0.96, life: 38, size: 7, color: FX_DUST });
+  },
+  sparkle(x, y) {
+    this.burst(x - 6, y - 4, { kind: 'spark', n: 3, speed: 1.4, life: 20, color: '#ffffff' });
+    this.burst(x + 8, y + 3, { kind: 'spark', n: 3, speed: 1.4, life: 20, color: '#F2EBAA' });
+  },
+  ringShock(x, y) {
+    this.burst(x, y, { kind: 'ring', n: 1, life: 30, size: 5, r: 10, vrad: 4.5, color: FX_DUST });
+    this.burst(x, y, { kind: 'dust', n: 12, speed: 2.6, g: 0.02, life: 36, size: 6, color: FX_DUST });
+  },
+  clear() {
+    _fx.ps.length = 0;
+    if (_fx.ctx) _fx.ctx.clearRect(0, 0, _fx.w, _fx.h);
+  },
+};
+
+function FxLayer() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    _fx.canvas = canvas;
+    _fx.ctx = ctx;
+    function fit() {
+      const dpr = Math.min(2, window.devicePixelRatio || 1); // DPR cap 2
+      _fx.dpr = dpr;
+      _fx.w = window.innerWidth;
+      _fx.h = window.innerHeight;
+      canvas.width = _fx.w * dpr;
+      canvas.height = _fx.h * dpr;
+      canvas.style.width = _fx.w + 'px';
+      canvas.style.height = _fx.h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    fit();
+    function onVis() { if (document.hidden) Fx.clear(); } // hidden → clear pool, loop self-stops
+    window.addEventListener('resize', fit);
+    window.addEventListener('orientationchange', fit);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('resize', fit);
+      window.removeEventListener('orientationchange', fit);
+      document.removeEventListener('visibilitychange', onVis);
+      Fx.clear();
+      _fx.canvas = null; _fx.ctx = null;
+    };
+  }, []);
+  return (
+    <canvas
+      ref={ref}
+      data-fx="1"
+      aria-hidden="true"
+      style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 60 }}
+    />
+  );
+}
 
 // Per-sector fill: levels[0..2] = one bool per fixed question (in order);
 // levels[3] = 4 slots, the first (advanced-Yes count, capped at 4) set true.
@@ -372,7 +531,7 @@ function segAngles(a0, a1, n, gap = 0) {
 // ─── the wheel ────────────────────────────────────────────────────────────────
 // Sectors render as 4 stacked rings (level 1 inner → level 4 outer).
 // Each ring cell has its own state: 'locked' | 'open' | 'green' | 'failed'.
-function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, palette }) {
+function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, palette, shinePaused }) {
   // Internal SVG coordinate space. Wheel outer radius is 200, so SIZE needs at
   // least 400 + headroom for the drop-shadow filter and dust-ring glow.
   const SIZE = 420;
@@ -386,9 +545,53 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
   const reduceMotion = typeof window !== 'undefined' &&
     window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  const svgRef = useRef(null);
+  const prevFilledRef = useRef(null); // Set of filled cell keys from the last commit; null = first commit
+
   // Empty cells use a neutral/sandy ramp (L1 darkest → L4 lightest); a Yes lights
   // the cell in its level color (LEVEL_COLORS). Each question is its own cell.
   const ringTint = ['#c9b89a', '#d3c4a8', '#dcd0b5', '#e4d9c1'];
+
+  // On a new commit where previously-unfilled cells are now filled, clone each
+  // newly filled cell path to a white, fading overlay and fire sparkles at its
+  // screen position, staggered so a full sector cascades.
+  useEffect(() => {
+    if (reduceMotion) return; // clone is CSS-animated (neutralized) + sparkles are gated; skip the work entirely
+    if (shinePaused) return; // modal still open: hold the shine, don't touch prevFilledRef, so closing diffs against the pre-modal baseline
+    const svg = svgRef.current;
+    if (!svg) return;
+    const cur = new Set();
+    sectors.forEach(sector => {
+      const lv = (fills[sector.id] && fills[sector.id].levels) || [[], [], [], []];
+      [0, 1, 2, 3].forEach(li => (lv[li] || []).forEach((v, qi) => { if (v) cur.add(`${sector.id}-${li}-${qi}`); }));
+    });
+    const prev = prevFilledRef.current;
+    prevFilledRef.current = cur;
+    if (prev == null) return; // first commit: establish baseline, no shine
+    const added = [];
+    cur.forEach(k => { if (!prev.has(k)) added.push(k); });
+    if (!added.length) return;
+    const timers = [];
+    added.forEach((key, i) => {
+      timers.push(setTimeout(() => {
+        const path = svg.querySelector(`path[data-cell="${key}"]`);
+        if (!path) return;
+        const clone = path.cloneNode(true);
+        clone.setAttribute('fill', '#ffffff');
+        clone.removeAttribute('data-cell');
+        clone.setAttribute('class', 'grg-shine'); // opacity 0→0.8→0 over 0.95s
+        clone.style.pointerEvents = 'none';
+        path.parentNode.appendChild(clone); // append last in the <g> → drawn on top
+        // Not tracked in `timers`: this removal must survive the next commit's
+        // cleanup so every clone reliably gets removed ~1s after its animation.
+        // Firing after unmount is harmless (remove() on a detached node is a no-op).
+        setTimeout(() => clone.remove(), 1000);
+        const r = path.getBoundingClientRect();
+        Fx.sparkle(r.left + r.width / 2, r.top + r.height / 2); // 2-3 glints
+      }, i * 120));
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [fills, sectors, reduceMotion, shinePaused]);
 
   return (
     <div style={{
@@ -406,6 +609,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
       )}
 
       <svg
+        ref={svgRef}
         width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`}
         role="img"
         aria-label={`Green radius wheel. ${sectors.map(s => `${s.name} ${(fills[s.id] && fills[s.id].totalYes) || 0} of 10`).join(', ')}.`}
@@ -439,6 +643,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
               return (
                 <g key={`${sector.id}-${li}-${qi}`}>
                   <path
+                    data-cell={filled ? `${sector.id}-${li}-${qi}` : undefined}
                     d={arcPath(cx, cy, ringRadii[li], ringOuter[li], s0, s1)}
                     fill={filled ? LEVEL_COLORS[li] : ringTint[li]}
                     stroke={palette.bg}
@@ -587,6 +792,8 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
   const [notes, setNotes] = useState({}); // write-in idea text, keyed by topic id
   const [customText, setCustomText] = useState(''); // draft text of the open write-in
   const cardRef = useRef(null);
+  const yesBtnRef = useRef(null);
+  const noBtnRef = useRef(null);
   useModalA11y(cardRef); // scroll-lock + Tab focus trap
   // Move focus into the dialog on open. The Spin button the player just pressed
   // gets disabled as the modal mounts, which otherwise drops focus to <body> and
@@ -614,6 +821,18 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
   const canAnswer = !needsIdeaText || customText.trim().length > 0;
 
   function answer(yes) {
+    // PR46 juice: spring the tapped button + fire particles from its rect.
+    // Fire-and-forget — Fx draws to the body-level canvas, so it survives this
+    // modal unmounting when the last answer calls onComplete. Reduced motion:
+    // Fx.* is a no-op and the keyframes are neutralized, so this is silent.
+    const btn = (yes ? yesBtnRef : noBtnRef).current;
+    if (btn) {
+      btn.style.animation = 'none';
+      void btn.offsetWidth; // reflow so a repeat tap replays the keyframe
+      btn.style.animation = (yes ? 'grg-spring' : 'grg-spring-soft') + ' 0.42s cubic-bezier(.34,1.56,.64,1)';
+      if (yes) Fx.leafBurst(btn); else Fx.dustPuff(btn);
+    }
+    // ── existing logic below is UNCHANGED ──
     // Persist each Level 1–3 answer to the shared map immediately so a refresh
     // mid-sector resumes at the next question instead of losing the run. (Tier 4
     // is optional and restarts on resume, so it stays modal-local.)
@@ -862,6 +1081,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button
+                ref={noBtnRef}
                 onClick={() => answer(false)}
                 disabled={!canAnswer}
                 style={{
@@ -875,6 +1095,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
                 }}
               >No</button>
               <button
+                ref={yesBtnRef}
                 onClick={() => answer(true)}
                 disabled={!canAnswer}
                 style={{
@@ -1060,7 +1281,8 @@ function Celebration({ sector, palette, onDone }) {
 // compensation). Adjacent sectors share boundaries so the lit area still reads
 // as one silhouette.
 function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false,
-                       intensities = null, onSelectSegment = null, selected = null, centerLabel = null, fluid = false }) {
+                       intensities = null, onSelectSegment = null, selected = null, centerLabel = null, fluid = false,
+                       revealCount = null }) {
   const cx = size / 2, cy = size / 2;
   // [hub edge, L1, L2, L3, L4] — the inner hub stays clear (total moved to the header), like the board
   const RINGS = [0.18, 0.34, 0.52, 0.68, 0.84].map(f => f * size / 2);
@@ -1072,6 +1294,8 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
   const baseColor = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
   const baseStroke = dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.12)';
   const gridStroke = dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)';
+
+  let _litSeen = 0; // running index of filled segments in render order (sector→level→qi)
 
   return (
     <svg width={fluid ? '100%' : size} height={fluid ? undefined : size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
@@ -1090,14 +1314,22 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
           const cells = lv[li] || [];
           return segAngles(a0, a1, cells.length || 1, gap).map(([s0, s1], qi) => {
             const isSel = selected && selected.sector === sector.id && selected.level === li && selected.qi === qi;
-            const fillCol = agg ? LEVEL_COLORS[li] : (cells[qi] ? LEVEL_COLORS[li] : baseColor);
+            const litNow = !agg && !!cells[qi];
+            let shown = litNow;
+            if (revealCount != null && litNow) { shown = _litSeen < revealCount; _litSeen++; }
+            const pop = revealCount != null && shown && _litSeen === revealCount; // the just-lit segment
+            const fillCol = agg ? LEVEL_COLORS[li] : (shown ? LEVEL_COLORS[li] : baseColor);
             const fillOp = agg ? Math.max(0.06, cells[qi] || 0) : 1;
+            const style = {
+              ...(onSelectSegment ? { cursor: 'pointer' } : {}),
+              ...(pop ? { animation: 'grg-wpop 0.4s cubic-bezier(.34,1.56,.64,1)', transformBox: 'fill-box', transformOrigin: 'center' } : {}),
+            };
             return (
               <path key={`${sector.id}-${li}-${qi}`}
                 d={arcPath(cx, cy, rIn, rOut, s0, s1)}
                 fill={fillCol} fillOpacity={fillOp}
                 stroke={isSel ? '#e8c15a' : baseStroke} strokeWidth={isSel ? 1.5 : 0.5}
-                style={onSelectSegment ? { cursor: 'pointer' } : undefined}
+                style={Object.keys(style).length ? style : undefined}
                 onClick={onSelectSegment ? () => onSelectSegment(sector.id, li, qi) : undefined}
                 tabIndex={onSelectSegment ? 0 : undefined}
                 role={onSelectSegment ? 'button' : undefined}
@@ -1163,8 +1395,17 @@ function RadiusLogomark({ sectors, fills, size = 32 }) {
 }
 
 // ─── shareable card ───────────────────────────────────────────────────────────
-function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
-  const total = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
+function ShareCard({ sectors, fills, campName, leadName, year, palette, reveal = null }) {
+  const fullTotal = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
+  const total = reveal == null ? fullTotal : reveal;
+  const totalRef = useRef(null);
+  useEffect(() => {
+    if (reveal == null || !totalRef.current) return; // no-op for the static result page
+    const el = totalRef.current;
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = 'grg-tick 0.18s ease';
+  }, [reveal]);
   return (
     <div style={{
       width: 'min(360px, 100%)', padding: 28, boxSizing: 'border-box',
@@ -1187,7 +1428,7 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
             {campName || 'Theme Camp'}
           </div>
           <div style={{ marginTop: 8 }}>
-            <span style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em' }}>{total}</span>
+            <span ref={totalRef} style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{total}</span>
             <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> / 60 green</span>
           </div>
         </div>
@@ -1195,7 +1436,7 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
       <div style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', margin: '0 0 14px' }}>
           <div style={{ width: '100%', maxWidth: 300 }}>
-            <RadialBadge sectors={sectors} fills={fills} size={300} showGrid={true} fluid/>
+            <RadialBadge sectors={sectors} fills={fills} size={300} showGrid={true} fluid revealCount={reveal}/>
           </div>
         </div>
 
@@ -2203,6 +2444,30 @@ function RestoredBanner({ onDismiss }) {
 }
 
 // ─── main game ────────────────────────────────────────────────────────────────
+// PR46: drives the staged finished-screen reveal. `value` counts 0→total over a
+// fixed ~1.5s window so a 12-wedge camp and a 24-wedge camp finish on the same
+// beat; `done` flips at the end (triggers the rank slam). Reduced motion / not
+// active → final values immediately (today's behavior).
+function useResultReveal(total, active, reduceMotion) {
+  const instant = !active || reduceMotion || total <= 0;
+  const [value, setValue] = useState(instant ? total : 0);
+  const [done, setDone] = useState(instant);
+  useEffect(() => {
+    if (!active || reduceMotion || total <= 0) { setValue(total); setDone(true); return; }
+    setValue(0); setDone(false);
+    const WINDOW = 1500;
+    const step = Math.max(24, WINDOW / total);
+    let n = 0;
+    const iv = setInterval(() => {
+      n++;
+      setValue(n);
+      if (n >= total) { clearInterval(iv); setDone(true); }
+    }, step);
+    return () => clearInterval(iv);
+  }, [active, reduceMotion, total]);
+  return { value, done };
+}
+
 function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }) {
   const sectors = window.SECTORS;
 
@@ -2244,6 +2509,18 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const spinTimerRef = useRef(null); // the spin->open-modal timeout; cleared on reset so it can't fire into the next game
   const [restored, setRestored] = useState(saved?.salvaged || false); // a save from an older version was salvaged
 
+  const revealArmedRef = useRef(false); // set only when we transition playing→done in-session (board mode)
+  const rankRef = useRef(null);         // the finished-screen rank word, for the closing leaf burst
+  const revealReduceMotion = typeof window !== 'undefined' && window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const totalYesAll = sectors.reduce((n, s) => n + (fills[s.id] ? fills[s.id].totalYes : 0), 0);
+  const revealActive = phase === 'done' && revealArmedRef.current && mode === 'board';
+  const { value: revealValue, done: revealDone } = useResultReveal(totalYesAll, revealActive, revealReduceMotion);
+  // Fire the closing leaf burst from the rank once the count-up finishes.
+  useEffect(() => {
+    if (revealActive && revealDone && rankRef.current) Fx.leafBurst(rankRef.current);
+  }, [revealActive, revealDone]);
+
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState(() => {
@@ -2265,7 +2542,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     // Wait for an in-flight celebration to finish before clearing the playing
     // screen — otherwise the overlay vanishes mid-animation on the last sector.
     if (phase === 'playing' && allDone && !celebration) {
-      const t = setTimeout(() => setPhase('done'), 800);
+      const t = setTimeout(() => { revealArmedRef.current = true; setPhase('done'); }, 800);
       return () => clearTimeout(t);
     }
   }, [phase, allDone, celebration]);
@@ -2457,6 +2734,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setEditingEmail(false);
     autoSentRef.current = false;
     submitGenRef.current++;
+    revealArmedRef.current = false;
   }
 
   function startGame(info) {
@@ -2594,6 +2872,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       submitGenRef.current++; // void any in-flight POST so it can't write back after reset
       clearSaved();
       autoSentRef.current = false;
+      revealArmedRef.current = false;
       setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
       setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
       setAnswers({});
@@ -2614,12 +2893,19 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           {camp.campName}
         </h2>
         {rankTitle && (
-          <div style={{ fontSize: 15, fontWeight: 700, color: palette.text, margin: '-16px 0 24px' }}>
-            Your camp is a <span style={{ color: palette.accentDark }}>{rankTitle}</span> · {total}/60
+          <div style={{
+            fontSize: 15, fontWeight: 700, color: palette.text, margin: '-16px 0 24px',
+            ...(revealActive && !revealDone ? { visibility: 'hidden' } : {}),
+          }}>
+            Your camp is a <span ref={rankRef} style={{
+              color: palette.accentDark, display: 'inline-block',
+              animation: (revealActive && revealDone && !revealReduceMotion)
+                ? 'grg-rankslam 0.7s cubic-bezier(.22,1,.36,1) both' : 'none',
+            }}>{rankTitle}</span> · {total}/60
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <ShareCard sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette}/>
+          <ShareCard sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette} reveal={revealActive ? revealValue : null}/>
         </div>
 
         {/* offscreen SVG twin of the card — serialized to PNG by handleDownload */}
@@ -2752,6 +3038,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         onSpin={onSpin}
         variant={variant}
         palette={palette}
+        shinePaused={!!activeQuestion}
       />
 
       {/* status / hint */}

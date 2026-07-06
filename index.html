@@ -61,11 +61,24 @@
     80%  { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-3deg); }
     100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95) rotate(-3deg); }
   }
+  @keyframes grg-spring      { 0% { transform: scale(1); } 35% { transform: scale(0.88); } 70% { transform: scale(1.08); } 100% { transform: scale(1); } }
+  @keyframes grg-spring-soft { 0% { transform: scale(1); } 45% { transform: scale(0.95); } 100% { transform: scale(1); } }
+  @keyframes grg-shine { 0% { opacity: 0; } 22% { opacity: 0.8; } 100% { opacity: 0; } }
+  .grg-shine { animation: grg-shine 0.95s ease forwards; }
+  @keyframes grg-wpop     { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+  @keyframes grg-tick     { 0% { transform: scale(1); } 50% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  @keyframes grg-rankslam { 0% { opacity: 0; transform: scale(2.2) rotate(-10deg); } 55% { opacity: 1; transform: scale(0.95) rotate(-3deg); } 75% { transform: scale(1.04) rotate(-3deg); } 100% { opacity: 1; transform: scale(1) rotate(-3deg); } }
   @media (prefers-reduced-motion: reduce) {
     @keyframes qm-fade { from { opacity: 1; } to { opacity: 1; } }
     @keyframes qm-up   { from { opacity: 1; transform: none; } to { opacity: 1; transform: none; } }
     @keyframes grg-splat { from { opacity: 0; } to { opacity: 0; } }
     @keyframes grg-celeb { from { opacity: 1; transform: translate(-50%, -50%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+    @keyframes grg-spring      { from { transform: none; } to { transform: none; } }
+    @keyframes grg-spring-soft { from { transform: none; } to { transform: none; } }
+    @keyframes grg-shine { from { opacity: 0; } to { opacity: 0; } }
+    @keyframes grg-wpop     { from { transform: none; } to { transform: none; } }
+    @keyframes grg-tick     { from { transform: none; } to { transform: none; } }
+    @keyframes grg-rankslam { from { opacity: 1; transform: none; } to { opacity: 1; transform: none; } }
   }
 
   /* Loading placeholder shown until React mounts (root.render clears it). */
@@ -166,6 +179,7 @@ function App() {
       <div className="grg-frame">
         <GreenRadiusGame variant="flat-playa" palette={PALETTE}/>
       </div>
+      <FxLayer/>
     </div>
   );
 }
