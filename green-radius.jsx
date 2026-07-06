@@ -418,14 +418,16 @@ function greenUpSteps(sectors, answers, notes) {
 // at most the 3 lowest-level ideas per sector (steps arrive level-ascending, L1→L4),
 // so advanced camps whose only gaps are high-level still get concrete next steps.
 // Inverted color scheme: a dark-green box (lighter than the score card's brown).
-function GreenUpPlan({ sectors, answers, notes, palette }) {
+// `emailed` gates the "full list emailed" footnote so it can't contradict a
+// delivery-failure message shown below the card.
+function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
   const groups = greenUpSteps(sectors, answers, notes);
   if (!groups.length) return null;
   return (
     <div style={{ marginTop: 20, textAlign: 'left', background: '#33502b', borderRadius: 12, overflow: 'hidden' }}>
       <div style={{ padding: '20px 16px 16px' }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', textAlign: 'center', margin: '0 0 18px' }}>Your Green-Up Plan</div>
-        <div style={{ fontSize: 13, color: '#fff', opacity: 0.7, margin: '0 0 14px' }}>Ideas to grow your radius next year.</div>
+        <div style={{ fontSize: 13, color: '#fff', opacity: 0.7, textAlign: 'center', margin: '0 0 14px' }}>Some ideas to grow your radius next year</div>
         {groups.map(g => (
           <div key={g.sector} style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase', color: palette.accent, marginBottom: 4 }}>{g.sector}</div>
@@ -436,6 +438,11 @@ function GreenUpPlan({ sectors, answers, notes, palette }) {
             ))}
           </div>
         ))}
+        {emailed && (
+          <div style={{ fontSize: 12, fontStyle: 'italic', color: '#fff', opacity: 0.6, textAlign: 'center', margin: '10px 0 0' }}>
+            The full list is in your email
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2951,7 +2958,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: `1.5px solid ${palette.text}22`,
               background: 'transparent', color: palette.text, fontSize: 13, fontWeight: 800,
               letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
-            {copied ? 'Link copied!' : '🔗 Share link'}
+            {copied ? 'Link copied!' : '↗ Share link'}
           </button>
         </div>
 
@@ -2965,10 +2972,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           </button>
         )}
 
-        <GreenUpPlan sectors={sectors} answers={answers} notes={customNotes} palette={palette} />
+        <GreenUpPlan sectors={sectors} answers={answers} notes={customNotes} palette={palette}
+          emailed={!!(submitResult && submitResult.email === 'sent')} />
 
         <div style={{ marginTop: 24 }}>
-          <div style={{ fontSize: 14, color: palette.text, marginBottom: 12 }}>Have thoughts? We'd love to hear them.</div>
+          <div style={{ fontSize: 14, color: palette.text, marginBottom: 16 }}>Thoughts? We'd love to hear them.</div>
           <a href={'mailto:' + REPORT_EMAIL}
             style={{ display: 'inline-block', padding: '14px 28px', borderRadius: 12, border: 'none',
               background: '#3B6FD4', color: '#fff', fontSize: 13, fontWeight: 800,
@@ -2979,8 +2987,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         </div>
 
         <button onClick={handleExit}
-          style={{ marginTop: 16, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-          Exit
+          style={{ marginTop: 24, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
+          ✕ Exit
         </button>
       </div>
     );
