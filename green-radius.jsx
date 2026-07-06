@@ -49,7 +49,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v45';
+const APP_VERSION = 'v46';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -413,41 +413,30 @@ function greenUpSteps(sectors, answers, notes) {
   return groups;
 }
 
-// Done-screen-only panel: the camp's "No" answers as next-year steps. Collapsed by
-// default; renders nothing when there are no gaps. Never mounted on /result/.
+// Done-screen-only panel: the camp's "No" answers as next-year steps. Always fully
+// expanded; renders nothing when there are no gaps. Never mounted on /result/. Shows
+// at most the 3 lowest-level ideas per sector (steps arrive level-ascending, L1→L4),
+// so advanced camps whose only gaps are high-level still get concrete next steps.
+// Inverted color scheme: a dark-green box (lighter than the score card's brown).
 function GreenUpPlan({ sectors, answers, notes, palette }) {
-  const [open, setOpen] = useState(false);
   const groups = greenUpSteps(sectors, answers, notes);
   if (!groups.length) return null;
-  const count = groups.reduce((n, g) => n + g.steps.length, 0);
   return (
-    <div style={{ marginTop: 20, textAlign: 'left', border: `1.5px solid ${palette.text}1a`, borderRadius: 12, overflow: 'hidden' }}>
-      <button onClick={() => setOpen(o => !o)} aria-expanded={open}
-        style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
-          padding: '14px 16px', background: 'transparent', border: 'none', cursor: 'pointer',
-          font: 'inherit', color: palette.heading, fontWeight: 800, fontSize: 14 }}>
-        <span>🌱 Your Green-Up Plan · {count} {count === 1 ? 'idea' : 'ideas'}</span>
-        <span aria-hidden="true" style={{ color: palette.accentDark }}>{open ? '▾' : '▸'}</span>
-      </button>
-      {open && (
-        <div style={{ padding: '0 16px 14px' }}>
-          <div style={{ fontSize: 13, color: palette.text, opacity: 0.7, margin: '0 0 12px' }}>Ideas to grow your radius next year.</div>
-          {groups.map(g => (
-            <div key={g.sector} style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase', color: palette.accentDark, marginBottom: 4 }}>{g.sector}</div>
-              {g.steps.map((st, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '4px 0', fontSize: 14, color: palette.text }}>
-                  <span><span style={{ opacity: 0.55 }}>L{st.level} · </span>{st.title}</span>
-                  {st.link && st.link.url && (
-                    <a href={st.link.url} target="_blank" rel="noopener noreferrer"
-                      aria-label={`Guide for ${st.title}`} style={{ color: palette.accentDark, textDecoration: 'none', fontWeight: 700, flexShrink: 0 }}>→</a>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
+    <div style={{ marginTop: 20, textAlign: 'left', background: '#33502b', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ padding: '20px 16px 16px' }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', textAlign: 'center', margin: '0 0 18px' }}>Your Green-Up Plan</div>
+        <div style={{ fontSize: 13, color: '#fff', opacity: 0.7, margin: '0 0 14px' }}>Ideas to grow your radius next year.</div>
+        {groups.map(g => (
+          <div key={g.sector} style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase', color: palette.accent, marginBottom: 4 }}>{g.sector}</div>
+            {g.steps.slice(0, 3).map((st, i) => (
+              <div key={i} style={{ padding: '4px 0', fontSize: 14, color: '#fff' }}>
+                <span style={{ opacity: 0.55 }}>L{st.level} · </span>{st.title}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -2818,7 +2807,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   if (phase === 'done') {
     const year = new Date().getFullYear();
     const total = sectors.reduce((n, s) => n + (fills[s.id] ? fills[s.id].totalYes : 0), 0);
-    const rankTitle = (window.Rank ? window.Rank.titleFor(total) : '');
     const resultUrl = window.location.origin + '/result/?r=' +
       window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
     const email = (camp.email || '').trim();
@@ -2826,7 +2814,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     const needsRetry = submitState === 'error' || (submitResult && submitResult.email !== 'sent');
 
     async function handleShare() {
-      const shareText = `${rankTitle ? rankTitle + '! ' : ''}Our camp reached ${total}/60. Build your camp's Green Radius:`;
+      const shareText = `Our camp reached ${total}/60. Build your camp's Green Radius:`;
       const blob = cardPngRef.current;
       const file = blob ? new File([blob], `green-radius-${slug}.png`, { type: 'image/png' }) : null;
       // A share rejection is either the user dismissing the sheet (AbortError —
@@ -2892,18 +2880,16 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 24px', color: palette.heading, letterSpacing: '-0.01em' }}>
           {camp.campName}
         </h2>
-        {rankTitle && (
-          <div style={{
-            fontSize: 15, fontWeight: 700, color: palette.text, margin: '-16px 0 24px',
-            ...(revealActive && !revealDone ? { visibility: 'hidden' } : {}),
-          }}>
-            Your camp is a <span ref={rankRef} style={{
-              color: palette.accentDark, display: 'inline-block',
-              animation: (revealActive && revealDone && !revealReduceMotion)
-                ? 'grg-rankslam 0.7s cubic-bezier(.22,1,.36,1) both' : 'none',
-            }}>{rankTitle}</span> · {total}/60
-          </div>
-        )}
+        <div style={{
+          fontSize: 18, fontWeight: 800, color: palette.heading, margin: '-16px 0 24px',
+          ...(revealActive && !revealDone ? { visibility: 'hidden' } : {}),
+        }}>
+          <span ref={rankRef} style={{
+            display: 'inline-block',
+            animation: (revealActive && revealDone && !revealReduceMotion)
+              ? 'grg-rankslam 0.7s cubic-bezier(.22,1,.36,1) both' : 'none',
+          }}>{total}/60 · Thanks for playing!</span>
+        </div>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
           <ShareCard sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette} reveal={revealActive ? revealValue : null}/>
         </div>
@@ -2915,12 +2901,12 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
         <div role="status" aria-live="polite" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
           {submitState === 'sending'
-            ? <>Thanks for playing! Emailing your results to <strong>{email}</strong>…</>
+            ? <>Emailing your results to <strong>{email}</strong>…</>
             : submitState === 'error'
-              ? <>Thanks for playing! We couldn't reach the server. Your card is safe: download it or copy the share link below, then tap Try again.</>
+              ? <>We couldn't reach the server. Your card is safe: download it or copy the share link below, then tap Try again.</>
               : submitResult && submitResult.email !== 'sent'
-                ? <>Thanks for playing! You're in the community tally, but the email didn't go through. Download your card or copy the share link below.</>
-                : <>Thanks for playing! {greenUpSteps(sectors, answers, customNotes).length
+                ? <>You're in the community tally, but the email didn't go through. Download your card or copy the share link below.</>
+                : <>{greenUpSteps(sectors, answers, customNotes).length
                     ? <>Your result and Green-Up Plan are in your inbox at <strong>{email}</strong>.</>
                     : <>Results sent to <strong>{email}</strong>.</>} Not there? Check spam.</>}
         </div>
@@ -2980,6 +2966,17 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         )}
 
         <GreenUpPlan sectors={sectors} answers={answers} notes={customNotes} palette={palette} />
+
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontSize: 14, color: palette.text, marginBottom: 12 }}>Have thoughts? We'd love to hear them.</div>
+          <a href={'mailto:' + REPORT_EMAIL}
+            style={{ display: 'inline-block', padding: '14px 28px', borderRadius: 12, border: 'none',
+              background: '#3B6FD4', color: '#fff', fontSize: 13, fontWeight: 800,
+              letterSpacing: '0.12em', textTransform: 'uppercase', textDecoration: 'none',
+              boxShadow: '0 3px 0 #2b539e' }}>
+            Send Feedback
+          </a>
+        </div>
 
         <button onClick={handleExit}
           style={{ marginTop: 16, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
