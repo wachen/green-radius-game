@@ -1280,7 +1280,8 @@ function Celebration({ sector, palette, onDone }) {
 // compensation). Adjacent sectors share boundaries so the lit area still reads
 // as one silhouette.
 function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false,
-                       intensities = null, onSelectSegment = null, selected = null, centerLabel = null, fluid = false }) {
+                       intensities = null, onSelectSegment = null, selected = null, centerLabel = null, fluid = false,
+                       revealCount = null }) {
   const cx = size / 2, cy = size / 2;
   // [hub edge, L1, L2, L3, L4] — the inner hub stays clear (total moved to the header), like the board
   const RINGS = [0.18, 0.34, 0.52, 0.68, 0.84].map(f => f * size / 2);
@@ -1292,6 +1293,8 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
   const baseColor = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
   const baseStroke = dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.12)';
   const gridStroke = dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)';
+
+  let _litSeen = 0; // running index of filled segments in render order (sector→level→qi)
 
   return (
     <svg width={fluid ? '100%' : size} height={fluid ? undefined : size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
@@ -1310,14 +1313,22 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
           const cells = lv[li] || [];
           return segAngles(a0, a1, cells.length || 1, gap).map(([s0, s1], qi) => {
             const isSel = selected && selected.sector === sector.id && selected.level === li && selected.qi === qi;
-            const fillCol = agg ? LEVEL_COLORS[li] : (cells[qi] ? LEVEL_COLORS[li] : baseColor);
+            const litNow = !agg && !!cells[qi];
+            let shown = litNow;
+            if (revealCount != null && litNow) { shown = _litSeen < revealCount; _litSeen++; }
+            const pop = revealCount != null && shown && _litSeen === revealCount; // the just-lit segment
+            const fillCol = agg ? LEVEL_COLORS[li] : (shown ? LEVEL_COLORS[li] : baseColor);
             const fillOp = agg ? Math.max(0.06, cells[qi] || 0) : 1;
+            const style = {
+              ...(onSelectSegment ? { cursor: 'pointer' } : {}),
+              ...(pop ? { animation: 'grg-wpop 0.4s cubic-bezier(.34,1.56,.64,1)', transformBox: 'fill-box', transformOrigin: 'center' } : {}),
+            };
             return (
               <path key={`${sector.id}-${li}-${qi}`}
                 d={arcPath(cx, cy, rIn, rOut, s0, s1)}
                 fill={fillCol} fillOpacity={fillOp}
                 stroke={isSel ? '#e8c15a' : baseStroke} strokeWidth={isSel ? 1.5 : 0.5}
-                style={onSelectSegment ? { cursor: 'pointer' } : undefined}
+                style={Object.keys(style).length ? style : undefined}
                 onClick={onSelectSegment ? () => onSelectSegment(sector.id, li, qi) : undefined}
                 tabIndex={onSelectSegment ? 0 : undefined}
                 role={onSelectSegment ? 'button' : undefined}
@@ -1383,8 +1394,17 @@ function RadiusLogomark({ sectors, fills, size = 32 }) {
 }
 
 // ─── shareable card ───────────────────────────────────────────────────────────
-function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
-  const total = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
+function ShareCard({ sectors, fills, campName, leadName, year, palette, reveal = null }) {
+  const fullTotal = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
+  const total = reveal == null ? fullTotal : reveal;
+  const totalRef = useRef(null);
+  useEffect(() => {
+    if (reveal == null || !totalRef.current) return; // no-op for the static result page
+    const el = totalRef.current;
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = 'grg-tick 0.18s ease';
+  }, [reveal]);
   return (
     <div style={{
       width: 'min(360px, 100%)', padding: 28, boxSizing: 'border-box',
@@ -1407,7 +1427,7 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
             {campName || 'Theme Camp'}
           </div>
           <div style={{ marginTop: 8 }}>
-            <span style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em' }}>{total}</span>
+            <span ref={totalRef} style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{total}</span>
             <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> / 60 green</span>
           </div>
         </div>
@@ -1415,7 +1435,7 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette }) {
       <div style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', margin: '0 0 14px' }}>
           <div style={{ width: '100%', maxWidth: 300 }}>
-            <RadialBadge sectors={sectors} fills={fills} size={300} showGrid={true} fluid/>
+            <RadialBadge sectors={sectors} fills={fills} size={300} showGrid={true} fluid revealCount={reveal}/>
           </div>
         </div>
 
@@ -2423,6 +2443,30 @@ function RestoredBanner({ onDismiss }) {
 }
 
 // ─── main game ────────────────────────────────────────────────────────────────
+// PR46: drives the staged finished-screen reveal. `value` counts 0→total over a
+// fixed ~1.5s window so a 12-wedge camp and a 24-wedge camp finish on the same
+// beat; `done` flips at the end (triggers the rank slam). Reduced motion / not
+// active → final values immediately (today's behavior).
+function useResultReveal(total, active, reduceMotion) {
+  const instant = !active || reduceMotion || total <= 0;
+  const [value, setValue] = useState(instant ? total : 0);
+  const [done, setDone] = useState(instant);
+  useEffect(() => {
+    if (!active || reduceMotion || total <= 0) { setValue(total); setDone(true); return; }
+    setValue(0); setDone(false);
+    const WINDOW = 1500;
+    const step = Math.max(24, WINDOW / total);
+    let n = 0;
+    const iv = setInterval(() => {
+      n++;
+      setValue(n);
+      if (n >= total) { clearInterval(iv); setDone(true); }
+    }, step);
+    return () => clearInterval(iv);
+  }, [active, reduceMotion, total]);
+  return { value, done };
+}
+
 function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }) {
   const sectors = window.SECTORS;
 
@@ -2464,6 +2508,18 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const spinTimerRef = useRef(null); // the spin->open-modal timeout; cleared on reset so it can't fire into the next game
   const [restored, setRestored] = useState(saved?.salvaged || false); // a save from an older version was salvaged
 
+  const revealArmedRef = useRef(false); // set only when we transition playing→done in-session (board mode)
+  const rankRef = useRef(null);         // the finished-screen rank word, for the closing leaf burst
+  const revealReduceMotion = typeof window !== 'undefined' && window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const totalYesAll = sectors.reduce((n, s) => n + (fills[s.id] ? fills[s.id].totalYes : 0), 0);
+  const revealActive = phase === 'done' && revealArmedRef.current && mode === 'board';
+  const { value: revealValue, done: revealDone } = useResultReveal(totalYesAll, revealActive, revealReduceMotion);
+  // Fire the closing leaf burst from the rank once the count-up finishes.
+  useEffect(() => {
+    if (revealActive && revealDone && rankRef.current) Fx.leafBurst(rankRef.current);
+  }, [revealActive, revealDone]);
+
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState(() => {
@@ -2485,7 +2541,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     // Wait for an in-flight celebration to finish before clearing the playing
     // screen — otherwise the overlay vanishes mid-animation on the last sector.
     if (phase === 'playing' && allDone && !celebration) {
-      const t = setTimeout(() => setPhase('done'), 800);
+      const t = setTimeout(() => { revealArmedRef.current = true; setPhase('done'); }, 800);
       return () => clearTimeout(t);
     }
   }, [phase, allDone, celebration]);
@@ -2677,6 +2733,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setEditingEmail(false);
     autoSentRef.current = false;
     submitGenRef.current++;
+    revealArmedRef.current = false;
   }
 
   function startGame(info) {
@@ -2814,6 +2871,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       submitGenRef.current++; // void any in-flight POST so it can't write back after reset
       clearSaved();
       autoSentRef.current = false;
+      revealArmedRef.current = false;
       setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
       setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
       setAnswers({});
@@ -2834,12 +2892,19 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           {camp.campName}
         </h2>
         {rankTitle && (
-          <div style={{ fontSize: 15, fontWeight: 700, color: palette.text, margin: '-16px 0 24px' }}>
-            Your camp is a <span style={{ color: palette.accentDark }}>{rankTitle}</span> · {total}/60
+          <div style={{
+            fontSize: 15, fontWeight: 700, color: palette.text, margin: '-16px 0 24px',
+            ...(revealActive && !revealDone ? { visibility: 'hidden' } : {}),
+          }}>
+            Your camp is a <span ref={rankRef} style={{
+              color: palette.accentDark, display: 'inline-block',
+              animation: (revealActive && revealDone && !revealReduceMotion)
+                ? 'grg-rankslam 0.7s cubic-bezier(.22,1,.36,1) both' : 'none',
+            }}>{rankTitle}</span> · {total}/60
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <ShareCard sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette}/>
+          <ShareCard sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette} reveal={revealActive ? revealValue : null}/>
         </div>
 
         {/* offscreen SVG twin of the card — serialized to PNG by handleDownload */}
