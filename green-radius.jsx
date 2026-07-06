@@ -424,13 +424,13 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
   const groups = greenUpSteps(sectors, answers, notes);
   if (!groups.length) return null;
   return (
-    <div style={{ marginTop: 20, textAlign: 'left', background: 'linear-gradient(160deg, #3d5d31 0%, #33502b 45%, #294021 100%)', borderRadius: 12, overflow: 'hidden' }}>
+    <div style={{ marginTop: 20, textAlign: 'left', background: 'linear-gradient(160deg, #4cba6e 0%, #2f8b50 52%, #164f2b 100%)', borderRadius: 12, overflow: 'hidden' }}>
       <div style={{ padding: '20px 16px 16px' }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', textAlign: 'center', margin: '0 0 18px' }}>Your Green-Up Plan</div>
         <div style={{ fontSize: 13, color: '#fff', opacity: 0.7, textAlign: 'center', margin: '0 0 14px' }}>Some ideas to grow your radius next year</div>
         {groups.map(g => (
           <div key={g.sector} style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase', color: palette.accent, marginBottom: 4 }}>{g.sector}</div>
+            <div style={{ fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase', color: '#dffbef', marginBottom: 4 }}>{g.sector}</div>
             {g.steps.slice(0, 3).map((st, i) => (
               <div key={i} style={{ padding: '4px 0', fontSize: 14, color: '#fff' }}>
                 <span style={{ opacity: 0.55 }}>L{st.level} · </span>{st.title}
