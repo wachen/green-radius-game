@@ -119,9 +119,15 @@ async function resultWithOg(request, env, r) {
     .transform(res);
 }
 
+// Upstream calls are bounded so a hung Apps Script / Resend can't hold the
+// player's request open to the platform ceiling; on abort the fetch rejects
+// and the existing allSettled → 'err' degrade path fires. Observed max wall
+// time is ~4s, so 8s is generous.
+const UPSTREAM_TIMEOUT_MS = 8000;
+
 async function appendToSheet(env, row) {
   if (!env.SHEETS_WEBAPP_URL) return false;
-  const r = await fetch(env.SHEETS_WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row) });
+  const r = await fetch(env.SHEETS_WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row), signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
   if (!r.ok) return false;
   const j = await r.json().catch(() => ({}));
   return j.ok === true;
@@ -132,6 +138,7 @@ async function sendEmail(env, to, campName, resultUrl, answers) {
   const href = escAttr(resultUrl);
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: 'Green Radius <hello@greenradi.us>',
@@ -251,6 +258,19 @@ function b64urlToBytes(s) {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out;
 }
 
+// Access signing keys rotate rarely; cache the JWKS at module scope so each
+// admin request doesn't pay a fresh certs round-trip. A kid miss (rotation)
+// forces one refetch before failing.
+let jwksCache = { keys: null, at: 0 };
+const JWKS_TTL_MS = 60 * 60 * 1000;
+
+async function fetchAccessJwks(teamDomain, force) {
+  if (!force && jwksCache.keys && Date.now() - jwksCache.at < JWKS_TTL_MS) return jwksCache.keys;
+  const certs = await fetch(`https://${teamDomain}/cdn-cgi/access/certs`, { signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) }).then(r => r.json());
+  jwksCache = { keys: certs.keys || [], at: Date.now() };
+  return jwksCache.keys;
+}
+
 async function verifyAccessJwt(token, env) {
   if (!token || !env.CF_ACCESS_AUD || !env.CF_ACCESS_TEAM_DOMAIN) return false;
   const parts = token.split('.'); if (parts.length !== 3) return false;
@@ -266,8 +286,10 @@ async function verifyAccessJwt(token, env) {
   if (!payload.exp || payload.exp < now) return false;
   // signature (RS256) against the team JWKS
   try {
-    const certs = await fetch(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`).then(r => r.json());
-    const jwk = (certs.keys || []).find(k => k.kid === header.kid); if (!jwk) return false;
+    let keys = await fetchAccessJwks(env.CF_ACCESS_TEAM_DOMAIN, false);
+    let jwk = keys.find(k => k.kid === header.kid);
+    if (!jwk) { keys = await fetchAccessJwks(env.CF_ACCESS_TEAM_DOMAIN, true); jwk = keys.find(k => k.kid === header.kid); }
+    if (!jwk) return false;
     const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
     const data = new TextEncoder().encode(parts[0] + '.' + parts[1]);
     return await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64urlToBytes(parts[2]), data);
