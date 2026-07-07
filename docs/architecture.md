@@ -79,14 +79,14 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      `answers` may carry up to four **`X-camp-note`**-style entries per sector: the
      free-text "Our Camp's Idea" write-ins (`campIdeaIds` — base `X-camp` plus
      synthetic `X-camp-2/3/4`), each note gated on its own slot's yes/no (client input
-     caps 140 chars). **The Worker's `NOTE_KEYS` whitelist was not extended for the
-     new slots** — it still lists only the six base `*-camp-note` keys, so text typed
-     into `X-camp-2/3/4-note` is silently dropped before it reaches the sheet/email;
-     only the base idea's note per sector actually lands. The extra slots' yes/no
-     answers are unaffected (plain `'yes'/'no'` entries aren't note-gated) and score
-     normally. Any note that does land gets trimmed, clamped to 160, run through
-     `sheetCell`, and dropped if its own yes/no isn't in the same payload. Scoring
-     ignores notes — each idea's point rides its own yes/no, never its note.
+     caps 140 chars). The Worker's `NOTE_KEYS` whitelist enumerates all 24 valid keys
+     (the base `*-camp-note` plus `*-camp-2/3/4-note` for each of the six sectors),
+     so all four per-sector write-in notes reach the sheet/email, each still gated on
+     its own slot's yes/no. The extra slots' yes/no answers score normally regardless
+     (plain `'yes'/'no'` entries aren't note-gated). Any note gets trimmed, clamped to
+     160, run through `sheetCell`, and dropped if its own yes/no isn't in the same
+     payload. Scoring ignores notes — each idea's point rides its own yes/no, never
+     its note.
 4. **Worker** (`worker/index.js`) validates (**fail-closed** origin check —
    absent/foreign Origin is rejected — body-size cap, honeypot, required
    `campName`+`email`, email regex, per-field length caps, and
@@ -139,9 +139,9 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   **`2026 Results`** tab (16 cols: Timestamp · Camp · Lead · Email · Year · 6
   sectors · Total · Source · Result URL · **Answers JSON** · **Schema Version**).
   The Worker sends `answers` (the full `{qid:'yes'|'no'}` map — now up to four
-  write-in ids per sector via `campIdeaIds` — plus the base `X-camp-note` write-in
-  text entries that pass the Worker's note whitelist; see the `/api/complete`
-  contract above for why the extra `X-camp-2/3/4-note` slots don't) + `schemaVersion`;
+  write-in ids per sector via `campIdeaIds` — plus all four per-sector `X-camp-note`
+  write-in text entries that pass the Worker's note whitelist; see the `/api/complete`
+  contract above) + `schemaVersion`;
   these land in the last two columns (`Answers JSON` = `JSON.stringify(answers)`,
   `Schema Version` = the stamp), and the 6 per-sector columns + Total now carry
   0–10 / 0–60. The note entries need **no Apps Script change** — they ride inside

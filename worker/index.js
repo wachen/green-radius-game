@@ -3,9 +3,13 @@ import Rank from '../rank.js';
 import GameData from '../game-data.js';
 
 const SECTOR_IDS = ['food', 'water', 'waste', 'transport', 'shelter', 'power'];
-// The six write-in note keys (one "Our Camp's Idea" per sector, game-data.js
-// `X-camp` topics) — the only free-text answers entries accepted.
-const NOTE_KEYS = new Set(['F-camp-note', 'H-camp-note', 'W-camp-note', 'T-camp-note', 'S-camp-note', 'P-camp-note']);
+const SECTOR_CODES = ['F', 'H', 'W', 'T', 'S', 'P'];
+// Up to four write-in "Our Camp's Idea" slots per sector (base X-camp plus
+// X-camp-2/3/4): each may carry one free-text note. These are the only
+// free-text answers entries accepted.
+const NOTE_KEYS = new Set(
+  SECTOR_CODES.flatMap(c => ['', '-2', '-3', '-4'].map(s => `${c}-camp${s}-note`))
+);
 const ALLOWED_ORIGIN = 'https://greenradi.us';
 
 export default {
@@ -37,8 +41,9 @@ async function handleComplete(request, env) {
   if (origin !== ALLOWED_ORIGIN && !isLocalhost) return json({ error: 'forbidden' }, 403);
 
   const raw = await request.text();
-  // 8 KB: 60 answers + six 160-char write-in notes + maxed name/email/url
-  // fields still fit with headroom (worst case is ~4 KB).
+  // 8 KB: 60 yes/no answers + up to 24 160-char write-in notes (four per
+  // sector) + maxed name/email/url fields still fit with headroom (realistic
+  // worst case is ~6 KB).
   if (raw.length > 8192) return json({ error: 'too_large' }, 413);
   let body;
   try { body = JSON.parse(raw); } catch { return json({ error: 'bad_json' }, 400); }
