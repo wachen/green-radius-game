@@ -35,7 +35,7 @@ function useModalA11y(ref) {
 // Bump STORAGE_VERSION when the saved shape changes so old saves are discarded
 // instead of trying to merge them in.
 const STORAGE_KEY = 'green-radius-game/v1';
-const STORAGE_VERSION = 6;
+const STORAGE_VERSION = 7;
 
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 // One player download on the home screen. The "How-to-Play" file is the
@@ -49,7 +49,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v48';
+const APP_VERSION = 'v49';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
