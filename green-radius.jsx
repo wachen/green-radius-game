@@ -35,7 +35,7 @@ function useModalA11y(ref) {
 // Bump STORAGE_VERSION when the saved shape changes so old saves are discarded
 // instead of trying to merge them in.
 const STORAGE_KEY = 'green-radius-game/v1';
-const STORAGE_VERSION = 6;
+const STORAGE_VERSION = 7;
 
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 // One player download on the home screen. The "How-to-Play" file is the
