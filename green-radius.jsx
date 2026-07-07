@@ -58,6 +58,7 @@ function validQidSet(sectors) {
   sectors.forEach(s => {
     s.levels.slice(0, 3).forEach(level => (level || []).forEach(q => set.add(q.id)));
     (s.tier4Topics || []).forEach(t => set.add(t.id));
+    campIdeaIds(s).slice(1).forEach(id => set.add(id)); // extra write-in slots 2-4
   });
   return set;
 }
@@ -298,16 +299,30 @@ function FxLayer() {
   );
 }
 
+// Up to 4 write-in "Our Camp's Idea" slots per sector. The first is the
+// data-defined X-camp topic (already in tier4Topics); slots 2-4 are synthetic
+// ids (X-camp-2/3/4) the form can add on demand. Returns [] for a sector with
+// no write-in topic. Each idea answered "yes" earns a Level-4 point.
+function campIdeaIds(sector) {
+  const base = (sector.tier4Topics || []).find(t => /-camp$/.test(t.id));
+  return base ? [base.id, base.id + '-2', base.id + '-3', base.id + '-4'] : [];
+}
+
 // Per-sector fill: levels[0..2] = one bool per fixed question (in order);
 // levels[3] = 4 slots, the first (advanced-Yes count, capped at 4) set true.
 // totalYes is 0..10; `played` is true once any of the sector's questions is answered.
 function sectorFill(sector, answers) {
   const levels = [0, 1, 2].map(li => (sector.levels[li] || []).map(q => answers[q.id] === 'yes'));
-  const advYes = Math.min(4, (sector.tier4Topics || []).filter(t => answers[t.id] === 'yes').length);
+  // Extra write-in ideas (slots 2-4) count toward Level 4 alongside the fixed
+  // tier-4 topics (which already include the base X-camp slot).
+  const extraCampIds = campIdeaIds(sector).slice(1);
+  const advYes = Math.min(4,
+    (sector.tier4Topics || []).filter(t => answers[t.id] === 'yes').length +
+    extraCampIds.filter(id => answers[id] === 'yes').length);
   levels[3] = [0, 1, 2, 3].map(i => i < advYes);
   const fixedYes = levels.slice(0, 3).reduce((n, a) => n + a.filter(Boolean).length, 0);
   const ids = [].concat(...sector.levels.slice(0, 3)).map(q => q.id)
-    .concat((sector.tier4Topics || []).map(t => t.id));
+    .concat((sector.tier4Topics || []).map(t => t.id)).concat(extraCampIds);
   const played = ids.some(id => answers[id] === 'yes' || answers[id] === 'no');
   return { levels, totalYes: fixedYes + advYes, played };
 }
@@ -2027,8 +2042,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
   const isAns = (id) => answers[id] === 'yes' || answers[id] === 'no';
   const requiredAnswered = (s) =>
     s.levels.slice(0, 3).every(lvl => lvl.every(qq => isAns(qq.id))) &&
-    (s.tier4Topics || []).every(t =>
-      !isCampTopic(t) || !((notes && notes[t.id]) || '').trim() || isAns(t.id));
+    campIdeaIds(s).every(id => !((notes && notes[id]) || '').trim() || isAns(id));
   const incompleteSectors = sectors.filter(s => !requiredAnswered(s));
   const allComplete = incompleteSectors.length === 0;
   const firstIncompleteIndex = sectors.findIndex(s => !requiredAnswered(s));
@@ -2057,6 +2071,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
     cursor: enabled ? 'pointer' : 'default',
     background: enabled ? palette.text + '11' : palette.text + '08',
     color: enabled ? palette.text : palette.text + '40',
+    '--grg-sh': palette.text + '22',
   });
 
   return (
@@ -2135,6 +2150,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
           onClick={() => setPage(p => Math.max(0, p - 1))}
           disabled={page === 0}
           aria-label="Previous sector"
+          className={page !== 0 ? 'grg-press-sm' : undefined}
           style={navPill(page !== 0)}
         >← Previous</button>
 
@@ -2142,6 +2158,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
           <button
             onClick={() => setPage(p => Math.min(lastPage, p + 1))}
             aria-label="Next sector"
+            className="grg-press-sm"
             style={navPill(true)}
           >Next →</button>
         ) : (
@@ -2149,6 +2166,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
             onClick={handleSubmit}
             disabled={!allComplete}
             aria-label="Submit form answers"
+            className={allComplete ? 'grg-press-sm' : undefined}
             style={{
               flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
               fontFamily: 'inherit', fontSize: 13, fontWeight: 800,
@@ -2156,7 +2174,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
               cursor: !allComplete ? 'default' : 'pointer',
               background: !allComplete ? palette.text + '33' : palette.accent,
               color: '#fff',
-              boxShadow: !allComplete ? 'none' : `0 4px 0 ${palette.accentDark}`,
+              '--grg-sh': palette.accentDark,
             }}
           >Submit →</button>
         )}
@@ -2217,6 +2235,76 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
   );
 }
 
+// Level 4 write-ins: up to four "Our Camp's Idea" slots, each a described idea
+// plus its own Yes/No ("did your camp pull it off?"). Every yes earns a Level-4
+// point, so a camp can reach a full 4/4 on its own ideas. Slots past the first
+// appear on demand via "Add another idea"; how many show is seeded from existing
+// data on mount so a reload restores every idea the camp filled in.
+function CampIdeasBlock({ sector, answers, setAnswer, notes, setNote, palette, highlightMissing }) {
+  const ids = campIdeaIds(sector);
+  const hasData = (id) => !!((notes && notes[id]) || '').trim() || answers[id] === 'yes' || answers[id] === 'no';
+  const [shown, setShown] = useState(() => Math.min(4, Math.max(1, ids.filter(hasData).length)));
+  if (!ids.length) return null;
+  const visible = ids.slice(0, shown);
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: palette.text, marginBottom: 2 }}>Our Camp's Ideas</div>
+      <div style={{ fontSize: 11, lineHeight: 1.4, color: palette.text + '88', marginBottom: 6 }}>
+        List up to four of your own {sector.name.toLowerCase()} ideas and whether your camp pulled each one off. Every yes is a Level 4 point.
+      </div>
+      {visible.map((id, i) => {
+        const answered = answers[id] === 'yes' || answers[id] === 'no';
+        const missing = highlightMissing && !!((notes && notes[id]) || '').trim() && !answered;
+        return (
+          <div key={id} style={{
+            padding: '10px 0',
+            borderTop: `1px solid ${palette.text}${i === 0 ? '11' : '0d'}`,
+            borderLeft: `3px solid ${missing ? '#C9821E' : 'transparent'}`,
+            paddingLeft: missing ? 10 : 0,
+            transition: 'border-color .2s ease, padding-left .2s ease',
+          }}>
+            <input
+              value={(notes && notes[id]) || ''}
+              onChange={e => setNote && setNote(id, e.target.value)}
+              maxLength={140}
+              placeholder={i === 0 ? "What did your camp try?" : `Another idea (${i + 1} of 4)`}
+              aria-label={`Describe your camp's own ${sector.name.toLowerCase()} idea, number ${i + 1}`}
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 8,
+                border: `1.5px solid ${palette.text}22`,
+                background: '#fff', color: palette.text,
+                fontSize: 16, fontFamily: 'inherit', marginBottom: 8,
+              }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: palette.text + '99' }}>
+                Did your camp pull it off?
+                {missing && <span style={{ color: '#C9821E', fontWeight: 700, marginLeft: 6 }}>Needs an answer</span>}
+              </span>
+              <div style={{ marginLeft: 'auto' }}>
+                <YesNoButtons qid={id} answer={answers[id]} setAnswer={setAnswer} palette={palette}/>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      {shown < 4 && (
+        <button
+          type="button"
+          onClick={() => setShown(n => Math.min(4, n + 1))}
+          style={{
+            marginTop: 10, background: 'transparent', cursor: 'pointer',
+            border: `1.5px dashed ${palette.text}33`, borderRadius: 8,
+            color: palette.accentDark, fontWeight: 700, fontSize: 12,
+            letterSpacing: '0.04em', padding: '9px 12px', fontFamily: 'inherit',
+            width: '100%',
+          }}
+        >+ Add another idea</button>
+      )}
+    </div>
+  );
+}
+
 function FormSectorBlock({ sector, answers, setAnswer, notes, setNote, palette, highlightMissing }) {
   const fixedQs = [].concat(...sector.levels.slice(0, 3));
   const t4 = sector.tier4Topics || [];
@@ -2272,47 +2360,68 @@ function FormSectorBlock({ sector, answers, setAnswer, notes, setNote, palette, 
               textTransform: 'uppercase', color: palette.text + '88',
             }}>Level 4 · every yes counts, max 4</span>
           </div>
-          {t4.map(t => (
-            <React.Fragment key={t.id}>
-              <YesNoRow
-                qid={t.id}
-                text={t.title} subtext={t.description}
-                answer={answers[t.id]} setAnswer={setAnswer} palette={palette}
-                missing={highlightMissing && isCampTopic(t)
-                  && !!((notes && notes[t.id]) || '').trim() && !isAnswered(t.id)}
-              />
-              {/* write-in slot: capture the camp's own idea alongside its Yes/No */}
-              {isCampTopic(t) && (
-                <input
-                  value={(notes && notes[t.id]) || ''}
-                  onChange={e => setNote && setNote(t.id, e.target.value)}
-                  maxLength={140}
-                  placeholder="What did your camp try?"
-                  aria-label={`Describe your camp's own ${sector.name.toLowerCase()} idea`}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 8,
-                    border: `1.5px solid ${palette.text}22`,
-                    background: '#fff', color: palette.text,
-                    fontSize: 16, fontFamily: 'inherit',
-                    marginTop: -2, marginBottom: 10,
-                  }}
-                />
-              )}
-            </React.Fragment>
+          {t4.filter(t => !isCampTopic(t)).map(t => (
+            <YesNoRow
+              key={t.id}
+              qid={t.id}
+              text={t.title} subtext={t.description}
+              answer={answers[t.id]} setAnswer={setAnswer} palette={palette}
+            />
           ))}
+          <CampIdeasBlock
+            sector={sector}
+            answers={answers} setAnswer={setAnswer}
+            notes={notes} setNote={setNote}
+            palette={palette} highlightMissing={highlightMissing}
+          />
         </>
       )}
     </section>
   );
 }
 
-function YesNoRow({ qid, text, subtext, answer, setAnswer, palette, missing }) {
+// The board-game Yes/No feel on the form: a hard drop-shadow on the active
+// choice plus a spring-bounce on tap (grg-spring / grg-spring-soft, the same
+// keyframes the board game uses; both collapse to no-op under reduced motion).
+function YesNoButtons({ qid, answer, setAnswer, palette }) {
   const btnBase = {
     border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
     letterSpacing: '0.12em', textTransform: 'uppercase',
     padding: '8px 14px', borderRadius: 8, fontFamily: 'inherit',
-    minWidth: 56, minHeight: 44, // WCAG 2.5.5 touch target (pressed up to 60x/game)
+    minWidth: 56, minHeight: 44, // WCAG 2.5.5 touch target
   };
+  const bounce = (e, yes) => {
+    const el = e.currentTarget;
+    el.style.animation = 'none';
+    void el.offsetWidth; // reflow so a repeat tap re-fires the animation
+    el.style.animation = (yes ? 'grg-spring' : 'grg-spring-soft') + ' 0.42s cubic-bezier(.34,1.56,.64,1)';
+  };
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <button
+        onClick={(e) => { bounce(e, true); setAnswer(qid, 'yes'); }}
+        aria-pressed={answer === 'yes'}
+        style={{
+          ...btnBase,
+          background: answer === 'yes' ? palette.accent : palette.text + '11',
+          color: answer === 'yes' ? '#fff' : palette.text,
+          boxShadow: answer === 'yes' ? `0 3px 0 ${palette.accentDark}` : 'none',
+        }}
+      >Yes</button>
+      <button
+        onClick={(e) => { bounce(e, false); setAnswer(qid, 'no'); }}
+        aria-pressed={answer === 'no'}
+        style={{
+          ...btnBase,
+          background: answer === 'no' ? palette.text : palette.text + '11',
+          color: answer === 'no' ? '#fff' : palette.text,
+        }}
+      >No</button>
+    </div>
+  );
+}
+
+function YesNoRow({ qid, text, subtext, answer, setAnswer, palette, missing }) {
   return (
     <div style={{
       padding: '12px 0',
@@ -2329,27 +2438,7 @@ function YesNoRow({ qid, text, subtext, answer, setAnswer, palette, missing }) {
           {subtext}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          onClick={() => setAnswer(qid, 'yes')}
-          aria-pressed={answer === 'yes'}
-          style={{
-            ...btnBase,
-            background: answer === 'yes' ? palette.accent : palette.text + '11',
-            color: answer === 'yes' ? '#fff' : palette.text,
-            boxShadow: answer === 'yes' ? `0 2px 0 ${palette.accentDark}` : 'none',
-          }}
-        >Yes</button>
-        <button
-          onClick={() => setAnswer(qid, 'no')}
-          aria-pressed={answer === 'no'}
-          style={{
-            ...btnBase,
-            background: answer === 'no' ? palette.text : palette.text + '11',
-            color: answer === 'no' ? '#fff' : palette.text,
-          }}
-        >No</button>
-      </div>
+      <YesNoButtons qid={qid} answer={answer} setAnswer={setAnswer} palette={palette}/>
     </div>
   );
 }
