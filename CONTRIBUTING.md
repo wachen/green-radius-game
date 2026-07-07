@@ -33,10 +33,11 @@ No build step — the browser compiles the JSX in place via `@babel/standalone`.
 | `rank.js`          | `window.Rank` — isomorphic module mapping a 0–60 total to a playa-rank title ("First Spark"…"Green Supernova"); also imported by the Worker for the OG description |
 | `result/`          | Stateless shareable result page (renders a card from the `?r=` payload, legacy `#hash` fallback) |
 | `admin/`           | Internal, Cloudflare Access–gated response viewer (City + Camps tabs); read-only |
-| `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses` + `GET /result/?r=` (per-camp OG unfurl); all else served as static assets |
+| `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses` + `GET /api/health` + `GET /result/?r=` (per-camp OG unfurl); all else served as static assets |
 | `wrangler.jsonc`   | Worker + static-assets config                                         |
 | `_headers`         | Static-asset response headers (HSTS, framing, permissions)            |
 | `vendor/`          | Pinned React/ReactDOM/Babel runtime, served same-origin (see its README) |
+| `og-card.png`      | Static Open Graph share-card image                                    |
 | `downloads/`       | Printable board-game + how-to-play PDFs                               |
 
 ### One JSX gotcha worth knowing
@@ -78,7 +79,9 @@ static site still serves — so you don't need them to work on the UI.
 3. If you changed the **wiring** (data flow, the `/api/complete` contract, an
    external integration, or a gotcha), update
    [`docs/architecture.md`](docs/architecture.md) to match.
-4. Push and open a PR against `main`; merge when you're happy with it
-   (remember: **merge = deploy**).
+4. Bump `APP_VERSION` in `green-radius.jsx` (the deploy stamp on the home
+   screen) to the PR number, e.g. `v48`.
+5. Push and open a PR against `main`; PRs are squash-merged, and merging
+   ships instantly (remember: **merge = deploy**).
 
 Happy hacking. 🌱

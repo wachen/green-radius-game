@@ -55,11 +55,13 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
    `STORAGE_VERSION` when the saved shape changes (now stores `answers`, not levelStates).
 2. **Done screen.** Required, validated email. `greens[sectorId] =
    sectorFill(...).totalYes` (0–10). Every individual answer lives in the shared
-   `answers` map (`{questionId: 'yes'|'no'}`, Level 4 keyed by the picked topic id) —
-   the source of both the fill and the backend record. The done screen also renders a
-   collapsible **Green-Up Plan** — the player's `'no'` answers turned into suggested
-   next-year steps (`greenUpSteps`/`<GreenUpPlan>`), grouped by sector and hidden when
-   there are no gaps; client-only, sent nowhere and never mounted on `/result/`.
+   `answers` map (`{questionId: 'yes'|'no'}`, Level 4 keyed by the picked topic id —
+   including up to four per-sector write-in ids, base `X-camp` plus synthetic
+   `X-camp-2/3/4` from `campIdeaIds`) — the source of both the fill and the backend
+   record. The done screen also renders a collapsible **Green-Up Plan** — the
+   player's `'no'` answers turned into suggested next-year steps
+   (`greenUpSteps`/`<GreenUpPlan>`), grouped by sector and hidden when there are no
+   gaps; client-only, sent nowhere and never mounted on `/result/`.
 3. **Two outputs:**
    - **Share link** — `result-state.js` `encode({campName, leadName, year, fills})`
      → base64url payload (v2: per sector `fixedBits*5 + advCount`, ~88 chars) →
@@ -74,11 +76,17 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
    - **`POST /api/complete`** — `{campName, email, year, greens, mode, answers,
      schemaVersion, resultUrl}`. `greens` is now 0–10 per sector; `answers` (the full
      map) is backend-only (→ sheet `answers_json`). Besides `qid:'yes'|'no'` entries,
-     `answers` may carry **`X-camp-note`** entries: the free-text "Our Camp's
-     Idea" write-in per sector (client caps 140 chars; the Worker accepts only
-     the six whitelisted note keys, trims, clamps to 160, runs `sheetCell`, and
-     drops any note whose `X-camp` yes/no isn't in the same payload). Scoring
-     ignores notes — the write-in's point rides its normal `X-camp` yes/no.
+     `answers` may carry up to four **`X-camp-note`**-style entries per sector: the
+     free-text "Our Camp's Idea" write-ins (`campIdeaIds` — base `X-camp` plus
+     synthetic `X-camp-2/3/4`), each note gated on its own slot's yes/no (client input
+     caps 140 chars). **The Worker's `NOTE_KEYS` whitelist was not extended for the
+     new slots** — it still lists only the six base `*-camp-note` keys, so text typed
+     into `X-camp-2/3/4-note` is silently dropped before it reaches the sheet/email;
+     only the base idea's note per sector actually lands. The extra slots' yes/no
+     answers are unaffected (plain `'yes'/'no'` entries aren't note-gated) and score
+     normally. Any note that does land gets trimmed, clamped to 160, run through
+     `sheetCell`, and dropped if its own yes/no isn't in the same payload. Scoring
+     ignores notes — each idea's point rides its own yes/no, never its note.
 4. **Worker** (`worker/index.js`) validates (**fail-closed** origin check —
    absent/foreign Origin is rejected — body-size cap, honeypot, required
    `campName`+`email`, email regex, per-field length caps, and
@@ -115,10 +123,14 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 - **The email body is server-built.** `sendEmail` composes the result link plus a
   Green-Up Plan rebuilt from the *sanitized* `answers` map against `game-data.js`
   (`greenUpEmailHtml`, mirroring `greenUpSteps` in `green-radius.jsx`): every "No"
-  becomes its question title; a "No" write-in shows the camp's own note
-  (HTML-escaped, `sheetCell` guard apostrophe stripped for display). Client prose
-  must never flow into the email directly — `/api/complete` mails any address the
-  caller supplies, so free-form body text would turn it into a phishing relay.
+  becomes its question title; a "No" on the base `X-camp` write-in shows the camp's
+  own note (HTML-escaped, `sheetCell` guard apostrophe stripped for display). Both
+  `greenUpEmailHtml` and `greenUpSteps` iterate `sector.tier4Topics` only, so the
+  Green-Up Plan (done screen and email alike) never surfaces the synthetic
+  `X-camp-2/3/4` slots — only the base per-sector idea appears as a next-year step,
+  even when an extra slot was answered "No". Client prose must never flow into the
+  email directly — `/api/complete` mails any address the caller supplies, so
+  free-form body text would turn it into a phishing relay.
 
 ## External integrations
 
@@ -126,12 +138,14 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   spreadsheet). `doPost` verifies a shared secret, then `appendRow` to the
   **`2026 Results`** tab (16 cols: Timestamp · Camp · Lead · Email · Year · 6
   sectors · Total · Source · Result URL · **Answers JSON** · **Schema Version**).
-  The Worker sends `answers` (the full `{qid:'yes'|'no'}` map, plus any
-  `X-camp-note` write-in text entries) + `schemaVersion`; these land in the last
-  two columns (`Answers JSON` = `JSON.stringify(answers)`, `Schema Version` = the
-  stamp), and the 6 per-sector columns + Total now carry 0–10 / 0–60. The note
-  entries need **no Apps Script change** — they ride inside the same stringified
-  JSON, and the admin viewer reads them back out of it. A read-only **`doGet`** (added for the admin viewer) returns the
+  The Worker sends `answers` (the full `{qid:'yes'|'no'}` map — now up to four
+  write-in ids per sector via `campIdeaIds` — plus the base `X-camp-note` write-in
+  text entries that pass the Worker's note whitelist; see the `/api/complete`
+  contract above for why the extra `X-camp-2/3/4-note` slots don't) + `schemaVersion`;
+  these land in the last two columns (`Answers JSON` = `JSON.stringify(answers)`,
+  `Schema Version` = the stamp), and the 6 per-sector columns + Total now carry
+  0–10 / 0–60. The note entries need **no Apps Script change** — they ride inside
+  the same stringified JSON, and the admin viewer reads them back out of it. A read-only **`doGet`** (added for the admin viewer) returns the
   rows to the Worker. See `docs/admin-setup.md` for the `doGet` source and the
   Cloudflare Access setup. Quirks: a `/exec` request returns
   **302 → script.googleusercontent.com**; Cloudflare's `fetch` follows it
