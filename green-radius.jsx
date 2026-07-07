@@ -1697,7 +1697,7 @@ function FaqModal({ onClose, palette }) {
         }}
       >
         <div style={{
-          position: 'sticky', top: 0, background: palette.text,
+          position: 'sticky', top: 0, zIndex: 5, background: palette.accentDark,
           margin: '0 -22px', padding: '22px 22px 16px', borderRadius: '24px 24px 0 0',
           marginBottom: 4, textAlign: 'center',
           boxShadow: '0 8px 16px -10px rgba(0,0,0,0.35)',
@@ -1724,7 +1724,7 @@ function FaqModal({ onClose, palette }) {
             <circle cx="32" cy="33" r="7.5" fill="#fff"/>
             <circle cx="32" cy="33" r="3" fill={palette.accent}/>
           </svg>
-          <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, color: palette.accent, textTransform: 'uppercase' }}>Green Radius</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase' }}>Green Radius</div>
           <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3, padding: '0 30px', color: palette.card }}>About the Game</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4, padding: '0 30px' }}>How the game works, told in five parts</div>
           <button
@@ -1733,7 +1733,7 @@ function FaqModal({ onClose, palette }) {
           >✕</button>
         </div>
 
-        <AboutSection icon="why" title="Why this exists" mark="I" palette={palette}>
+        <AboutSection icon="why" title="Why this exists" mark="#1" palette={palette}>
           <div style={{ fontSize: 13.5, lineHeight: 1.55, color: palette.text + 'd1', textWrap: 'pretty' }}>
             The playa doesn't need another form. The Green Radius is not a compliance
             audit; it's a mirror. See where your camp stands across six sustainability
@@ -1743,7 +1743,7 @@ function FaqModal({ onClose, palette }) {
           </div>
         </AboutSection>
 
-        <AboutSection icon="sectors" title="The six sectors" mark="II" divider palette={palette}>
+        <AboutSection icon="sectors" title="The six sectors" mark="#2" divider palette={palette}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {window.SECTORS.map(s => (
               <div key={s.id} style={{
@@ -1767,7 +1767,7 @@ function FaqModal({ onClose, palette }) {
           </div>
         </AboutSection>
 
-        <AboutSection icon="levels" title="Four levels per sector" mark="III" divider palette={palette}>
+        <AboutSection icon="levels" title="Four levels per sector" mark="#3" divider palette={palette}>
           <div style={{ position: 'relative' }}>
             {/* A quiet progression rail strung behind the numbered chips,
                 from Level 1's color through Level 4's, so the legend reads
@@ -1799,7 +1799,7 @@ function FaqModal({ onClose, palette }) {
           </div>
         </AboutSection>
 
-        <AboutSection icon="results" title="Your results" mark="IV" divider palette={palette}>
+        <AboutSection icon="results" title="Your results" mark="#4" divider palette={palette}>
           <div style={{ fontSize: 13.5, lineHeight: 1.55, color: palette.text + 'd1', textWrap: 'pretty' }}>
             When you finish, you'll see your Green Radius and get your shareable results
             card plus a personal Green-Up Plan by email. Your results join the community
@@ -1808,7 +1808,7 @@ function FaqModal({ onClose, palette }) {
           </div>
         </AboutSection>
 
-        <AboutSection icon="questions" title="More questions" mark="V" divider palette={palette}>
+        <AboutSection icon="questions" title="More questions" mark="#5" divider palette={palette}>
           {FAQ_ITEMS.map((item, i) => (
             <div key={i} style={{
               borderTop: i === 0 ? 'none' : '1px solid ' + palette.text + '1a',
