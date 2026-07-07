@@ -49,7 +49,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v46';
+const APP_VERSION = 'v47';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -336,17 +336,10 @@ function bufToBase64(buf) {
 async function fontEmbedCss() {
   if (_fontEmbedCss !== null) return _fontEmbedCss;
   try {
-    const css = await fetch('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap')
-      .then(r => (r.ok ? r.text() : Promise.reject()));
-    const faces = css.match(/@font-face\s*{[^}]+}/g) || [];
-    const out = [];
-    for (const face of faces) {
-      const m = face.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+\.woff2)\)/);
-      if (!m) continue;
-      const b64 = bufToBase64(await fetch(m[1]).then(r => r.arrayBuffer()));
-      out.push(face.replace(m[1], `data:font/woff2;base64,${b64}`));
-    }
-    _fontEmbedCss = out.join('\n');
+    const b64 = bufToBase64(
+      await fetch('/vendor/fonts/space-grotesk-v22-latin.woff2').then(r => (r.ok ? r.arrayBuffer() : Promise.reject()))
+    );
+    _fontEmbedCss = `@font-face { font-family: 'Space Grotesk'; font-style: normal; font-weight: 300 700; src: url(data:font/woff2;base64,${b64}) format('woff2'); }`;
   } catch {
     _fontEmbedCss = '';
   }

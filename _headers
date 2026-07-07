@@ -12,3 +12,13 @@
 # covered here on purpose.
 /vendor/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Wrangler infers text/jsx for .jsx, which is not on Cloudflare's compressible
+# MIME list, so these files were shipping uncompressed (~144KB raw vs ~40KB).
+# The JS content-type is safe: browsers never execute type="text/babel" script
+# tags natively; @babel/standalone fetches the source itself and ignores the
+# content-type.
+/green-radius.jsx
+  Content-Type: text/javascript; charset=utf-8
+/admin/admin.jsx
+  Content-Type: text/javascript; charset=utf-8
