@@ -814,14 +814,26 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
     ? tier4Topics.filter(t => !pickedTopicIds.includes(t.id) && !isCampTopic(t))
     : [];
   const campTopic = tier4Topics.find(isCampTopic) || null;
-  const campTopicOpen = isTier4 && !!campTopic && !pickedTopicIds.includes(campTopic.id);
+  // Up to four write-in slots: the base X-camp topic plus synthetic X-camp-2/3/4
+  // ids (see campIdeaIds). Each earns its own Level-4 point, mirroring the form.
+  // The button offers the next free slot until all four are used.
+  const campIds = campIdeaIds(sector);
+  const isCampIdea = (t) => !!t && campIds.includes(t.id);
+  const nextCampId = campTopic ? campIds.find(id => !pickedTopicIds.includes(id)) : null;
+  const campTopicOpen = isTier4 && !!nextCampId;
 
   const q = isTier4
-    ? tier4Topics.find(t => t.id === topicId) || null
+    ? (tier4Topics.find(t => t.id === topicId)
+       || (topicId && campTopic && campIds.includes(topicId)
+           ? { ...campTopic, id: topicId,
+               title: campIds.indexOf(topicId) > 0
+                 ? campTopic.title + ' (' + (campIds.indexOf(topicId) + 1) + ' of 4)'
+                 : campTopic.title }
+           : null))
     : questions[idx];
 
   // The write-in needs its idea described before Yes/No makes sense.
-  const needsIdeaText = isTier4 && isCampTopic(q);
+  const needsIdeaText = isTier4 && isCampIdea(q);
   const canAnswer = !needsIdeaText || customText.trim().length > 0;
 
   function answer(yes) {
@@ -844,7 +856,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
     const nextAnswers = answersByLevel.map((a, li) => li === level ? [...a, yes] : a);
     setAnswersByLevel(nextAnswers);
     const nextPicks = isTier4 ? [...pickedTopicIds, topicId] : pickedTopicIds;
-    const nextNotes = (isTier4 && isCampTopic(q) && customText.trim())
+    const nextNotes = (isTier4 && isCampIdea(q) && customText.trim())
       ? { ...notes, [q.id]: customText.trim() }
       : notes;
     if (isTier4) {
@@ -875,7 +887,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
         const prevPick = pickedTopicIds[pickedTopicIds.length - 1];
         // The un-answered write-in's text would die with its note; keep it as
         // the draft so the player can reopen the write-in without retyping.
-        if (prevPick && /-camp$/.test(prevPick) && typeof notes[prevPick] === 'string') {
+        if (prevPick && campIds.includes(prevPick) && typeof notes[prevPick] === 'string') {
           setCustomText(notes[prevPick]);
         }
         setAnswersByLevel(a => a.map((l, li) => li === 3 ? l.slice(0, -1) : l));
@@ -989,7 +1001,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
               ADVANCED · OPTIONAL · TOPIC {idx + 1} OF 4
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.5, color: palette.text + 'cc', marginBottom: 12, textWrap: 'pretty' }}>
-              Pick an advanced {sector.name.toLowerCase()} idea your camp pursued from the list, or write in your own. Totally optional.
+              Pick an advanced {sector.name.toLowerCase()} idea your camp pursued from the list, or write in up to four of your own. Totally optional.
             </div>
             <select
               value={topicId}
@@ -1015,7 +1027,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
             {campTopicOpen && (
               <button
                 type="button"
-                onClick={() => setTopicId(campTopic.id)}
+                onClick={() => setTopicId(nextCampId)}
                 style={{
                   width: '100%', marginTop: 10, padding: '12px 0', borderRadius: 12,
                   border: '1.5px dashed #5BA84A99', background: '#5BA84A14',
@@ -1023,7 +1035,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
                   letterSpacing: '0.12em', textTransform: 'uppercase',
                   cursor: 'pointer', fontFamily: 'inherit',
                 }}
-              ><span aria-hidden="true">✎ </span>Write in your own idea</button>
+              ><span aria-hidden="true">✎ </span>{campIds.indexOf(nextCampId) > 0 ? 'Add another idea' : 'Write in your own idea'}</button>
             )}
             <button
               type="button"
