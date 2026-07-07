@@ -56,6 +56,7 @@
     outline: 2px solid #2a2620;
     outline-offset: 2px;
   }
+  [role="dialog"] button[aria-label="Close"]:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
   @keyframes qm-fade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes qm-up   { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -79,6 +80,20 @@
   @keyframes grg-wpop     { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
   @keyframes grg-tick     { 0% { transform: scale(1); } 50% { transform: scale(1.12); } 100% { transform: scale(1); } }
   @keyframes grg-rankslam { 0% { opacity: 0; transform: scale(2.2) rotate(-10deg); } 55% { opacity: 1; transform: scale(0.95) rotate(-3deg); } 75% { transform: scale(1.04) rotate(-3deg); } 100% { opacity: 1; transform: scale(1) rotate(-3deg); } }
+
+  /* Toy/board-game buttons: a hard drop-shadow "foot" that compresses on
+     press, so the button physically depresses instead of just changing
+     color. Color comes from --grg-sh since a class's box-shadow can't be
+     overridden per-instance any other way while still winning over the
+     inline style it replaces. */
+  .grg-press { box-shadow: 0 5px 0 var(--grg-sh); transition: transform .09s ease, box-shadow .09s ease; }
+  .grg-press:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 var(--grg-sh); }
+  .grg-press-sm { box-shadow: 0 4px 0 var(--grg-sh); transition: transform .09s ease, box-shadow .09s ease; }
+  .grg-press-sm:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 var(--grg-sh); }
+  @media (prefers-reduced-motion: reduce) {
+    .grg-press:active:not(:disabled)    { transform: none; box-shadow: 0 5px 0 var(--grg-sh); }
+    .grg-press-sm:active:not(:disabled) { transform: none; box-shadow: 0 4px 0 var(--grg-sh); }
+  }
   @media (prefers-reduced-motion: reduce) {
     @keyframes qm-fade { from { opacity: 1; } to { opacity: 1; } }
     @keyframes qm-up   { from { opacity: 1; transform: none; } to { opacity: 1; transform: none; } }

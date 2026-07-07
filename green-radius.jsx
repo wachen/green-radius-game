@@ -49,7 +49,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v47';
+const APP_VERSION = 'v48';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -58,6 +58,7 @@ function validQidSet(sectors) {
   sectors.forEach(s => {
     s.levels.slice(0, 3).forEach(level => (level || []).forEach(q => set.add(q.id)));
     (s.tier4Topics || []).forEach(t => set.add(t.id));
+    campIdeaIds(s).slice(1).forEach(id => set.add(id)); // extra write-in slots 2-4
   });
   return set;
 }
@@ -298,16 +299,30 @@ function FxLayer() {
   );
 }
 
+// Up to 4 write-in "Our Camp's Idea" slots per sector. The first is the
+// data-defined X-camp topic (already in tier4Topics); slots 2-4 are synthetic
+// ids (X-camp-2/3/4) the form can add on demand. Returns [] for a sector with
+// no write-in topic. Each idea answered "yes" earns a Level-4 point.
+function campIdeaIds(sector) {
+  const base = (sector.tier4Topics || []).find(t => /-camp$/.test(t.id));
+  return base ? [base.id, base.id + '-2', base.id + '-3', base.id + '-4'] : [];
+}
+
 // Per-sector fill: levels[0..2] = one bool per fixed question (in order);
 // levels[3] = 4 slots, the first (advanced-Yes count, capped at 4) set true.
 // totalYes is 0..10; `played` is true once any of the sector's questions is answered.
 function sectorFill(sector, answers) {
   const levels = [0, 1, 2].map(li => (sector.levels[li] || []).map(q => answers[q.id] === 'yes'));
-  const advYes = Math.min(4, (sector.tier4Topics || []).filter(t => answers[t.id] === 'yes').length);
+  // Extra write-in ideas (slots 2-4) count toward Level 4 alongside the fixed
+  // tier-4 topics (which already include the base X-camp slot).
+  const extraCampIds = campIdeaIds(sector).slice(1);
+  const advYes = Math.min(4,
+    (sector.tier4Topics || []).filter(t => answers[t.id] === 'yes').length +
+    extraCampIds.filter(id => answers[id] === 'yes').length);
   levels[3] = [0, 1, 2, 3].map(i => i < advYes);
   const fixedYes = levels.slice(0, 3).reduce((n, a) => n + a.filter(Boolean).length, 0);
   const ids = [].concat(...sector.levels.slice(0, 3)).map(q => q.id)
-    .concat((sector.tier4Topics || []).map(t => t.id));
+    .concat((sector.tier4Topics || []).map(t => t.id)).concat(extraCampIds);
   const played = ids.some(id => answers[id] === 'yes' || answers[id] === 'no');
   return { levels, totalYes: fixedYes + advYes, played };
 }
@@ -799,14 +814,26 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
     ? tier4Topics.filter(t => !pickedTopicIds.includes(t.id) && !isCampTopic(t))
     : [];
   const campTopic = tier4Topics.find(isCampTopic) || null;
-  const campTopicOpen = isTier4 && !!campTopic && !pickedTopicIds.includes(campTopic.id);
+  // Up to four write-in slots: the base X-camp topic plus synthetic X-camp-2/3/4
+  // ids (see campIdeaIds). Each earns its own Level-4 point, mirroring the form.
+  // The button offers the next free slot until all four are used.
+  const campIds = campIdeaIds(sector);
+  const isCampIdea = (t) => !!t && campIds.includes(t.id);
+  const nextCampId = campTopic ? campIds.find(id => !pickedTopicIds.includes(id)) : null;
+  const campTopicOpen = isTier4 && !!nextCampId;
 
   const q = isTier4
-    ? tier4Topics.find(t => t.id === topicId) || null
+    ? (tier4Topics.find(t => t.id === topicId)
+       || (topicId && campTopic && campIds.includes(topicId)
+           ? { ...campTopic, id: topicId,
+               title: campIds.indexOf(topicId) > 0
+                 ? campTopic.title + ' (' + (campIds.indexOf(topicId) + 1) + ' of 4)'
+                 : campTopic.title }
+           : null))
     : questions[idx];
 
   // The write-in needs its idea described before Yes/No makes sense.
-  const needsIdeaText = isTier4 && isCampTopic(q);
+  const needsIdeaText = isTier4 && isCampIdea(q);
   const canAnswer = !needsIdeaText || customText.trim().length > 0;
 
   function answer(yes) {
@@ -829,7 +856,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
     const nextAnswers = answersByLevel.map((a, li) => li === level ? [...a, yes] : a);
     setAnswersByLevel(nextAnswers);
     const nextPicks = isTier4 ? [...pickedTopicIds, topicId] : pickedTopicIds;
-    const nextNotes = (isTier4 && isCampTopic(q) && customText.trim())
+    const nextNotes = (isTier4 && isCampIdea(q) && customText.trim())
       ? { ...notes, [q.id]: customText.trim() }
       : notes;
     if (isTier4) {
@@ -860,7 +887,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
         const prevPick = pickedTopicIds[pickedTopicIds.length - 1];
         // The un-answered write-in's text would die with its note; keep it as
         // the draft so the player can reopen the write-in without retyping.
-        if (prevPick && /-camp$/.test(prevPick) && typeof notes[prevPick] === 'string') {
+        if (prevPick && campIds.includes(prevPick) && typeof notes[prevPick] === 'string') {
           setCustomText(notes[prevPick]);
         }
         setAnswersByLevel(a => a.map((l, li) => li === 3 ? l.slice(0, -1) : l));
@@ -974,7 +1001,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
               ADVANCED · OPTIONAL · TOPIC {idx + 1} OF 4
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.5, color: palette.text + 'cc', marginBottom: 12, textWrap: 'pretty' }}>
-              Pick an advanced {sector.name.toLowerCase()} idea your camp pursued from the list, or write in your own. Totally optional.
+              Pick an advanced {sector.name.toLowerCase()} idea your camp pursued from the list, or write in up to four of your own. Totally optional.
             </div>
             <select
               value={topicId}
@@ -1000,7 +1027,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
             {campTopicOpen && (
               <button
                 type="button"
-                onClick={() => setTopicId(campTopic.id)}
+                onClick={() => setTopicId(nextCampId)}
                 style={{
                   width: '100%', marginTop: 10, padding: '12px 0', borderRadius: 12,
                   border: '1.5px dashed #5BA84A99', background: '#5BA84A14',
@@ -1008,7 +1035,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
                   letterSpacing: '0.12em', textTransform: 'uppercase',
                   cursor: 'pointer', fontFamily: 'inherit',
                 }}
-              ><span aria-hidden="true">✎ </span>Write in your own idea</button>
+              ><span aria-hidden="true">✎ </span>{campIds.indexOf(nextCampId) > 0 ? 'Add another idea' : 'Write in your own idea'}</button>
             )}
             <button
               type="button"
@@ -1586,18 +1613,47 @@ const FAQ_ITEMS = [
   },
 ];
 
-// Section header for the About modal: a small tinted chip + title, echoing the
-// sector-chip language used across the app.
-function AboutSection({ icon, title, palette, children }) {
+// Monoline icon set for the About modal's section headers, matching
+// SectorIcon's exact stroke idiom so the guide reads as line icons rather
+// than colorful emoji.
+function AboutIcon({ kind, size = 15, color = '#558040' }) {
+  const p = { fill: 'none', stroke: color, strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const svgProps = { width: size, height: size, viewBox: '0 0 24 24' };
+  switch (kind) {
+    case 'why': // lightbulb — purpose / the idea
+      return <svg {...svgProps}><path {...p} d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path {...p} d="M9 18h6"/><path {...p} d="M10 22h4"/></svg>;
+    case 'sectors': // hexagon — six sides = six sectors
+      return <svg {...svgProps}><path {...p} d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>;
+    case 'levels': // four ascending bars = four levels
+      return <svg {...svgProps}><path {...p} d="M4 20V14"/><path {...p} d="M9.33 20V11"/><path {...p} d="M14.67 20V8"/><path {...p} d="M20 20V5"/></svg>;
+    case 'results': // award rosette — your standing / result
+      return <svg {...svgProps}><path {...p} d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle {...p} cx="12" cy="8" r="6"/></svg>;
+    case 'questions': // chat bubble with a question mark
+      return <svg {...svgProps}><path {...p} d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/><path {...p} d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/><path {...p} d="M12 17h.01"/></svg>;
+    default: return null;
+  }
+}
+
+// Section header for the About modal: a small tinted chip + title + a roman-
+// numeral mark, echoing the sector-chip language used across the app. A
+// hairline above each entry (after the first) gives the guide a bound,
+// page-turning rhythm instead of a stack of divs.
+function AboutSection({ icon, title, mark, divider, palette, children }) {
   return (
-    <div style={{ marginTop: 22 }}>
+    <div style={{
+      marginTop: divider ? 20 : 22, paddingTop: divider ? 20 : 0,
+      borderTop: divider ? '1px solid ' + palette.text + '14' : 'none',
+    }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
         <span aria-hidden="true" style={{
           width: 27, height: 27, borderRadius: 8, background: '#7AB85C26',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, flexShrink: 0,
-        }}>{icon}</span>
-        <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.01em' }}>{title}</span>
+          flexShrink: 0,
+        }}><AboutIcon kind={icon} /></span>
+        <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.01em', flex: 1 }}>{title}</span>
+        {mark && (
+          <span aria-hidden="true" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: palette.text + '59' }}>{mark}</span>
+        )}
       </div>
       {children}
     </div>
@@ -1611,11 +1667,12 @@ function FaqButton({ onClick, palette, btnRef, expanded }) {
       onClick={onClick}
       aria-haspopup="dialog"
       aria-expanded={!!expanded}
+      className="grg-press-sm"
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 7,
         background: '#3B7DD8', color: '#fff', border: 'none', cursor: 'pointer',
         fontFamily: 'inherit', fontWeight: 700, fontSize: 13, letterSpacing: '0.02em',
-        padding: '8px 17px', borderRadius: 999, boxShadow: '0 4px 0 #2C5DA0',
+        padding: '8px 17px', borderRadius: 999, '--grg-sh': '#2C5DA0',
       }}
     >
       <span aria-hidden="true" style={{
@@ -1667,19 +1724,43 @@ function FaqModal({ onClose, palette }) {
         }}
       >
         <div style={{
-          position: 'sticky', top: 0, background: palette.card,
-          paddingTop: 22, paddingBottom: 10, marginBottom: 2,
-          textAlign: 'center',
+          position: 'sticky', top: 0, zIndex: 5, background: palette.accentDark,
+          margin: '0 -22px', padding: '22px 22px 16px', borderRadius: '24px 24px 0 0',
+          marginBottom: 4, textAlign: 'center',
+          boxShadow: '0 8px 16px -10px rgba(0,0,0,0.35)',
         }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, color: palette.accent, textTransform: 'uppercase' }}>Green Radius</div>
-          <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3, padding: '0 30px' }}>About the Game</div>
+          {/* Small wheel mark: the app's signature radial motif, echoed once
+              here as the modal's one deliberate flourish. Same wedge-path
+              math and coloring as the "Play the Game" tile (minus its
+              pointer notch), shrunk to a medallion so it reads clean on the
+              cream card the way it does on the tile's solid green. */}
+          <svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true" style={{ display: 'block', margin: '0 auto 8px' }}>
+            <circle cx="32" cy="33" r="26" fill={palette.accent}/>
+            <g transform="rotate(-15 32 33)">
+              {['#68B05C', '#56A85C', '#d3c4a8', '#439F5B', '#e4d9c1', '#31975B'].map((c, i) => {
+                const a0 = (i * 60 - 90) * Math.PI / 180;
+                const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
+                const r = 23;
+                return (
+                  <path key={i} fill={c} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round"
+                    d={`M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`}/>
+                );
+              })}
+            </g>
+            <circle cx="32" cy="33" r="23" fill="none" stroke="#fff" strokeWidth="2"/>
+            <circle cx="32" cy="33" r="7.5" fill="#fff"/>
+            <circle cx="32" cy="33" r="3" fill={palette.accent}/>
+          </svg>
+          <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase' }}>Green Radius</div>
+          <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3, padding: '0 30px', color: palette.card }}>About the Game</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4, padding: '0 30px' }}>How the game works, in four parts</div>
           <button
             ref={closeRef} onClick={onClose} aria-label="Close"
-            style={{ position: 'absolute', top: 12, right: 0, border: 'none', background: palette.text + '0f', width: 40, height: 40, borderRadius: '50%', fontSize: 15, cursor: 'pointer', color: palette.text, lineHeight: 1 }}
+            style={{ position: 'absolute', top: 12, right: 22, border: 'none', background: 'rgba(255,255,255,0.16)', width: 40, height: 40, borderRadius: '50%', fontSize: 15, cursor: 'pointer', color: palette.card, lineHeight: 1 }}
           >✕</button>
         </div>
 
-        <AboutSection icon="💡" title="Why this exists" palette={palette}>
+        <AboutSection icon="why" title="Why this exists" mark="#1" palette={palette}>
           <div style={{ fontSize: 13.5, lineHeight: 1.55, color: palette.text + 'd1', textWrap: 'pretty' }}>
             The playa doesn't need another form. The Green Radius is not a compliance
             audit; it's a mirror. See where your camp stands across six sustainability
@@ -1689,15 +1770,20 @@ function FaqModal({ onClose, palette }) {
           </div>
         </AboutSection>
 
-        <AboutSection icon="🧭" title="The six sectors" palette={palette}>
+        <AboutSection icon="sectors" title="The six sectors" mark="#2" divider palette={palette}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {window.SECTORS.map(s => (
               <div key={s.id} style={{
-                border: '1px solid ' + palette.text + '14', borderRadius: 12,
-                background: palette.text + '06', padding: '10px 11px',
+                border: '1px solid ' + palette.text + '14', borderRadius: 14,
+                background: palette.text + '06', padding: '11px 12px',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                  <SectorIcon kind={s.icon} size={16} color="#558040"/>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+                  <span aria-hidden="true" style={{
+                    width: 22, height: 22, borderRadius: 7, background: '#7AB85C1f',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <SectorIcon kind={s.icon} size={13} color="#558040"/>
+                  </span>
                   <span style={{ fontWeight: 800, fontSize: 12.5 }}>{s.name}</span>
                 </div>
                 <div style={{ fontSize: 11.5, lineHeight: 1.45, color: palette.text + 'b3' }}>
@@ -1708,18 +1794,31 @@ function FaqModal({ onClose, palette }) {
           </div>
         </AboutSection>
 
-        <AboutSection icon="🎯" title="Four levels per sector" palette={palette}>
-          {LEVEL_ROWS.map((lv, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0' }}>
-              <span aria-hidden="true" style={{
-                width: 24, height: 24, borderRadius: 7, background: LEVEL_COLORS[i],
-                color: '#fff', fontSize: 12, fontWeight: 800, flexShrink: 0,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              }}>{i + 1}</span>
-              <span style={{ fontWeight: 700, fontSize: 13.5 }}>{lv.name}</span>
-              <span style={{ fontSize: 11.5, color: palette.text + '99', flex: 1, textAlign: 'right' }}>{lv.count}</span>
-            </div>
-          ))}
+        <AboutSection icon="levels" title="Four levels per sector" mark="#3" divider palette={palette}>
+          <div style={{ position: 'relative' }}>
+            {/* A quiet progression rail strung behind the numbered chips,
+                from Level 1's color through Level 4's, so the legend reads
+                as a path rather than four unrelated rows. */}
+            <div aria-hidden="true" style={{
+              position: 'absolute', left: 11, top: 18, bottom: 18, width: 2,
+              borderRadius: 2, background: 'linear-gradient(' + LEVEL_COLORS.join(',') + ')', opacity: 0.35,
+            }}/>
+            {LEVEL_ROWS.map((lv, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', position: 'relative' }}>
+                <span aria-hidden="true" style={{
+                  width: 24, height: 24, borderRadius: 7, background: LEVEL_COLORS[i],
+                  color: '#fff', fontSize: 12, fontWeight: 800, flexShrink: 0,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 0 0 3px ' + palette.card,
+                }}>{i + 1}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>{lv.name}</div>
+                  <div style={{ fontSize: 11, color: palette.text + '80', marginTop: 1 }}>{lv.blurb}</div>
+                </div>
+                <span style={{ fontSize: 11.5, color: palette.text + '99', flexShrink: 0, paddingLeft: 8, textAlign: 'right' }}>{lv.count}</span>
+              </div>
+            ))}
+          </div>
           <div style={{ fontSize: 12.5, lineHeight: 1.5, color: palette.text + 'b3', marginTop: 8, textWrap: 'pretty' }}>
             Every yes lights its own segment: 10 per sector, 60 total. An early no never
             blocks later progress, and Level 4 is optional extra credit with a write-in
@@ -1727,7 +1826,7 @@ function FaqModal({ onClose, palette }) {
           </div>
         </AboutSection>
 
-        <AboutSection icon="🌱" title="Your results" palette={palette}>
+        <AboutSection icon="results" title="Your results" mark="#4" divider palette={palette}>
           <div style={{ fontSize: 13.5, lineHeight: 1.55, color: palette.text + 'd1', textWrap: 'pretty' }}>
             When you finish, you'll see your Green Radius and get your shareable results
             card plus a personal Green-Up Plan by email. Your results join the community
@@ -1736,7 +1835,7 @@ function FaqModal({ onClose, palette }) {
           </div>
         </AboutSection>
 
-        <AboutSection icon="❓" title="More questions" palette={palette}>
+        <AboutSection icon="questions" title="More questions" divider palette={palette}>
           {FAQ_ITEMS.map((item, i) => (
             <div key={i} style={{
               borderTop: i === 0 ? 'none' : '1px solid ' + palette.text + '1a',
@@ -1748,20 +1847,26 @@ function FaqModal({ onClose, palette }) {
           ))}
         </AboutSection>
 
-        <div style={{
-          marginTop: 20, padding: '14px 12px', borderRadius: 14, textAlign: 'center',
-          background: '#7AB85C14', border: '1px solid #7AB85C33',
-        }}>
-          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: palette.text + 'd1', marginBottom: 10, textWrap: 'pretty' }}>
-            Full guidance for every sector and level lives in the Green Theme Camp
-            Community's Resource Guide.
+        {/* Back cover: closes the guide with the same hairline rhythm used
+            between sections above, plus one small utility-label eyebrow to
+            bookend the masthead at the top. */}
+        <div style={{ marginTop: 26, paddingTop: 20, borderTop: '1px solid ' + palette.text + '14' }}>
+          <div style={{
+            padding: '18px 16px', borderRadius: 16, textAlign: 'center',
+            background: '#7AB85C14', border: '1px solid #7AB85C33',
+          }}>
+            <div style={{ fontSize: 10, letterSpacing: '0.2em', fontWeight: 700, color: '#558040', textTransform: 'uppercase', marginBottom: 6 }}>Learn More</div>
+            <div style={{ fontSize: 12.5, lineHeight: 1.5, color: palette.text + 'd1', marginBottom: 12, textWrap: 'pretty' }}>
+              Full guidance for every sector and level lives in the Green Theme Camp
+              Community's Resource Guide.
+            </div>
+            <a href={RESOURCE_GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{
+              display: 'inline-block',
+              background: '#7AB85C', color: '#fff', fontWeight: 700, fontSize: 13,
+              padding: '9px 14px', borderRadius: 11, boxShadow: '0 4px 0 #558040',
+              textDecoration: 'none',
+            }}>Open the Resource Guide →</a>
           </div>
-          <a href={RESOURCE_GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{
-            display: 'inline-block',
-            background: '#7AB85C', color: '#fff', fontWeight: 700, fontSize: 13,
-            padding: '9px 14px', borderRadius: 11, boxShadow: '0 4px 0 #558040',
-            textDecoration: 'none',
-          }}>Open the Resource Guide →</a>
         </div>
       </div>
     </div>
@@ -1790,7 +1895,7 @@ function ModePicker({ onPick, palette }) {
 
       <div style={{
         display: 'flex', justifyContent: 'center', alignItems: 'center',
-        gap: 14, margin: '12px 0 14px',
+        gap: 12, margin: '8px 0 18px',
       }} aria-hidden="true">
         {window.SECTORS.map(s => (
           <SectorIcon key={s.id} kind={s.icon} size={24} color={palette.accent}/>
@@ -1807,10 +1912,11 @@ function ModePicker({ onPick, palette }) {
       <button
         onClick={() => onPick('board')}
         aria-label="Play the game in board game mode"
+        className="grg-press"
         style={{
           ...tileBase,
           background: palette.accent, color: '#fff',
-          boxShadow: `0 5px 0 ${palette.accentDark}`,
+          '--grg-sh': palette.accentDark,
         }}
       >
         <svg viewBox="0 0 64 64" width="54" height="54" aria-hidden="true"
@@ -1823,15 +1929,15 @@ function ModePicker({ onPick, palette }) {
               const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
               const r = 23;
               return (
-                <path key={i} fill={c} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round"
+                <path key={i} fill={c} stroke={palette.text} strokeWidth="1.8" strokeLinejoin="round"
                   d={`M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`}/>
               );
             })}
           </g>
-          <circle cx="32" cy="33" r="23" fill="none" stroke="#fff" strokeWidth="3"/>
-          <circle cx="32" cy="33" r="7.5" fill="#fff"/>
+          <circle cx="32" cy="33" r="23" fill="none" stroke={palette.text} strokeWidth="3"/>
+          <circle cx="32" cy="33" r="7.5" fill="#fff" stroke={palette.text} strokeWidth="1.5"/>
           <circle cx="32" cy="33" r="3" fill={palette.accent}/>
-          <polygon points="32,12 26.8,3 37.2,3" fill="#fff"/>
+          <polygon points="32,12 26.8,3 37.2,3" fill={palette.text}/>
         </svg>
         <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
           Play the Game
@@ -1847,10 +1953,11 @@ function ModePicker({ onPick, palette }) {
       <button
         onClick={() => onPick('form')}
         aria-label="Fill the application form"
+        className="grg-press"
         style={{
           ...tileBase,
           background: palette.card, color: palette.text,
-          boxShadow: `0 5px 0 ${palette.text}1f`,
+          '--grg-sh': palette.text + '1f',
         }}
       >
         <svg viewBox="0 0 64 64" width="54" height="54" aria-hidden="true"
@@ -1881,42 +1988,44 @@ function ModePicker({ onPick, palette }) {
         </div>
       </button>
 
-      <div style={{ marginTop: 4, marginBottom: 14, display: 'flex', justifyContent: 'center' }}>
+      <div style={{ marginTop: 6, marginBottom: 10, display: 'flex', justifyContent: 'center' }}>
+        <FaqButton btnRef={faqBtnRef} expanded={faqOpen} onClick={() => setFaqOpen(true)} palette={palette}/>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
         <a
           href={BOARD_GAME_PDF_URL}
           download
           style={{
-            display: 'inline-block', padding: '10px 4px',
-            color: palette.text + '99', fontSize: 11, fontWeight: 600,
-            letterSpacing: '0.12em', textTransform: 'uppercase',
+            display: 'inline-block', padding: '8px 4px',
+            color: palette.text + '80', fontSize: 10.5, fontWeight: 600,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
             textDecoration: 'underline',
             textUnderlineOffset: '3px',
-            textDecorationColor: palette.text + '44',
+            textDecorationColor: palette.text + '33',
           }}
         >Board Game PDF Download ↓</a>
       </div>
 
-      <div style={{ margin: '9px 0' }}>
-        <FaqButton btnRef={faqBtnRef} expanded={faqOpen} onClick={() => setFaqOpen(true)} palette={palette}/>
-      </div>
+      <div style={{ marginTop: 22, paddingTop: 16, borderTop: '1px solid ' + palette.text + '14' }}>
+        <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
+          style={{
+            fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
+            color: palette.accent, lineHeight: 1.5,
+            textDecoration: 'none', display: 'block',
+          }}
+        >
+          CREATED BY THE<br/>
+          GREEN THEME CAMP COMMUNITY
+        </a>
 
-      <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
-        style={{
-          fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-          color: palette.accent, marginTop: 20, lineHeight: 1.5,
-          textDecoration: 'none', display: 'block',
-        }}
-      >
-        CREATED BY THE<br/>
-        GREEN THEME CAMP COMMUNITY
-      </a>
-
-      <div aria-hidden="true" style={{
-        marginTop: 18, fontSize: 9, fontWeight: 600,
-        letterSpacing: '0.18em', color: palette.text + '40',
-        fontVariantNumeric: 'tabular-nums', userSelect: 'all',
-      }}>
-        {APP_VERSION}
+        <div aria-hidden="true" style={{
+          marginTop: 10, fontSize: 9, fontWeight: 600,
+          letterSpacing: '0.18em', color: palette.text + '40',
+          fontVariantNumeric: 'tabular-nums', userSelect: 'all',
+        }}>
+          {APP_VERSION}
+        </div>
       </div>
 
       {faqOpen && <FaqModal onClose={closeFaq} palette={palette}/>}
@@ -1945,8 +2054,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
   const isAns = (id) => answers[id] === 'yes' || answers[id] === 'no';
   const requiredAnswered = (s) =>
     s.levels.slice(0, 3).every(lvl => lvl.every(qq => isAns(qq.id))) &&
-    (s.tier4Topics || []).every(t =>
-      !isCampTopic(t) || !((notes && notes[t.id]) || '').trim() || isAns(t.id));
+    campIdeaIds(s).every(id => !((notes && notes[id]) || '').trim() || isAns(id));
   const incompleteSectors = sectors.filter(s => !requiredAnswered(s));
   const allComplete = incompleteSectors.length === 0;
   const firstIncompleteIndex = sectors.findIndex(s => !requiredAnswered(s));
@@ -1975,6 +2083,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
     cursor: enabled ? 'pointer' : 'default',
     background: enabled ? palette.text + '11' : palette.text + '08',
     color: enabled ? palette.text : palette.text + '40',
+    '--grg-sh': palette.text + '22',
   });
 
   return (
@@ -2053,6 +2162,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
           onClick={() => setPage(p => Math.max(0, p - 1))}
           disabled={page === 0}
           aria-label="Previous sector"
+          className={page !== 0 ? 'grg-press-sm' : undefined}
           style={navPill(page !== 0)}
         >← Previous</button>
 
@@ -2060,6 +2170,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
           <button
             onClick={() => setPage(p => Math.min(lastPage, p + 1))}
             aria-label="Next sector"
+            className="grg-press-sm"
             style={navPill(true)}
           >Next →</button>
         ) : (
@@ -2067,6 +2178,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
             onClick={handleSubmit}
             disabled={!allComplete}
             aria-label="Submit form answers"
+            className={allComplete ? 'grg-press-sm' : undefined}
             style={{
               flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
               fontFamily: 'inherit', fontSize: 13, fontWeight: 800,
@@ -2074,7 +2186,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
               cursor: !allComplete ? 'default' : 'pointer',
               background: !allComplete ? palette.text + '33' : palette.accent,
               color: '#fff',
-              boxShadow: !allComplete ? 'none' : `0 4px 0 ${palette.accentDark}`,
+              '--grg-sh': palette.accentDark,
             }}
           >Submit →</button>
         )}
@@ -2135,6 +2247,76 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
   );
 }
 
+// Level 4 write-ins: up to four "Our Camp's Idea" slots, each a described idea
+// plus its own Yes/No ("did your camp pull it off?"). Every yes earns a Level-4
+// point, so a camp can reach a full 4/4 on its own ideas. Slots past the first
+// appear on demand via "Add another idea"; how many show is seeded from existing
+// data on mount so a reload restores every idea the camp filled in.
+function CampIdeasBlock({ sector, answers, setAnswer, notes, setNote, palette, highlightMissing }) {
+  const ids = campIdeaIds(sector);
+  const hasData = (id) => !!((notes && notes[id]) || '').trim() || answers[id] === 'yes' || answers[id] === 'no';
+  const [shown, setShown] = useState(() => Math.min(4, Math.max(1, ids.filter(hasData).length)));
+  if (!ids.length) return null;
+  const visible = ids.slice(0, shown);
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: palette.text, marginBottom: 2 }}>Our Camp's Ideas</div>
+      <div style={{ fontSize: 11, lineHeight: 1.4, color: palette.text + '88', marginBottom: 6 }}>
+        List up to four of your own {sector.name.toLowerCase()} ideas and whether your camp pulled each one off. Every yes is a Level 4 point.
+      </div>
+      {visible.map((id, i) => {
+        const answered = answers[id] === 'yes' || answers[id] === 'no';
+        const missing = highlightMissing && !!((notes && notes[id]) || '').trim() && !answered;
+        return (
+          <div key={id} style={{
+            padding: '10px 0',
+            borderTop: `1px solid ${palette.text}${i === 0 ? '11' : '0d'}`,
+            borderLeft: `3px solid ${missing ? '#C9821E' : 'transparent'}`,
+            paddingLeft: missing ? 10 : 0,
+            transition: 'border-color .2s ease, padding-left .2s ease',
+          }}>
+            <input
+              value={(notes && notes[id]) || ''}
+              onChange={e => setNote && setNote(id, e.target.value)}
+              maxLength={140}
+              placeholder={i === 0 ? "What did your camp try?" : `Another idea (${i + 1} of 4)`}
+              aria-label={`Describe your camp's own ${sector.name.toLowerCase()} idea, number ${i + 1}`}
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 8,
+                border: `1.5px solid ${palette.text}22`,
+                background: '#fff', color: palette.text,
+                fontSize: 16, fontFamily: 'inherit', marginBottom: 8,
+              }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: palette.text + '99' }}>
+                Did your camp pull it off?
+                {missing && <span style={{ color: '#C9821E', fontWeight: 700, marginLeft: 6 }}>Needs an answer</span>}
+              </span>
+              <div style={{ marginLeft: 'auto' }}>
+                <YesNoButtons qid={id} answer={answers[id]} setAnswer={setAnswer} palette={palette}/>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      {shown < 4 && (
+        <button
+          type="button"
+          onClick={() => setShown(n => Math.min(4, n + 1))}
+          style={{
+            marginTop: 10, background: 'transparent', cursor: 'pointer',
+            border: `1.5px dashed ${palette.text}33`, borderRadius: 8,
+            color: palette.accentDark, fontWeight: 700, fontSize: 12,
+            letterSpacing: '0.04em', padding: '9px 12px', fontFamily: 'inherit',
+            width: '100%',
+          }}
+        >+ Add another idea</button>
+      )}
+    </div>
+  );
+}
+
 function FormSectorBlock({ sector, answers, setAnswer, notes, setNote, palette, highlightMissing }) {
   const fixedQs = [].concat(...sector.levels.slice(0, 3));
   const t4 = sector.tier4Topics || [];
@@ -2190,47 +2372,68 @@ function FormSectorBlock({ sector, answers, setAnswer, notes, setNote, palette, 
               textTransform: 'uppercase', color: palette.text + '88',
             }}>Level 4 · every yes counts, max 4</span>
           </div>
-          {t4.map(t => (
-            <React.Fragment key={t.id}>
-              <YesNoRow
-                qid={t.id}
-                text={t.title} subtext={t.description}
-                answer={answers[t.id]} setAnswer={setAnswer} palette={palette}
-                missing={highlightMissing && isCampTopic(t)
-                  && !!((notes && notes[t.id]) || '').trim() && !isAnswered(t.id)}
-              />
-              {/* write-in slot: capture the camp's own idea alongside its Yes/No */}
-              {isCampTopic(t) && (
-                <input
-                  value={(notes && notes[t.id]) || ''}
-                  onChange={e => setNote && setNote(t.id, e.target.value)}
-                  maxLength={140}
-                  placeholder="What did your camp try?"
-                  aria-label={`Describe your camp's own ${sector.name.toLowerCase()} idea`}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 8,
-                    border: `1.5px solid ${palette.text}22`,
-                    background: '#fff', color: palette.text,
-                    fontSize: 16, fontFamily: 'inherit',
-                    marginTop: -2, marginBottom: 10,
-                  }}
-                />
-              )}
-            </React.Fragment>
+          {t4.filter(t => !isCampTopic(t)).map(t => (
+            <YesNoRow
+              key={t.id}
+              qid={t.id}
+              text={t.title} subtext={t.description}
+              answer={answers[t.id]} setAnswer={setAnswer} palette={palette}
+            />
           ))}
+          <CampIdeasBlock
+            sector={sector}
+            answers={answers} setAnswer={setAnswer}
+            notes={notes} setNote={setNote}
+            palette={palette} highlightMissing={highlightMissing}
+          />
         </>
       )}
     </section>
   );
 }
 
-function YesNoRow({ qid, text, subtext, answer, setAnswer, palette, missing }) {
+// The board-game Yes/No feel on the form: a hard drop-shadow on the active
+// choice plus a spring-bounce on tap (grg-spring / grg-spring-soft, the same
+// keyframes the board game uses; both collapse to no-op under reduced motion).
+function YesNoButtons({ qid, answer, setAnswer, palette }) {
   const btnBase = {
     border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
     letterSpacing: '0.12em', textTransform: 'uppercase',
     padding: '8px 14px', borderRadius: 8, fontFamily: 'inherit',
-    minWidth: 56, minHeight: 44, // WCAG 2.5.5 touch target (pressed up to 60x/game)
+    minWidth: 56, minHeight: 44, // WCAG 2.5.5 touch target
   };
+  const bounce = (e, yes) => {
+    const el = e.currentTarget;
+    el.style.animation = 'none';
+    void el.offsetWidth; // reflow so a repeat tap re-fires the animation
+    el.style.animation = (yes ? 'grg-spring' : 'grg-spring-soft') + ' 0.42s cubic-bezier(.34,1.56,.64,1)';
+  };
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <button
+        onClick={(e) => { bounce(e, true); setAnswer(qid, 'yes'); }}
+        aria-pressed={answer === 'yes'}
+        style={{
+          ...btnBase,
+          background: answer === 'yes' ? palette.accent : palette.text + '11',
+          color: answer === 'yes' ? '#fff' : palette.text,
+          boxShadow: answer === 'yes' ? `0 3px 0 ${palette.accentDark}` : 'none',
+        }}
+      >Yes</button>
+      <button
+        onClick={(e) => { bounce(e, false); setAnswer(qid, 'no'); }}
+        aria-pressed={answer === 'no'}
+        style={{
+          ...btnBase,
+          background: answer === 'no' ? palette.text : palette.text + '11',
+          color: answer === 'no' ? '#fff' : palette.text,
+        }}
+      >No</button>
+    </div>
+  );
+}
+
+function YesNoRow({ qid, text, subtext, answer, setAnswer, palette, missing }) {
   return (
     <div style={{
       padding: '12px 0',
@@ -2247,27 +2450,7 @@ function YesNoRow({ qid, text, subtext, answer, setAnswer, palette, missing }) {
           {subtext}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          onClick={() => setAnswer(qid, 'yes')}
-          aria-pressed={answer === 'yes'}
-          style={{
-            ...btnBase,
-            background: answer === 'yes' ? palette.accent : palette.text + '11',
-            color: answer === 'yes' ? '#fff' : palette.text,
-            boxShadow: answer === 'yes' ? `0 2px 0 ${palette.accentDark}` : 'none',
-          }}
-        >Yes</button>
-        <button
-          onClick={() => setAnswer(qid, 'no')}
-          aria-pressed={answer === 'no'}
-          style={{
-            ...btnBase,
-            background: answer === 'no' ? palette.text : palette.text + '11',
-            color: answer === 'no' ? '#fff' : palette.text,
-          }}
-        >No</button>
-      </div>
+      <YesNoButtons qid={qid} answer={answer} setAnswer={setAnswer} palette={palette}/>
     </div>
   );
 }
