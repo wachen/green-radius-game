@@ -1726,7 +1726,7 @@ function FaqModal({ onClose, palette }) {
           </svg>
           <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase' }}>Green Radius</div>
           <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3, padding: '0 30px', color: palette.card }}>About the Game</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4, padding: '0 30px' }}>How the game works, told in five parts</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4, padding: '0 30px' }}>How the game works, in four parts</div>
           <button
             ref={closeRef} onClick={onClose} aria-label="Close"
             style={{ position: 'absolute', top: 12, right: 22, border: 'none', background: 'rgba(255,255,255,0.16)', width: 40, height: 40, borderRadius: '50%', fontSize: 15, cursor: 'pointer', color: palette.card, lineHeight: 1 }}
@@ -1808,7 +1808,7 @@ function FaqModal({ onClose, palette }) {
           </div>
         </AboutSection>
 
-        <AboutSection icon="questions" title="More questions" mark="#5" divider palette={palette}>
+        <AboutSection icon="questions" title="More questions" divider palette={palette}>
           {FAQ_ITEMS.map((item, i) => (
             <div key={i} style={{
               borderTop: i === 0 ? 'none' : '1px solid ' + palette.text + '1a',
