@@ -1902,15 +1902,15 @@ function ModePicker({ onPick, palette }) {
               const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
               const r = 23;
               return (
-                <path key={i} fill={c} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round"
+                <path key={i} fill={c} stroke={palette.text} strokeWidth="1.8" strokeLinejoin="round"
                   d={`M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`}/>
               );
             })}
           </g>
-          <circle cx="32" cy="33" r="23" fill="none" stroke="#fff" strokeWidth="3"/>
-          <circle cx="32" cy="33" r="7.5" fill="#fff"/>
+          <circle cx="32" cy="33" r="23" fill="none" stroke={palette.text} strokeWidth="3"/>
+          <circle cx="32" cy="33" r="7.5" fill="#fff" stroke={palette.text} strokeWidth="1.5"/>
           <circle cx="32" cy="33" r="3" fill={palette.accent}/>
-          <polygon points="32,12 26.8,3 37.2,3" fill="#fff"/>
+          <polygon points="32,12 26.8,3 37.2,3" fill={palette.text}/>
         </svg>
         <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
           Play the Game
