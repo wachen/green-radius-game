@@ -424,7 +424,7 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
   const groups = greenUpSteps(sectors, answers, notes);
   if (!groups.length) return null;
   return (
-    <div style={{ marginTop: 20, textAlign: 'left', background: 'linear-gradient(160deg, #4cba6e 0%, #2f8b50 52%, #164f2b 100%)', borderRadius: 12, overflow: 'hidden' }}>
+    <div style={{ marginTop: 20, textAlign: 'left', background: 'linear-gradient(160deg, #3ea75e 0%, #2d8850 52%, #164f2b 100%)', borderRadius: 12, overflow: 'hidden' }}>
       <div style={{ padding: '20px 16px 16px' }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', textAlign: 'center', margin: '0 0 18px' }}>Your Green-Up Plan</div>
         <div style={{ fontSize: 13, color: '#fff', opacity: 0.7, textAlign: 'center', margin: '0 0 14px' }}>Some ideas to grow your radius next year</div>
