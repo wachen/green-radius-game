@@ -1992,19 +1992,25 @@ function ModePicker({ onPick, palette }) {
         <FaqButton btnRef={faqBtnRef} expanded={faqOpen} onClick={() => setFaqOpen(true)} palette={palette}/>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <a
-          href={BOARD_GAME_PDF_URL}
-          download
-          style={{
-            display: 'inline-block', padding: '8px 4px',
-            color: palette.text + '80', fontSize: 10.5, fontWeight: 600,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-            textDecoration: 'underline',
-            textUnderlineOffset: '3px',
-            textDecorationColor: palette.text + '33',
-          }}
-        >Board Game PDF Download ↓</a>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
+        {[
+          { href: BOARD_GAME_PDF_URL, download: true, label: 'Board Game PDF Download ↓' },
+          { href: '/city/', download: false, label: "See the City's Progress →" },
+        ].map(l => (
+          <a
+            key={l.href}
+            href={l.href}
+            {...(l.download ? { download: true } : {})}
+            style={{
+              display: 'inline-block', padding: '8px 4px',
+              color: palette.text + '80', fontSize: 10.5, fontWeight: 600,
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+              textDecoration: 'underline',
+              textUnderlineOffset: '3px',
+              textDecorationColor: palette.text + '33',
+            }}
+          >{l.label}</a>
+        ))}
       </div>
 
       <div style={{ marginTop: 22, paddingTop: 16, borderTop: '1px solid ' + palette.text + '14' }}>
