@@ -114,8 +114,8 @@ function CityStats({ sectors, data }) {
       </div>
       <div style={{ fontSize: 13.5, color: '#d8cbb6', marginTop: 12 }}>
         <b style={{ color: '#fff' }}>{data.totalYes}</b> of {data.totalPossible} green choices
-        · <b style={{ color: '#fff' }}>{data.count}</b> {data.count === 1 ? 'camp' : 'camps'}
-        · +{data.thisWeek} this week
+        {' · '}<b style={{ color: '#fff' }}>{data.count}</b> {data.count === 1 ? 'camp' : 'camps'}
+        {' · '}+{data.thisWeek} this week
       </div>
       {data.stale && (
         <div style={{ fontSize: 11, color: '#b8a88f', marginTop: 6 }}>
