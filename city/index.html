@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>The City's Green Radius</title>
+<meta name="description" content="How green is Black Rock City going this year? The live community tally from the Green Radius Game. Add your camp at greenradi.us."/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="The City's Green Radius"/>
+<meta property="og:description" content="How green is Black Rock City going this year? The live community tally from the Green Radius Game. Add your camp at greenradi.us."/>
+<meta property="og:image" content="https://greenradi.us/og-card.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="Green Radius Game. A radial sustainability scorecard for Burning Man theme camps."/>
+<meta name="twitter:card" content="summary_large_image"/>
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232a2620'/%3E%3Cpath d='M3 16a13 13 0 1 1 26 0z' fill='%237AB85C'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%232a2620'/%3E%3C/svg%3E"/>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+
+<link rel="preload" href="/vendor/fonts/space-grotesk-v22-latin.woff2" as="font" type="font/woff2" crossorigin/>
+
+<script defer src="/vendor/react-18.3.1.production.min.js"></script>
+<script defer src="/vendor/react-dom-18.3.1.production.min.js"></script>
+<script defer src="/vendor/babel-standalone-7.29.0.min.js"></script>
+
+<script defer src="../game-data.js"></script>
+<script type="text/babel" src="../green-radius.jsx"></script>
+
+<style>
+  /* Same vendored Space Grotesk as index.html (see the comment there). */
+  @font-face {
+    font-family: 'Space Grotesk';
+    font-style: normal;
+    font-weight: 300 700;
+    font-display: swap;
+    src: url('/vendor/fonts/space-grotesk-v22-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+
+  /* Loading placeholder shown until React mounts (root.render clears it). */
+  .grg-loading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; text-align: center; padding: 24px; color: #2a2620;
+  }
+  .grg-loading .grg-loading-dot {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: conic-gradient(#7AB85C 0 50%, #2a2620 50% 100%);
+    animation: grg-loading-spin 1.2s linear infinite;
+  }
+  .grg-loading .grg-loading-slow {
+    opacity: 0; animation: grg-loading-reveal 0.4s ease 6s forwards;
+    font-size: 13px; color: #2a2620aa; max-width: 280px;
+  }
+  @keyframes grg-loading-spin { to { transform: rotate(360deg); } }
+  @keyframes grg-loading-reveal { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .grg-loading .grg-loading-dot { animation: none; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#D8CBB6;font-family:'Space Grotesk',system-ui,-apple-system,sans-serif;">
+<div id="root" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#D8CBB6;padding:24px">
+  <div class="grg-loading">
+    <div class="grg-loading-dot" aria-hidden="true"></div>
+    <div style="font-weight:700">Adding up the city's progress…</div>
+    <div class="grg-loading-slow">Still loading. On a slow connection this can take a little while the first time.</div>
+  </div>
+</div>
+<noscript>
+  <style>.grg-loading { display: none; } #root { min-height: 0 !important; padding: 0 !important; }</style>
+  <div style="text-align:center;padding:40px 24px;font-family:system-ui">
+    The Green Radius Game needs JavaScript to run. Please enable it and reload.
+  </div>
+</noscript>
+
+<script type="text/babel" data-presets="react">
+// RadialBadge and SectorIcon are defined in green-radius.jsx (another text/babel
+// script). Babel-standalone runs all text/babel scripts in one shared scope, so
+// they are referenced by bare name here — they are NOT window properties.
+
+const CARD_BG = 'linear-gradient(155deg, #1c1410 0%, #2a1c14 100%)';
+const playBtn = {
+  display: 'inline-block', background: '#5BA84A', color: '#fff',
+  padding: '12px 22px', borderRadius: 14, fontWeight: 700, fontSize: 14,
+  textDecoration: 'none', boxShadow: '0 3px 0 #3d7a31',
+};
+
+function fmtAsOf(ms) {
+  return new Date(ms).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function CityCard({ children }) {
+  return (
+    <div style={{
+      background: CARD_BG, borderRadius: 24, color: '#fff', padding: '32px 26px',
+      width: 'min(400px, 100%)', textAlign: 'center', boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+    }}>
+      <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, opacity: 0.6, marginBottom: 4 }}>GREEN RADIUS</div>
+      {children}
+    </div>
+  );
+}
+
+function CityStats({ sectors, data }) {
+  const pct = Math.round((data.tallyPct || 0) * 100);
+  const names = {};
+  sectors.forEach(s => { names[s.id] = s.name; });
+  return (
+    <CityCard>
+      <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 14 }}>The City's Green Radius</div>
+      <div style={{ display: 'flex', justifyContent: 'center', filter: 'drop-shadow(0 0 22px rgba(122,184,92,.35))' }}>
+        <RadialBadge sectors={sectors} fills={{}} size={280} dark
+          intensities={data.intensities} centerLabel={data.hasAnswers ? `${pct}%` : `${data.totalYes}`}/>
+      </div>
+      <div style={{ fontSize: 13.5, color: '#d8cbb6', marginTop: 12 }}>
+        <b style={{ color: '#fff' }}>{data.totalYes}</b> of {data.totalPossible} green choices
+        · <b style={{ color: '#fff' }}>{data.count}</b> {data.count === 1 ? 'camp' : 'camps'}
+        · +{data.thisWeek} this week
+      </div>
+      {data.stale && (
+        <div style={{ fontSize: 11, color: '#b8a88f', marginTop: 6 }}>
+          Live tally unavailable right now. Showing the count as of {fmtAsOf(data.generatedAt)}.
+        </div>
+      )}
+      <div style={{ margin: '18px auto 0', maxWidth: 300, textAlign: 'left' }}>
+        <div style={{ fontSize: 10, letterSpacing: '0.16em', fontWeight: 800, color: '#8fbf78', marginBottom: 4 }}>SECTOR AVERAGES</div>
+        {(data.sectorAverages || []).map(s => (
+          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: '1px dashed rgba(255,255,255,0.12)', fontSize: 13 }}>
+            <span style={{ flex: 1, color: '#e9dfcf' }}>{names[s.id] || s.id}</span>
+            <b style={{ fontVariantNumeric: 'tabular-nums' }}>{(+s.avg || 0).toFixed(1)}<span style={{ opacity: 0.5, fontWeight: 600 }}>/10</span></b>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 22 }}>
+        <a href="/" style={playBtn}>Add your camp's radius</a>
+      </div>
+    </CityCard>
+  );
+}
+
+function CityEmpty() {
+  return (
+    <CityCard>
+      <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 8 }}>The City's Green Radius</div>
+      <div style={{ fontSize: 13.5, lineHeight: 1.55, opacity: 0.8, marginBottom: 20 }}>
+        No camps on the board yet this year. Every camp that plays lights up this page. Be the first.
+      </div>
+      <a href="/" style={playBtn}>Play the Green Radius Game</a>
+    </CityCard>
+  );
+}
+
+function CityDegraded() {
+  return (
+    <CityCard>
+      <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 8 }}>The tally is taking a breather.</div>
+      <div style={{ fontSize: 13.5, lineHeight: 1.55, opacity: 0.8, marginBottom: 20 }}>
+        We couldn't load the city's numbers right now. The game itself is fine, and your play still counts toward the tally.
+      </div>
+      <a href="/" style={playBtn}>Play the Green Radius Game</a>
+    </CityCard>
+  );
+}
+
+function CityPage({ sectors }) {
+  const [state, setState] = React.useState({ status: 'loading', data: null });
+  React.useEffect(() => {
+    fetch('/api/city', { headers: { 'Accept': 'application/json' } })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('http ' + r.status)))
+      .then(data => setState({ status: 'ready', data }))
+      .catch(() => setState({ status: 'error', data: null }));
+  }, []);
+  if (state.status === 'loading') return (
+    <div className="grg-loading">
+      <div className="grg-loading-dot" aria-hidden="true"></div>
+      <div style={{ fontWeight: 700 }}>Adding up the city's progress…</div>
+    </div>
+  );
+  if (state.status === 'error') return <CityDegraded/>;
+  if (!state.data.count) return <CityEmpty/>;
+  return <CityStats sectors={sectors} data={state.data}/>;
+}
+
+// Keep the static loading placeholder visible until data arrives: only clear
+// #root (root.render replaces its children) once the fetch settles.
+function Boot() {
+  return <CityPage sectors={window.SECTORS}/>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Boot/>);
+</script>
+</body>
+</html>
