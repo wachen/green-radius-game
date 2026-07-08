@@ -92,10 +92,42 @@ function fmtAsOf(ms) {
 function CityCard({ children }) {
   return (
     <div style={{
-      background: CARD_BG, borderRadius: 24, color: '#fff', padding: '32px 26px',
-      width: 'min(400px, 100%)', textAlign: 'center', boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+      background: CARD_BG, borderRadius: 24, color: '#fff', padding: '28px 26px',
+      width: 'min(400px, 100%)', boxSizing: 'border-box', textAlign: 'center',
+      boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
+      position: 'relative', overflow: 'hidden',
     }}>
-      <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, opacity: 0.6, marginBottom: 4 }}>GREEN RADIUS</div>
+      {/* dust glow, mirroring ShareCard */}
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 30%, rgba(217,136,92,0.18), transparent 60%)', pointerEvents: 'none' }}/>
+      <div style={{ position: 'relative' }}>
+        <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, opacity: 0.6, marginBottom: 4 }}>
+          GREEN RADIUS · BLAST {new Date().getFullYear()}
+        </div>
+        <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.12, textWrap: 'balance' }}>
+          Black Rock City
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Quiet back link above the card, styled like the home screen's underlined links
+// (dark-on-tan: it sits on the page background, not the card).
+function BackLink() {
+  return (
+    <a href="/" style={{
+      display: 'inline-block', padding: '8px 4px', color: '#2a262080',
+      fontSize: 10.5, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+      textDecoration: 'underline', textUnderlineOffset: '3px', textDecorationColor: '#2a262033',
+    }}>← Back</a>
+  );
+}
+
+function CityShell({ children }) {
+  return (
+    <div style={{ width: 'min(400px, 100%)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ textAlign: 'left' }}><BackLink/></div>
       {children}
     </div>
   );
@@ -103,36 +135,48 @@ function CityCard({ children }) {
 
 function CityStats({ sectors, data }) {
   const pct = Math.round((data.tallyPct || 0) * 100);
-  const names = {};
-  sectors.forEach(s => { names[s.id] = s.name; });
+  const avgById = {};
+  (data.sectorAverages || []).forEach(s => { avgById[s.id] = +s.avg || 0; });
   return (
     <CityCard>
-      <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 14 }}>The City's Green Radius</div>
-      <div style={{ display: 'flex', justifyContent: 'center', filter: 'drop-shadow(0 0 22px rgba(122,184,92,.35))' }}>
-        <RadialBadge sectors={sectors} fills={{}} size={280} dark
-          intensities={data.intensities} centerLabel={data.hasAnswers ? `${pct}%` : `${data.totalYes}`}/>
+      <div style={{ marginTop: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
+        <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> green choices achieved</span>
       </div>
-      <div style={{ fontSize: 13.5, color: '#d8cbb6', marginTop: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '0 0 12px' }}>
+        <div style={{ width: '100%', maxWidth: 300 }}>
+          <RadialBadge sectors={sectors} fills={{}} size={300} dark intensities={data.intensities} showGrid={true} fluid/>
+        </div>
+      </div>
+      <div style={{ fontSize: 13.5, color: '#d8cbb6', marginBottom: 4 }}>
         <b style={{ color: '#fff' }}>{data.totalYes}</b> of {data.totalPossible} green choices
         {' · '}<b style={{ color: '#fff' }}>{data.count}</b> {data.count === 1 ? 'camp' : 'camps'}
         {' · '}+{data.thisWeek} this week
       </div>
       {data.stale && (
-        <div style={{ fontSize: 11, color: '#b8a88f', marginTop: 6 }}>
+        <div style={{ fontSize: 11, color: '#b8a88f', marginBottom: 4 }}>
           Live tally unavailable right now. Showing the count as of {fmtAsOf(data.generatedAt)}.
         </div>
       )}
-      <div style={{ margin: '18px auto 0', maxWidth: 300, textAlign: 'left' }}>
-        <div style={{ fontSize: 10, letterSpacing: '0.16em', fontWeight: 800, color: '#8fbf78', marginBottom: 4 }}>SECTOR AVERAGES</div>
-        {(data.sectorAverages || []).map(s => (
-          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: '1px dashed rgba(255,255,255,0.12)', fontSize: 13 }}>
-            <span style={{ flex: 1, color: '#e9dfcf' }}>{names[s.id] || s.id}</span>
-            <b style={{ fontVariantNumeric: 'tabular-nums' }}>{(+s.avg || 0).toFixed(1)}<span style={{ opacity: 0.5, fontWeight: 600 }}>/10</span></b>
-          </div>
-        ))}
+      <div style={{ fontSize: 10, letterSpacing: '0.22em', opacity: 0.55, fontWeight: 700, margin: '10px 0 6px' }}>
+        SECTOR AVERAGES
       </div>
-      <div style={{ marginTop: 22 }}>
-        <a href="/" style={playBtn}>Add your camp's radius</a>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+        {sectors.map(s => {
+          const avg = avgById[s.id] || 0;
+          const c = avg > 0 ? '#7fc46a' : 'rgba(255,255,255,0.4)';
+          return (
+            <div key={s.id} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '8px 4px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <SectorIcon kind={s.icon} size={18} color={c}/>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', opacity: 0.8 }}>{s.name.toUpperCase()}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: c }}>{avg.toFixed(1)}<span style={{ fontSize: 9, opacity: 0.6 }}>/10</span></div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 20 }}>
+        <a href="/" style={playBtn}>↗ Add your camp's radius</a>
       </div>
     </CityCard>
   );
@@ -141,11 +185,10 @@ function CityStats({ sectors, data }) {
 function CityEmpty() {
   return (
     <CityCard>
-      <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 8 }}>The City's Green Radius</div>
-      <div style={{ fontSize: 13.5, lineHeight: 1.55, opacity: 0.8, marginBottom: 20 }}>
+      <div style={{ fontSize: 13.5, lineHeight: 1.55, opacity: 0.8, margin: '14px 0 20px' }}>
         No camps on the board yet this year. Every camp that plays lights up this page. Be the first.
       </div>
-      <a href="/" style={playBtn}>Play the Green Radius Game</a>
+      <a href="/" style={playBtn}>↗ Play the Green Radius Game</a>
     </CityCard>
   );
 }
@@ -153,11 +196,11 @@ function CityEmpty() {
 function CityDegraded() {
   return (
     <CityCard>
-      <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 8 }}>The tally is taking a breather.</div>
+      <div style={{ fontSize: 16, fontWeight: 800, margin: '14px 0 6px' }}>The tally is taking a breather.</div>
       <div style={{ fontSize: 13.5, lineHeight: 1.55, opacity: 0.8, marginBottom: 20 }}>
         We couldn't load the city's numbers right now. The game itself is fine, and your play still counts toward the tally.
       </div>
-      <a href="/" style={playBtn}>Play the Green Radius Game</a>
+      <a href="/" style={playBtn}>↗ Play the Green Radius Game</a>
     </CityCard>
   );
 }
@@ -176,9 +219,9 @@ function CityPage({ sectors }) {
       <div style={{ fontWeight: 700 }}>Adding up the city's progress…</div>
     </div>
   );
-  if (state.status === 'error') return <CityDegraded/>;
-  if (!state.data.count) return <CityEmpty/>;
-  return <CityStats sectors={sectors} data={state.data}/>;
+  if (state.status === 'error') return <CityShell><CityDegraded/></CityShell>;
+  if (!state.data.count) return <CityShell><CityEmpty/></CityShell>;
+  return <CityShell><CityStats sectors={sectors} data={state.data}/></CityShell>;
 }
 
 // React mounts immediately and renders its own spinner during the fetch, so the
