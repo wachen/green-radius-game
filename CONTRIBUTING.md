@@ -33,7 +33,8 @@ No build step — the browser compiles the JSX in place via `@babel/standalone`.
 | `rank.js`          | `window.Rank` — isomorphic module mapping a 0–60 total to a playa-rank title ("First Spark"…"Green Supernova"); also imported by the Worker for the OG description |
 | `result/`          | Stateless shareable result page (renders a card from the `?r=` payload, legacy `#hash` fallback) |
 | `admin/`           | Internal, Cloudflare Access–gated response viewer (City + Camps tabs); read-only |
-| `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses` + `GET /api/health` + `GET /result/?r=` (per-camp OG unfurl); all else served as static assets |
+| `city/`            | Public community-progress page (`/city/`), rendered from `GET /api/city` |
+| `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses` + `GET /api/health` + `GET /api/city` (public aggregate tally) + `GET /result/?r=` (per-camp OG unfurl); all else served as static assets |
 | `wrangler.jsonc`   | Worker + static-assets config                                         |
 | `_headers`         | Static-asset response headers (HSTS, framing, permissions)            |
 | `vendor/`          | Pinned React/ReactDOM/Babel runtime, served same-origin (see its README) |
@@ -65,6 +66,11 @@ run the Worker with Wrangler (requires Node.js):
 ```bash
 npx wrangler dev
 ```
+
+If `wrangler dev` reload-loops from the repo root, run it with
+`npx wrangler dev --persist-to <dir outside the repo>` — its default
+`.wrangler/state` (Cache API state, used by `/api/city`) lands inside the
+watched assets directory and can truncate in-flight asset fetches.
 
 That endpoint needs three secrets — `SHEETS_WEBAPP_URL`, `SHEETS_SHARED_SECRET`,
 `RESEND_API_KEY`. In production they're **Cloudflare Worker secrets**; for local dev,
