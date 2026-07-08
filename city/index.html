@@ -181,8 +181,8 @@ function CityPage({ sectors }) {
   return <CityStats sectors={sectors} data={state.data}/>;
 }
 
-// Keep the static loading placeholder visible until data arrives: only clear
-// #root (root.render replaces its children) once the fetch settles.
+// React mounts immediately and renders its own spinner during the fetch, so the
+// swap from the static placeholder is seamless; final states replace it on settle.
 function Boot() {
   return <CityPage sectors={window.SECTORS}/>;
 }
