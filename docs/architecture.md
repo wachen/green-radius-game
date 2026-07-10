@@ -17,11 +17,12 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
   `@babel/standalone` from the committed **`vendor/`** directory (same-origin, no
   CDN at runtime); Babel compiles the JSX *in the browser*, then mounts
   `<GreenRadiusGame/>`.
-- **One small Cloudflare Worker.** `worker/index.js` handles four dynamic routes —
+- **One small Cloudflare Worker.** `worker/index.js` handles five dynamic routes —
   `POST /api/complete` (result capture), the Access-gated
   `GET /api/admin/responses` (admin viewer read path),
   `GET /api/health` (liveness probe for the external uptime monitor — returns
-  `{ok:true}`, no secrets/upstreams, `no-store`), and
+  `{ok:true}`, no secrets/upstreams, `no-store`),
+  `GET /api/city` (public aggregate tally, colo-cached — see below), and
   `GET /result/?r=<payload>` (per-camp OG unfurl — see below) — and serves
   everything else as static assets (the `ASSETS` binding in `wrangler.jsonc`,
   directory `.`).
@@ -191,6 +192,23 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   + `window.AdminAggregate`) shapes everything client-side. Read-only; the
   `CF_ACCESS_AUD`/`CF_ACCESS_TEAM_DOMAIN` vars live in `wrangler.jsonc`. See
   `docs/admin-setup.md`.
+- **Public city tally.** `GET /api/city` (Worker) is the one **public** read
+  path: it reuses the same Apps Script `doGet` proxy as the admin viewer
+  (`fetchSheetRows`) and the same isomorphic aggregator
+  (`admin/aggregate.js` imports into the Worker like `game-data.js` does),
+  then rebuilds the response **field-by-field from an allowlist** — count,
+  totalYes/totalPossible, tallyPct, sector averages, this-week momentum,
+  per-question intensities — so camp names/emails/free text/leaderboard
+  structurally cannot leak, even if `computeAggregates` grows new fields.
+  Cached in the colo cache (`caches.default`) with freshness checked in code
+  (5 min via the body's `generatedAt`; the stored entry lives a day) so the
+  sheet sees at most ~1 hit per colo per 5 minutes and an Apps Script outage
+  serves the stale entry flagged `stale:true` (the page shows "as of <time>").
+  No cache + no upstream → 503 `{error:'unavailable'}` → `/city/` shows a
+  degraded panel with the play CTA. The page itself (`city/index.html`) is a
+  static asset built like `/result/` (vendored runtime, `RadialBadge` in
+  aggregate `intensities` mode); no `run_worker_first` entry is needed because
+  `/api/city` matches no asset.
 - **Per-camp OG (Worker `HTMLRewriter`).** `GET /result/?r=<payload>` decodes the
   payload server-side (reusing `result-state.js`) and rewrites `og:title`/`og:description`
   to the camp's name + score + playa-rank (`rank.js`). The OG image stays the static
@@ -232,6 +250,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   shared card silently renders in a serif fallback.
 - **`localStorage` versioning.** Bump `STORAGE_VERSION` whenever the saved shape
   changes; `loadSaved` drops any save whose `version` doesn't match.
+- **`wrangler dev` can reload-loop from the repo root.** Its own Cache API
+  state (used by `/api/city`) writes into `.wrangler/state`, which sits inside
+  the watched assets directory and can truncate in-flight asset fetches. Run
+  `npx wrangler dev --persist-to <dir outside the repo>` instead.
 - **No build, no tests, no CI.** The only compile gate is
   `bun build green-radius.jsx` (catches JSX/syntax errors — the "could not resolve
   react" message is *expected*; React is a global from `vendor/`, not a module).
