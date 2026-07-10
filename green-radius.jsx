@@ -1695,19 +1695,23 @@ function CityStatsButton({ palette }) {
       style={{
         flex: 1,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-        background: palette.accent, color: '#fff', border: 'none', cursor: 'pointer',
+        // Teal previews the "playa dusk" city page it links to, and keeps this
+        // button distinct from the green Play tile and the blue FAQ beside it.
+        background: '#188A7C', color: '#fff', border: 'none', cursor: 'pointer',
         fontFamily: 'inherit', fontWeight: 700, fontSize: 13, letterSpacing: '0.02em',
         padding: '8px 17px', borderRadius: 999, textDecoration: 'none',
-        '--grg-sh': palette.accentDark,
+        '--grg-sh': '#0E5C52',
       }}
     >
       <span aria-hidden="true" style={{
         width: 16, height: 16, borderRadius: '50%', background: 'rgba(255,255,255,0.28)',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <svg viewBox="0 0 12 12" width="9" height="9" aria-hidden="true" style={{ display: 'block' }}>
-          <path d="M1 6a5 5 0 0 1 10 0z" fill="#fff"/>
-          <circle cx="6" cy="6" r="1.4" fill={palette.accent}/>
+        <svg viewBox="0 0 24 24" width="10.5" height="10.5" fill="none" stroke="#fff"
+          strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+          aria-hidden="true" style={{ display: 'block' }}>
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+          <polyline points="17 6 23 6 23 12"/>
         </svg>
       </span>
       City Stats
