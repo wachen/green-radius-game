@@ -1695,12 +1695,12 @@ function CityStatsButton({ palette }) {
       style={{
         flex: 1,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-        // Teal previews the "playa dusk" city page it links to, and keeps this
-        // button distinct from the green Play tile and the blue FAQ beside it.
-        background: '#188A7C', color: '#fff', border: 'none', cursor: 'pointer',
+        // Terracotta echoes the city card's warm dust-glow (a warm counterpoint
+        // to the green Play tile and blue FAQ beside it, and it pops on the tan).
+        background: '#C36A3C', color: '#fff', border: 'none', cursor: 'pointer',
         fontFamily: 'inherit', fontWeight: 700, fontSize: 13, letterSpacing: '0.02em',
         padding: '8px 17px', borderRadius: 999, textDecoration: 'none',
-        '--grg-sh': '#0E5C52',
+        '--grg-sh': '#8C4726',
       }}
     >
       <span aria-hidden="true" style={{
