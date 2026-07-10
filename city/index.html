@@ -78,7 +78,9 @@
 // script). Babel-standalone runs all text/babel scripts in one shared scope, so
 // they are referenced by bare name here — they are NOT window properties.
 
-const CARD_BG = 'linear-gradient(155deg, #1c1410 0%, #2a1c14 100%)';
+// City card owns a "playa dusk" teal-blue (its own identity, distinct from the
+// warm-brown keepsake ShareCard) so the green wheel fills read as fresh growth.
+const CARD_BG = 'linear-gradient(160deg, #0e2733 0%, #14323f 100%)';
 const playBtn = {
   display: 'inline-block', background: '#5BA84A', color: '#fff',
   padding: '12px 22px', borderRadius: 14, fontWeight: 700, fontSize: 14,
@@ -141,7 +143,7 @@ function CityStats({ sectors, data }) {
     <CityCard>
       <div style={{ marginTop: 8, marginBottom: 12 }}>
         <span style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
-        <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> green choices achieved</span>
+        <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> achieved</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', margin: '0 0 12px' }}>
         <div style={{ width: '100%', maxWidth: 300 }}>
@@ -176,7 +178,7 @@ function CityStats({ sectors, data }) {
         })}
       </div>
       <div style={{ marginTop: 20 }}>
-        <a href="/" style={playBtn}>↗ Add your camp's radius</a>
+        <a href="/" style={playBtn}>Add your camp's radius ↗</a>
       </div>
     </CityCard>
   );
@@ -188,7 +190,7 @@ function CityEmpty() {
       <div style={{ fontSize: 13.5, lineHeight: 1.55, opacity: 0.8, margin: '14px 0 20px' }}>
         No camps on the board yet this year. Every camp that plays lights up this page. Be the first.
       </div>
-      <a href="/" style={playBtn}>↗ Play the Green Radius Game</a>
+      <a href="/" style={playBtn}>Play the Green Radius Game ↗</a>
     </CityCard>
   );
 }
@@ -200,7 +202,7 @@ function CityDegraded() {
       <div style={{ fontSize: 13.5, lineHeight: 1.55, opacity: 0.8, marginBottom: 20 }}>
         We couldn't load the city's numbers right now. The game itself is fine, and your play still counts toward the tally.
       </div>
-      <a href="/" style={playBtn}>↗ Play the Green Radius Game</a>
+      <a href="/" style={playBtn}>Play the Green Radius Game ↗</a>
     </CityCard>
   );
 }

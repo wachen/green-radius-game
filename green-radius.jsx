@@ -1669,7 +1669,8 @@ function FaqButton({ onClick, palette, btnRef, expanded }) {
       aria-expanded={!!expanded}
       className="grg-press-sm"
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: 7,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+        flex: 1,
         background: '#3B7DD8', color: '#fff', border: 'none', cursor: 'pointer',
         fontFamily: 'inherit', fontWeight: 700, fontSize: 13, letterSpacing: '0.02em',
         padding: '8px 17px', borderRadius: 999, '--grg-sh': '#2C5DA0',
@@ -1682,6 +1683,35 @@ function FaqButton({ onClick, palette, btnRef, expanded }) {
       }}>?</span>
       FAQ
     </button>
+  );
+}
+
+function CityStatsButton({ palette }) {
+  return (
+    <a
+      href="/city/"
+      aria-label="See the city's progress"
+      className="grg-press-sm"
+      style={{
+        flex: 1,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+        background: palette.accent, color: '#fff', border: 'none', cursor: 'pointer',
+        fontFamily: 'inherit', fontWeight: 700, fontSize: 13, letterSpacing: '0.02em',
+        padding: '8px 17px', borderRadius: 999, textDecoration: 'none',
+        '--grg-sh': palette.accentDark,
+      }}
+    >
+      <span aria-hidden="true" style={{
+        width: 16, height: 16, borderRadius: '50%', background: 'rgba(255,255,255,0.28)',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <svg viewBox="0 0 12 12" width="9" height="9" aria-hidden="true" style={{ display: 'block' }}>
+          <path d="M1 6a5 5 0 0 1 10 0z" fill="#fff"/>
+          <circle cx="6" cy="6" r="1.4" fill={palette.accent}/>
+        </svg>
+      </span>
+      City Stats
+    </a>
   );
 }
 
@@ -1988,14 +2018,14 @@ function ModePicker({ onPick, palette }) {
         </div>
       </button>
 
-      <div style={{ marginTop: 6, marginBottom: 10, display: 'flex', justifyContent: 'center' }}>
+      <div style={{ marginTop: 6, marginBottom: 10, display: 'flex', gap: 10 }}>
         <FaqButton btnRef={faqBtnRef} expanded={faqOpen} onClick={() => setFaqOpen(true)} palette={palette}/>
+        <CityStatsButton palette={palette}/>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
         {[
           { href: BOARD_GAME_PDF_URL, download: true, label: 'Board Game PDF Download ↓' },
-          { href: '/city/', download: false, label: "See the City's Progress →" },
         ].map(l => (
           <a
             key={l.href}
