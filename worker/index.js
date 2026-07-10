@@ -1,6 +1,7 @@
 import ResultState from '../result-state.js';
 import Rank from '../rank.js';
 import GameData from '../game-data.js';
+import AdminAggregate from '../admin/aggregate.js';
 
 const SECTOR_IDS = ['food', 'water', 'waste', 'transport', 'shelter', 'power'];
 const SECTOR_CODES = ['F', 'H', 'W', 'T', 'S', 'P'];
@@ -13,10 +14,11 @@ const NOTE_KEYS = new Set(
 const ALLOWED_ORIGIN = 'https://greenradi.us';
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/api/complete' && request.method === 'POST') return handleComplete(request, env);
     if (url.pathname === '/api/admin/responses' && request.method === 'GET') return handleAdminResponses(request, env);
+    if (url.pathname === '/api/city' && request.method === 'GET') return handleCity(env, ctx);
     // Liveness probe for the external uptime monitor (Cloudflare Free has no
     // Worker-error alerting): proves routing + Worker execution, touches no
     // secrets or upstreams. no-store so the monitor always hits the Worker.
@@ -228,16 +230,10 @@ async function handleAdminResponses(request, env) {
   const ok = await verifyAccessJwt(token, env);
   if (!ok) return json({ error: 'unauthorized' }, 403);
 
-  if (!env.SHEETS_WEBAPP_URL) return json({ rows: [], count: 0, degraded: 'no_backend' });
-  const u = `${env.SHEETS_WEBAPP_URL}?mode=responses&secret=${encodeURIComponent(env.SHEETS_SHARED_SECRET || '')}`;
-  const r = await fetch(u, { redirect: 'follow' });
-  if (!r.ok) return json({ error: 'sheet_unavailable' }, 502);
-  const data = await r.json().catch(() => ({}));
-  // A 200 with a non-array payload means the Apps Script returned an HTML error/
-  // login page or {ok:false,...} (e.g. a rotated secret) — treat it as a failure
-  // so the admin UI shows a retryable error instead of a misleading "No camps yet".
-  if (!Array.isArray(data.rows)) return json({ error: 'sheet_bad_payload' }, 502);
-  const rows = shapeAdminRows(data.rows);
+  const read = await fetchSheetRows(env);
+  if (read.reason === 'no_backend') return json({ rows: [], count: 0, degraded: 'no_backend' });
+  if (!read.rows) return json({ error: read.reason }, 502);
+  const rows = shapeAdminRows(read.rows);
   return new Response(JSON.stringify({ rows, count: rows.length }), {
     status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
@@ -255,6 +251,85 @@ function shapeAdminRows(raw) {
       answers, schemaVersion: String(r.schema_version || r.schemaVersion || ''),
     };
   });
+}
+
+// Shared read path for the admin viewer and the public city tally: proxy the
+// Apps Script doGet and hand back the raw rows. Never throws — every failure
+// mode collapses to { rows: null, reason } so both callers can degrade.
+async function fetchSheetRows(env) {
+  if (!env.SHEETS_WEBAPP_URL) return { rows: null, reason: 'no_backend' };
+  const u = `${env.SHEETS_WEBAPP_URL}?mode=responses&secret=${encodeURIComponent(env.SHEETS_SHARED_SECRET || '')}`;
+  const r = await fetch(u, { redirect: 'follow', signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) }).catch(() => null);
+  if (!r || !r.ok) return { rows: null, reason: 'sheet_unavailable' };
+  const data = await r.json().catch(() => ({}));
+  // A 200 with a non-array payload means the Apps Script returned an HTML error/
+  // login page or {ok:false,...} (e.g. a rotated secret) — treat it as a failure
+  // so callers show a retryable error instead of a misleading "No camps yet".
+  if (!Array.isArray(data.rows)) return { rows: null, reason: 'sheet_bad_payload' };
+  return { rows: data.rows, reason: null };
+}
+
+// ── Public city tally: aggregate-only, colo-cached ───────────────────────────
+// GET /api/city is the one public read path. Two hard rules:
+//  1. PRIVACY IS STRUCTURAL. The response is rebuilt field-by-field below —
+//     never spread the aggregate (computeAggregates includes a leaderboard
+//     with camp names/result URLs, and future fields must stay private by
+//     default). Nothing identifying a camp may appear here.
+//  2. THE SHEET IS PROTECTED BY THE CACHE. Fresh responses are stored in the
+//     colo cache for a day but treated as fresh for only 5 minutes (checked
+//     in code via generatedAt — the Cache API can't serve entries past their
+//     max-age, so freshness lives in the body). Result: at most ~1 sheet hit
+//     per colo per 5 minutes, and an Apps Script outage serves the stale
+//     entry (marked stale:true, client shows "as of <time>") instead of 503.
+const CITY_FRESH_MS = 5 * 60 * 1000;
+const CITY_CACHE_KEY = 'https://greenradi.us/api/city';
+
+async function handleCity(env, ctx) {
+  const cache = caches.default;
+  const cacheKey = new Request(CITY_CACHE_KEY);
+  const hit = await cache.match(cacheKey).catch(() => null);
+  const cached = hit ? await hit.json().catch(() => null) : null;
+  if (cached && Date.now() - cached.generatedAt < CITY_FRESH_MS) return cityJson(cached);
+
+  const fresh = await computeCityBody(env);
+  if (fresh) {
+    ctx.waitUntil(cache.put(cacheKey, new Response(JSON.stringify(fresh), {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
+    })));
+    return cityJson(fresh);
+  }
+  if (cached) return cityJson({ ...cached, stale: true });
+  return json({ error: 'unavailable' }, 503);
+}
+
+function cityJson(body) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' },
+  });
+}
+
+// The allowlist. Aggregate numbers only; see the privacy rule above.
+async function computeCityBody(env) {
+  const read = await fetchSheetRows(env);
+  if (!read.rows) return null;
+  let agg;
+  try {
+    agg = AdminAggregate.computeAggregates(shapeAdminRows(read.rows), GameData.SECTORS, Date.now());
+  } catch { return null; }
+  return {
+    generatedAt: Date.now(),
+    count: agg.count | 0,
+    totalYes: agg.totalYes | 0,
+    totalPossible: agg.totalPossible | 0,
+    tallyPct: +agg.tallyPct || 0,
+    hasAnswers: !!agg.hasAnswers,
+    thisWeek: (agg.momentum && agg.momentum.thisWeek) | 0,
+    sectorAverages: agg.sectorStandings.map(s => ({ id: String(s.id), avg: +s.avg || 0 })),
+    intensities: agg.intensities ? Object.fromEntries(SECTOR_IDS.map(id => [id, {
+      levels: ((agg.intensities[id] && agg.intensities[id].levels) || []).map(l => l.map(v => +v || 0)),
+    }])) : null,
+  };
 }
 
 function b64urlToBytes(s) {

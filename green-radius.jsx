@@ -49,7 +49,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v49';
+const APP_VERSION = 'v52';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -1669,7 +1669,8 @@ function FaqButton({ onClick, palette, btnRef, expanded }) {
       aria-expanded={!!expanded}
       className="grg-press-sm"
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: 7,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+        flex: 1,
         background: '#3B7DD8', color: '#fff', border: 'none', cursor: 'pointer',
         fontFamily: 'inherit', fontWeight: 700, fontSize: 13, letterSpacing: '0.02em',
         padding: '8px 17px', borderRadius: 999, '--grg-sh': '#2C5DA0',
@@ -1682,6 +1683,39 @@ function FaqButton({ onClick, palette, btnRef, expanded }) {
       }}>?</span>
       FAQ
     </button>
+  );
+}
+
+function CityStatsButton({ palette }) {
+  return (
+    <a
+      href="/city/"
+      aria-label="See the city's progress"
+      className="grg-press-sm"
+      style={{
+        flex: 1,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+        // Terracotta echoes the city card's warm dust-glow (a warm counterpoint
+        // to the green Play tile and blue FAQ beside it, and it pops on the tan).
+        background: '#C36A3C', color: '#fff', border: 'none', cursor: 'pointer',
+        fontFamily: 'inherit', fontWeight: 700, fontSize: 13, letterSpacing: '0.02em',
+        padding: '8px 17px', borderRadius: 999, textDecoration: 'none',
+        '--grg-sh': '#8C4726',
+      }}
+    >
+      <span aria-hidden="true" style={{
+        width: 16, height: 16, borderRadius: '50%', background: 'rgba(255,255,255,0.28)',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <svg viewBox="0 0 24 24" width="10.5" height="10.5" fill="none" stroke="#fff"
+          strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+          aria-hidden="true" style={{ display: 'block' }}>
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+          <polyline points="17 6 23 6 23 12"/>
+        </svg>
+      </span>
+      City Stats
+    </a>
   );
 }
 
@@ -1988,23 +2022,29 @@ function ModePicker({ onPick, palette }) {
         </div>
       </button>
 
-      <div style={{ marginTop: 6, marginBottom: 10, display: 'flex', justifyContent: 'center' }}>
+      <div style={{ marginTop: 6, marginBottom: 10, display: 'flex', gap: 10 }}>
         <FaqButton btnRef={faqBtnRef} expanded={faqOpen} onClick={() => setFaqOpen(true)} palette={palette}/>
+        <CityStatsButton palette={palette}/>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <a
-          href={BOARD_GAME_PDF_URL}
-          download
-          style={{
-            display: 'inline-block', padding: '8px 4px',
-            color: palette.text + '80', fontSize: 10.5, fontWeight: 600,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-            textDecoration: 'underline',
-            textUnderlineOffset: '3px',
-            textDecorationColor: palette.text + '33',
-          }}
-        >Board Game PDF Download ↓</a>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
+        {[
+          { href: BOARD_GAME_PDF_URL, download: true, label: 'Board Game PDF Download ↓' },
+        ].map(l => (
+          <a
+            key={l.href}
+            href={l.href}
+            {...(l.download ? { download: true } : {})}
+            style={{
+              display: 'inline-block', padding: '8px 4px',
+              color: palette.text + '80', fontSize: 10.5, fontWeight: 600,
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+              textDecoration: 'underline',
+              textUnderlineOffset: '3px',
+              textDecorationColor: palette.text + '33',
+            }}
+          >{l.label}</a>
+        ))}
       </div>
 
       <div style={{ marginTop: 22, paddingTop: 16, borderTop: '1px solid ' + palette.text + '14' }}>
