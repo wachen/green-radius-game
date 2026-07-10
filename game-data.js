@@ -165,7 +165,7 @@ global.SECTORS = [
       }, {
         id: 'W5', code: 'W5', step: 5, title: 'Gift Waste to BRC',
         prompt: "Does your camp bring compost and recycling to BRC stations, or MOOP your hood?",
-        description: "Bring compost to a Black Rock Compost collection camp and aluminum cans to Recycle Camp. OR MOOP beyond your camp: streets and fire lanes have the most. Carry a MOOP bag at all times.",
+        description: "Bring compost to a Playa-Wide Composting collection camp (Black Rock Compost) and aluminum cans to Recycle Camp, or take both home to recycle and compost there. OR MOOP beyond your camp: streets and fire lanes have the most. Carry a MOOP bag at all times.",
         link: { label: 'Burning Man – Composting', url: 'https://burningman.org/black-rock-city/preparation/leaving-no-trace/composting/' }
       }, {
         id: 'W6', code: 'W6', step: 6, title: 'Show People! Waste Ideas',
@@ -280,7 +280,7 @@ global.SECTORS = [
       { id: 'S-roof', title: 'Roof Drainage', description: "Tilt your shade a little for rainwater run-off: raise a few columns, or block them up for a high point. Keep electrical wires off the ground." },
       { id: 'S-stake', title: 'Stake Count', description: "Count your tent stakes, lag bolts, screws, and rebar, and whisker them (flag each with bright tape) so strike finds every one. Buried metal is our number-one MOOP problem. Count at home, count on build, MOOP exactly there on strike. Bring a magnet or metal detector; Resto will love you forever.", link: { label: 'Burning Man – Playa Resto', url: 'https://burningman.org/black-rock-city/volunteering/playa-restoration/' } },
       { id: 'S-cover', title: 'Ground Cover', description: "Tarps, mats, carpets, sandbags cut blowing dust and keep you dry. Sandbags hold down lots of stuff: cheap, weigh nothing empty, no stakes." },
-      { id: 'S-shade', title: 'More Shade', description: "Over tents, trailers, RVs, and especially sleeping spaces. Make it communal where you can: one big shade structure covers more campers for less. Keep the fabric light-colored and reflective, never black or dark, so it bounces heat instead of baking it. Extra shade cuts cooling demand and can shed rain and block dust." },
+      { id: 'S-shade', title: 'More Shade', description: "Over tents, trailers, RVs, and especially sleeping spaces. Make it communal where you can: one big shade structure covers more campers for less. Keep the fabric light-colored or reflective, never black or dark, so it bounces heat instead of baking it. Extra shade cuts cooling demand and can shed rain and block dust." },
       { id: 'S-optimize', title: 'Optimize Shelter', description: "Rent vs. buy? Gift it off-season, or use it at home? Shelter is a big investment for one week. Renting a trailer or RV can be practical with a low overall footprint." },
       { id: 'S-reuse', title: 'Reuse + Repair Shelter', description: "Durable, modular shelter beats disposable. Domes, yurts, and hexa-yurts you rebuild year after year. Reuse, repair, repurpose. Aim to keep at least 75% of your shelter materials from one year to the next. Patch it, don't pitch it.", link: { label: 'Resource Guide – Shelter', url: 'https://www.greenthemecampcommunity.org/resource-guide/shelter' } },
       { id: 'S-cooldown', title: 'Shared Cool-Down', description: "Skip the AC arms race. Build one shared chill space: a nap pod, cool dome, or shade lounge. Cool it the low-power way with evaporative coolers, swamp coolers, or a misting line. One cool room beats a dozen humming AC units." },
@@ -334,7 +334,7 @@ global.SECTORS = [
       { id: 'P-no-genie', title: 'No Generator', description: "The boldest move: no generator at all, not even a backup. No petrol, no petrol cans, no spill containers, none of that heavy stinky dangerous stuff. Solar and batteries can carry a whole camp now." },
       { id: 'P-nice-genie', title: 'Nice Generator', description: "Be a nice neighbor. Turn off at night. Direct exhaust fumes away. Minimize generator use. Reduce noisy and stinky. Let people sleep and breathe.", link: { label: 'Burning Man – Generators', url: 'https://burningman.org/black-rock-city/preparation/camping-tips/generators/' } },
       { id: 'P-opt-genie', title: 'Hybrid Generator', description: "Match demand and supply. Smaller generator, or two very small ones for precise load matching. Go hybrid: chain batteries between the generator and your power pull so they carry the load and level the peaks." },
-      { id: 'P-less', title: 'Reduce Electricity', description: "Efficient ACs, fridges, freezers, cooking. Bring cycling appliances that match peak loads to supply, like fridges that cool hardest at night." },
+      { id: 'P-less', title: 'Reduce Electricity', description: "Efficient ACs, fridges, freezers, cooking. Shade or cover RVs. Bring cycling appliances that match peak loads to supply, like fridges that cool hardest at night." },
       { id: 'P-rat', title: 'RAT (Renewable Artists Team)', description: "If you're an Art Support Camp and only need a generator for your art, don't bring it. Go solar. Join RAT. No noise. No fumes. Just Art.", link: { label: 'RAT – Renewables for Artists', url: 'https://www.renewablesforartiststeam.org/' } },
       { id: 'P-mv', title: 'Renewable Mutant Vehicle', description: "Solar MVs? People-powered? Wind? No petrol. Lots of MVs offer rides; the best run on renewables." },
       { id: 'P-camp', title: "Our Camp's Idea", prompt: "Did your camp pull it off?", description: "Describe one of your camp's own power ideas, and answer whether you actually achieved it." },
@@ -349,7 +349,10 @@ global.SECTORS = [
 // (F-cookbook, H-leaks, W-secondhand, S-reuse, S-cooldown); P-no removed;
 // prompts and copy re-edited throughout. Rows stamped frog-v12.1 or earlier
 // answered the stricter/older wording.
-global.SCHEMA_VERSION = 'frog-v13';
+// v13.1: BLAST 2025 re-check parity tweaks (2026-07): W5 names Playa-Wide
+// Composting and allows take-home disposal; S-shade eases to light-colored
+// or reflective; P-less adds the RV shading example. No ids changed.
+global.SCHEMA_VERSION = 'frog-v13.1';
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { SECTORS: global.SECTORS, SCHEMA_VERSION: global.SCHEMA_VERSION };
