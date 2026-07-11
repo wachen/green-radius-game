@@ -49,7 +49,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v53';
+const APP_VERSION = 'v54';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -1770,20 +1770,17 @@ function FaqModal({ onClose, palette }) {
               cream card the way it does on the tile's solid green. */}
           <svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true" style={{ display: 'block', margin: '0 auto 8px' }}>
             <circle cx="32" cy="33" r="26" fill={palette.accent}/>
-            <g transform="rotate(-15 32 33)">
-              {['#68B05C', '#56A85C', '#d3c4a8', '#439F5B', '#e4d9c1', '#31975B'].map((c, i) => {
-                const a0 = (i * 60 - 90) * Math.PI / 180;
-                const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
-                const r = 23;
-                return (
-                  <path key={i} fill={c} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round"
-                    d={`M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`}/>
-                );
-              })}
-            </g>
+            {['#A3D178', '#86C169', '#68B05C', '#56A85C', '#439F5B', '#31975B'].map((c, i) => {
+              const a0 = (i * 60 - 90) * Math.PI / 180;
+              const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
+              const r = 23;
+              return (
+                <path key={i} fill={c} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round"
+                  d={`M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`}/>
+              );
+            })}
             <circle cx="32" cy="33" r="23" fill="none" stroke="#fff" strokeWidth="2"/>
-            <circle cx="32" cy="33" r="7.5" fill="#fff"/>
-            <circle cx="32" cy="33" r="3" fill={palette.accent}/>
+            <circle cx="32" cy="33" r="3.4" fill={palette.text}/>
           </svg>
           <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase' }}>Green Radius</div>
           <div id="faq-title" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 3, padding: '0 30px', color: palette.card }}>About the Game</div>
@@ -1955,22 +1952,21 @@ function ModePicker({ onPick, palette }) {
       >
         <svg viewBox="0 0 64 64" width="54" height="54" aria-hidden="true"
           style={{ display: 'block', margin: '0 auto 10px' }}>
-          {/* Same wedge sequence as apple-touch-icon.png: NON-alternating greens/
-              sands — a light/dark alternation reads as the radiation trefoil. */}
-          <g transform="rotate(-15 32 33)">
-            {['#68B05C', '#56A85C', '#d3c4a8', '#439F5B', '#e4d9c1', '#31975B'].map((c, i) => {
-              const a0 = (i * 60 - 90) * Math.PI / 180;
-              const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
-              const r = 23;
-              return (
-                <path key={i} fill={c} stroke={palette.text} strokeWidth="1.8" strokeLinejoin="round"
-                  d={`M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`}/>
-              );
-            })}
-          </g>
-          <circle cx="32" cy="33" r="23" fill="none" stroke={palette.text} strokeWidth="3"/>
-          <circle cx="32" cy="33" r="7.5" fill="#fff" stroke={palette.text} strokeWidth="1.5"/>
-          <circle cx="32" cy="33" r="3" fill={palette.accent}/>
+          {/* Same wedge sequence as apple-touch-icon.png: a light-to-dark green
+              ramp clockwise from the pointer with white seams and a plain dark
+              hub dot — no light/dark alternation, no pale center disc, no dark
+              spokes, the three cues that made it read as the radiation trefoil. */}
+          {['#A3D178', '#86C169', '#68B05C', '#56A85C', '#439F5B', '#31975B'].map((c, i) => {
+            const a0 = (i * 60 - 90) * Math.PI / 180;
+            const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
+            const r = 23;
+            return (
+              <path key={i} fill={c} stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"
+                d={`M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`}/>
+            );
+          })}
+          <circle cx="32" cy="33" r="23" fill="none" stroke={palette.text} strokeWidth="2.8"/>
+          <circle cx="32" cy="33" r="3.4" fill={palette.text}/>
           <polygon points="32,12 26.8,3 37.2,3" fill={palette.text}/>
         </svg>
         <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.01em', marginBottom: 2 }}>
