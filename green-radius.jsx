@@ -444,11 +444,18 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     const sweep = 360 / sectors.length;
     // pointer is at top (0deg); align middle of target sector to top.
     // Wheel sectors are drawn starting at 0deg and going clockwise; the middle of sector idx is at idx*sweep + sweep/2.
-    // We need to rotate the wheel so this angle aligns to the top (0deg); negative rotation.
-    const targetAngle = -(idx * sweep + sweep/2);
+    // The wheel always spins clockwise (rotation only ever increases), so after
+    // spinning, sector idx's middle sits under the top pointer when
+    // (rotation + idx*sweep + sweep/2) ≡ 0 (mod 360). Solve for the rotation's
+    // required value mod 360, then add just enough forward (positive) rotation
+    // from the current angle to reach it, plus baseTurns full clockwise turns.
+    const targetMid = idx * sweep + sweep / 2;
+    const targetMod = ((-targetMid % 360) + 360) % 360;
     const baseTurns = 2; // full spins
+    const currentMod = ((rotation % 360) + 360) % 360; // normalize; rotation may be negative
+    const forwardDelta = ((targetMod - currentMod) % 360 + 360) % 360; // shortest forward hop to targetMod
     const jitter = (Math.random() - 0.5) * (sweep * 0.5); // land somewhere within sector
-    const newRotation = rotation - (rotation % 360) + (-baseTurns * 360) + targetAngle + jitter;
+    const newRotation = rotation + baseTurns * 360 + forwardDelta + jitter;
 
     setSpinning(true);
     setRotation(newRotation);
@@ -783,10 +790,12 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   return (
     <div style={{ padding: '20px 16px 32px', maxWidth: 480, margin: '0 auto' }}>
       {restored && <div style={{ margin: '0 0 12px' }}><RestoredBanner onDismiss={() => setRestored(false)} /></div>}
-      {/* back to intake: fix a typo'd detail (or step further back to home).
-          Progress is safe — the autosave persists and startGame only resets
-          when the mode actually changes. */}
-      <div style={{ marginBottom: 10 }}>
+      {/* back to intake (fix a typo'd detail, or step further back to home) + brand
+          title, on one compact row. Progress is safe — the autosave persists and
+          startGame only resets when the mode actually changes. The title column is
+          balanced by an invisible spacer button matching the real Back button's
+          width, so the title stays truly centered regardless of that width. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <button
           onClick={() => setPhase('intro')}
           aria-label="Back to your camp details"
@@ -794,25 +803,33 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             background: 'transparent', border: 'none', cursor: 'pointer',
             color: palette.text + '99', fontSize: 12, fontWeight: 700,
             letterSpacing: '0.1em', textTransform: 'uppercase',
-            padding: '4px 0', fontFamily: 'inherit',
+            padding: '4px 0', fontFamily: 'inherit', justifySelf: 'start',
           }}
         >← Back</button>
-      </div>
-      {/* header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 9, letterSpacing: '0.25em', fontWeight: 700, color: palette.text + '99' }}>
-            GREEN RADIUS · BLAST {new Date().getFullYear()}
+
+        <div style={{ minWidth: 0, textAlign: 'center' }}>
+          {/* Deliberate two-line lockup: the single-line title wraps mid-phrase
+              at 390px, so the brand goes big and BLAST {year} is its eyebrow. */}
+          <div style={{ fontSize: 17, fontWeight: 900, letterSpacing: '0.08em', color: palette.heading, lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+            GREEN RADIUS
           </div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: palette.heading, lineHeight: 1.1, marginTop: 2, textWrap: 'balance' }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.28em', color: palette.text + '99', lineHeight: 1.2, marginTop: 1 }}>
+            BLAST {new Date().getFullYear()}
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: palette.heading, lineHeight: 1.2, marginTop: 3, textWrap: 'balance' }}>
             {camp.campName}
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 36, fontWeight: 900, color: '#5BA84A', lineHeight: 1 }}>
-            {totalGreens}<span style={{ fontSize: 18, opacity: 0.5 }}>/60</span>
-          </div>
-        </div>
+
+        <button
+          aria-hidden="true"
+          tabIndex={-1}
+          style={{
+            visibility: 'hidden', background: 'transparent', border: 'none',
+            fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+            padding: '4px 0', fontFamily: 'inherit', justifySelf: 'end',
+          }}
+        >← Back</button>
       </div>
 
       {/* wheel */}
@@ -828,17 +845,27 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         shinePaused={!!activeQuestion}
       />
 
+      {/* score, in the gap between wheel and status bar */}
+      <div style={{ textAlign: 'center', marginTop: 8 }}>
+        <div style={{ fontSize: 36, fontWeight: 900, color: '#5BA84A', lineHeight: 1 }}>
+          {totalGreens}<span style={{ fontSize: 18, opacity: 0.5 }}>/60</span>
+        </div>
+      </div>
+
       {/* status / hint */}
       <div style={{
-        marginTop: 16, padding: '10px 14px', borderRadius: 10,
-        background: palette.card, border: `1px solid ${palette.text}11`,
-        fontSize: 12, fontWeight: 700, color: palette.text, textAlign: 'center', textWrap: 'pretty',
+        marginTop: 8, padding: '10px 14px', borderRadius: 10,
+        background: `linear-gradient(135deg, ${palette.card}, ${palette.accent}1e)`,
+        border: `1px solid ${palette.accent}44`,
+        boxShadow: `inset 0 1px 0 ${palette.accent}22`,
+        fontSize: 12, fontWeight: 700, color: palette.accentDark, letterSpacing: '0.02em',
+        textAlign: 'center', textWrap: 'pretty',
       }}>
         {(() => {
-          if (totalAttempted === 0) return 'Tap Spin. The wheel picks a sector · answer its 10 questions to score it. Six spins total.';
-          if (allDone) return 'All six done · behold your radius.';
+          if (totalAttempted === 0) return 'Tap Spin. The wheel picks a sector. Answer its 10 questions to score it. Six spins total.';
+          if (allDone) return 'All six done. Behold your radius.';
           const left = sectors.filter(s => !sectorClosed[s.id]).length;
-          return `${left} ${left === 1 ? 'sector' : 'sectors'} left · spin again`;
+          return `${left} ${left === 1 ? 'sector' : 'sectors'} left. Spin again.`;
         })()}
       </div>
 
