@@ -66,6 +66,16 @@ async function downloadSvgAsPng(svgEl, filename, scale = 2) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+// Shared by the done screen's and result page's Download buttons.
+function DownloadIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 2.5V9M4.5 6.5L8 9l3.5-2.5" />
+      <path d="M3 9H13" />
+    </svg>
+  );
+}
+
 // ─── shareable card ───────────────────────────────────────────────────────────
 function ShareCard({ sectors, fills, campName, leadName, year, palette, reveal = null }) {
   const fullTotal = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);

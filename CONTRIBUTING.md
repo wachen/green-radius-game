@@ -47,7 +47,7 @@ No build step — the browser compiles the JSX in place via `@babel/standalone`.
 `@babel/standalone` runs every `<script type="text/babel">` in a **shared scope**, so
 components defined in the game scripts (`src/*.jsx`, `green-radius.jsx`) — e.g. `ShareCard`
 in `src/share-card.jsx` — are referenced by **bare name** from other pages like `result/index.html` — they are *not* `window` properties.
-Only the plain scripts attach to `window` as their API (`window.SECTORS`, `window.ResultState`, `window.Rank`); `green-radius.jsx`'s trailing `Object.assign(window, …)` also mirrors a few component names, but only on pages that load it and nothing relies on that.
+Only the plain scripts attach to `window` as their API (`window.SECTORS`, `window.ResultState`, `window.Rank`).
 Referencing a component as `window.Something` silently renders nothing on the pages that matter.
 
 ## Run it locally

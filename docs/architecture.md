@@ -248,8 +248,7 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 - **Game-script order matters.** The UI is split across `src/*.jsx` +
   `green-radius.jsx` (PR #55). `index.html` lists all nine in order —
   `src/core.jsx` first (declares the shared hooks/constants), `green-radius.jsx`
-  last (its final `Object.assign(window, …)` expose reads earlier modules) —
-  while `result/`, `city/`, and `admin/` load only the modules they render
+  last — while `result/`, `city/`, and `admin/` load only the modules they render
   (`core` + `badge`, plus `share-card` on `result/`), still core-first.
   Adding a new cross-module reference to one of those pages' components means
   adding the module's `<script>` tag there too.

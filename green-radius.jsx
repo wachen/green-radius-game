@@ -35,23 +35,24 @@ function greenUpSteps(sectors, answers, notes) {
 function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
   const groups = greenUpSteps(sectors, answers, notes);
   if (!groups.length) return null;
+  const ink = '#1f4a2c';
   return (
     <div style={{ marginTop: 20, textAlign: 'left', background: 'linear-gradient(160deg, #eaf6e2 0%, #dff0d4 100%)', borderRadius: 12, overflow: 'hidden' }}>
       <div style={{ padding: '20px 16px 16px' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#1f4a2c', textAlign: 'center', margin: '0 0 18px' }}>Your Green-Up Plan</div>
-        <div style={{ fontSize: 13, color: '#1f4a2c', opacity: 0.8, textAlign: 'center', margin: '0 0 14px' }}>Some ideas to grow your radius next year</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: ink, textAlign: 'center', margin: '0 0 18px' }}>Your Green-Up Plan</div>
+        <div style={{ fontSize: 13, color: ink, opacity: 0.8, textAlign: 'center', margin: '0 0 14px' }}>Some ideas to grow your radius next year</div>
         {groups.map(g => (
           <div key={g.sector} style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase', color: '#3d6b2e', marginBottom: 4 }}>{g.sector}</div>
             {g.steps.slice(0, 3).map((st, i) => (
-              <div key={i} style={{ padding: '4px 0', fontSize: 14, color: '#1f4a2c' }}>
+              <div key={i} style={{ padding: '4px 0', fontSize: 14, color: ink }}>
                 <span style={{ opacity: 0.85 }}>L{st.level} · </span>{st.title}
               </div>
             ))}
           </div>
         ))}
         {emailed && (
-          <div style={{ fontSize: 12, fontStyle: 'italic', color: '#1f4a2c', opacity: 0.8, textAlign: 'center', margin: '10px 0 0' }}>
+          <div style={{ fontSize: 12, fontStyle: 'italic', color: ink, opacity: 0.8, textAlign: 'center', margin: '10px 0 0' }}>
             The full list is in your email
           </div>
         )}
@@ -741,10 +742,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
               letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               boxShadow: `0 3px 0 ${palette.accentDark}` }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M8 2.5V9M4.5 6.5L8 9l3.5-2.5" />
-              <path d="M3 9H13" />
-            </svg>
+            <DownloadIcon />
             Download
           </button>
           <button onClick={handleShare}
@@ -792,6 +790,10 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // PLAYING
   const totalGreens = sectors.reduce((acc, s) => acc + (fills[s.id].totalYes || 0), 0);
   const totalAttempted = sectors.reduce((acc, s) => acc + (sectorClosed[s.id] ? 1 : 0), 0);
+  const backBtn = {
+    background: 'transparent', border: 'none', fontSize: 12, fontWeight: 700,
+    letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 0', fontFamily: 'inherit',
+  };
 
   return (
     <div style={{ padding: '20px 16px 32px', maxWidth: 480, margin: '0 auto' }}>
@@ -805,12 +807,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <button
           onClick={() => setPhase('intro')}
           aria-label="Back to your camp details"
-          style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: palette.text + '99', fontSize: 12, fontWeight: 700,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-            padding: '4px 0', fontFamily: 'inherit', justifySelf: 'start',
-          }}
+          style={{ ...backBtn, cursor: 'pointer', color: palette.text + '99', justifySelf: 'start' }}
         >← Back</button>
 
         <div style={{ minWidth: 0, textAlign: 'center' }}>
@@ -830,11 +827,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <button
           aria-hidden="true"
           tabIndex={-1}
-          style={{
-            visibility: 'hidden', background: 'transparent', border: 'none',
-            fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-            padding: '4px 0', fontFamily: 'inherit', justifySelf: 'end',
-          }}
+          style={{ ...backBtn, visibility: 'hidden', justifySelf: 'end' }}
         >← Back</button>
       </div>
 
@@ -961,6 +954,3 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     </div>
   );
 }
-
-// expose
-Object.assign(window, { GreenRadiusGame, RadialBadge, ShareCard, SectorIcon });
