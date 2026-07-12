@@ -422,7 +422,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         if (!(tid in prev)) return prev;
         const o = { ...prev }; delete o[tid]; return o;
       }
-      return { ...prev, [tid]: t.slice(0, 140) };
+      return { ...prev, [tid]: t.slice(0, NOTE_MAX_LEN) };
     });
   }
 

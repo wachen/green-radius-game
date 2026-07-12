@@ -77,6 +77,7 @@ function DownloadIcon() {
 }
 
 // ─── shareable card ───────────────────────────────────────────────────────────
+// fills shape: see SectorFill typedef in src/core.jsx
 function ShareCard({ sectors, fills, campName, leadName, year, palette, reveal = null }) {
   const fullTotal = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
   const total = reveal == null ? fullTotal : reveal;

@@ -3,6 +3,8 @@
 Status: **Approved** (2026-05-31) · Capture model: **Approach A (explicit action)** · Author: Wesley
 Supersedes the earlier rough draft. Origin: Marc's feedback doc ("store results in a Google Sheet + email a certificate on completion").
 
+*Note (2026-07, PR #55): file references below predate the module split; the /result/ page now loads src/core.jsx + src/badge.jsx + src/share-card.jsx instead of green-radius.jsx. Current wiring: docs/architecture.md.*
+
 ## Intent (validated in brainstorming)
 
 - **Purpose — both, equally:** organizer data capture AND a camp-facing keepsake.

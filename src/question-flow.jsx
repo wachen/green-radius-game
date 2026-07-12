@@ -340,7 +340,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
               <input
                 value={customText}
                 onChange={e => setCustomText(e.target.value)}
-                maxLength={140}
+                maxLength={NOTE_MAX_LEN}
                 placeholder="What did your camp try?"
                 aria-label="Describe your camp's own idea"
                 autoFocus

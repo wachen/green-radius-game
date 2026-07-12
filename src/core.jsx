@@ -39,6 +39,9 @@ function useModalA11y(ref) {
 const STORAGE_KEY = 'green-radius-game/v1';
 const STORAGE_VERSION = 7;
 
+// Caps free-text notes (write-in ideas) UI-side, everywhere a player types one.
+const NOTE_MAX_LEN = 140;
+
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 // One player download on the home screen. The "How-to-Play" file is the
 // superset PDF (how-to-play + board + coloring wheel + matrix), so the single
@@ -96,7 +99,7 @@ function migrateSaved(data, sectors) {
   if (data.customNotes && typeof data.customNotes === 'object') {
     for (const k of Object.keys(data.customNotes)) {
       const t = data.customNotes[k];
-      if (valid.has(k) && answers[k] && typeof t === 'string' && t.trim()) customNotes[k] = t.slice(0, 140);
+      if (valid.has(k) && answers[k] && typeof t === 'string' && t.trim()) customNotes[k] = t.slice(0, NOTE_MAX_LEN);
     }
   }
   const sectorClosed = {}, sectorCursor = {};
@@ -151,9 +154,16 @@ function campIdeaIds(sector) {
   return base ? [base.id, base.id + '-2', base.id + '-3', base.id + '-4'] : [];
 }
 
-// Per-sector fill: levels[0..2] = one bool per fixed question (in order);
-// levels[3] = 4 slots, the first (advanced-Yes count, capped at 4) set true.
-// totalYes is 0..10; `played` is true once any of the sector's questions is answered.
+/**
+ * Per-sector fill: levels[0..2] = one bool per fixed question (in order);
+ * levels[3] = 4 slots, the first (advanced-Yes count, capped at 4) set true.
+ * totalYes is 0..10; `played` is true once any of the sector's questions is answered.
+ * @typedef {Object} SectorFill
+ * @property {boolean[][]} levels  per-level arrays of per-question Yes flags ([1],[2],[3],[4] long)
+ * @property {number} totalYes     0-10, total Yes across the sector
+ * @property {boolean} played      sector was opened at least once
+ * fills: { [sectorId]: SectorFill }, one entry per id in `sectors`.
+ */
 function sectorFill(sector, answers) {
   const levels = [0, 1, 2].map(li => (sector.levels[li] || []).map(q => answers[q.id] === 'yes'));
   // Extra write-in ideas (slots 2-4) count toward Level 4 alongside the fixed

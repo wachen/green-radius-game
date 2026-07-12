@@ -1,6 +1,7 @@
 // src/wheel.jsx — the spinnable game wheel. Shared Babel scope; see src/core.jsx.
 
 // ─── the wheel ────────────────────────────────────────────────────────────────
+// fills shape: see SectorFill typedef in src/core.jsx
 // Sectors render as 4 stacked rings (level 1 inner → level 4 outer).
 // Each ring cell has its own state: 'locked' | 'open' | 'green' | 'failed'.
 function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, palette, shinePaused }) {

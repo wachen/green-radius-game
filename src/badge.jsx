@@ -77,6 +77,7 @@ function segAngles(a0, a1, n, gap = 0) {
 }
 
 // ─── radial badge (final result) ──────────────────────────────────────────────
+// fills shape: see SectorFill typedef in src/core.jsx
 // Grid of green ring-cells: each sector shows its 4 levels as concentric arcs.
 // Fill is per-question: each level's ring lights one segment per Yes in that
 // level's color, gaps allowed (an early No just leaves its segment empty, no

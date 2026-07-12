@@ -245,7 +245,7 @@ function CampIdeasBlock({ sector, answers, setAnswer, notes, setNote, palette, h
             <input
               value={(notes && notes[id]) || ''}
               onChange={e => setNote && setNote(id, e.target.value)}
-              maxLength={140}
+              maxLength={NOTE_MAX_LEN}
               placeholder={i === 0 ? "What did your camp try?" : `Another idea (${i + 1} of 4)`}
               aria-label={`Describe your camp's own ${sector.name.toLowerCase()} idea, number ${i + 1}`}
               style={{
