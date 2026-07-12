@@ -126,7 +126,8 @@ function loadSaved(sectors) {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return migrateSaved(JSON.parse(raw), sectors);
-  } catch {
+  } catch (e) {
+    console.warn('loadSaved: could not read/parse saved game', e);
     return null;
   }
 }

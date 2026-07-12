@@ -629,7 +629,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           return;
         } catch (e) { if (e && e.name === 'AbortError') return; }
       }
-      try { await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
+      try { await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+      catch { setCopied('error'); setTimeout(() => setCopied(false), 1500); }
     }
     async function handleDownload() {
       if (!cardSvgRef.current) return;
@@ -750,7 +751,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
               background: '#3B6FD4', color: '#fff', fontSize: 13, fontWeight: 800,
               letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
               boxShadow: '0 3px 0 #2b539e' }}>
-            {copied ? 'Link copied!' : '↗ Share link'}
+            {copied === 'error' ? "Couldn't copy link" : copied ? 'Link copied!' : '↗ Share link'}
           </button>
         </div>
 
