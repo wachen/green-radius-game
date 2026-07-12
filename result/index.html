@@ -27,7 +27,11 @@
 <script defer src="/vendor/babel-standalone-7.29.0.min.js"></script>
 
 <script defer src="../game-data.js"></script>
-<script type="text/babel" src="../green-radius.jsx"></script>
+<!-- Just the game-UI modules this read-only page renders (shared Babel scope,
+     core first): ShareCard/ResultCardSVG/PNG export + the badge they draw. -->
+<script type="text/babel" src="../src/core.jsx"></script>
+<script type="text/babel" src="../src/badge.jsx"></script>
+<script type="text/babel" src="../src/share-card.jsx"></script>
 <script defer src="../result-state.js"></script>
 
 <style>
@@ -89,7 +93,7 @@
 </noscript>
 
 <script type="text/babel" data-presets="react">
-// ShareCard is defined in green-radius.jsx (another text/babel script). Babel-standalone runs all
+// ShareCard is defined in src/share-card.jsx (another text/babel script). Babel-standalone runs all
 // text/babel scripts in a shared scope, so reference it by bare name — it is NOT a window property
 // (this mirrors how index.html mounts the game via a bare <GreenRadiusGame/>).
 const data = window.ResultState.decode(
@@ -98,7 +102,7 @@ const data = window.ResultState.decode(
 
 // Read-only card + the same Download / Share Link actions as the done screen.
 // ShareCard, ResultCardSVG, downloadSvgAsPng, svgToPngBlob, CARD_W/H all live in
-// green-radius.jsx and are reachable by bare name in the shared Babel scope.
+// src/share-card.jsx and are reachable by bare name in the shared Babel scope.
 function ResultView({ sectors, fills, campName, leadName, year }) {
   const cardSvgRef = React.useRef(null);
   const cardPngRef = React.useRef(null);

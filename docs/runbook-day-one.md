@@ -27,7 +27,7 @@
 
 ## 1. Go / no-go gates (before scheduling the announcement)
 
-- [ ] LAUNCH PR merged + verified: `/docs/runbook-day-one.md` → 404, `/wrangler.jsonc` → 404, `/worker/index.js` → 404, `/CLAUDE.md` → 404; favicon shows in the browser tab on `/`, `/result/`, and `/admin` (inline SVG, no `.ico` file); vendor files show `Cache-Control: ...max-age=31536000, immutable`; storage/no-sharing sentence visible near the email field.
+- [ ] LAUNCH PR merged + verified: `/docs/runbook-day-one.md` → 404, `/wrangler.jsonc` → 404, `/worker/index.js` → 404, `/CLAUDE.md` → 404; favicon shows in the browser tab on `/`, `/result/`, `/city/`, and `/admin` (inline SVG, no `.ico` file); vendor files show `Cache-Control: ...max-age=31536000, immutable`; storage/no-sharing sentence visible near the email field.
 - [ ] WAF rate-limit rule on `/api/*` confirmed **deployed and active** (not draft). (First verified 2026-07-02: 14 rapid POSTs → 403s through #10, 429s from #11, released after ~10s.)
 - [ ] Resend: plan quota ≥ 500/day for launch week (free tier = 100/day + 3,000/mo; Pro $20/mo = 50k/mo, no daily cap). Domain shows verified; **set a usage/volume alert**. DKIM + custom MAIL FROM DNS verified present 2026-06-11 (resend._domainkey TXT; send.greenradi.us SPF/MX); DMARC p=none exists.
 - [ ] Test email landed in a Gmail **inbox**, not spam.

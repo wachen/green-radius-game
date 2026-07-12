@@ -36,7 +36,7 @@ per-sector **green count** (`0–10`, total Yes).
 
 ```
 play game / form  →  done screen  ─┬─►  result-state.encode()  →  /result/?r=<payload>   (share link; legacy #<hash> still decoded)
-   (green-radius.jsx)              │
+   (green-radius.jsx + src/*.jsx)  │
                                    └─►  POST /api/complete (worker/index.js)
                                           ├─► appendToSheet → Apps Script web app → "2026 Results" tab
                                           └─► sendEmail     → Resend → emails the /result/ link + the Green-Up Plan
@@ -45,7 +45,7 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 /result/ (result/index.html):  decode(?r= payload, legacy #hash fallback) → <ShareCard> (read-only, stateless)
 ```
 
-1. **Play** (`green-radius.jsx`). Each spin plays a whole sector's 10 questions
+1. **Play** (`green-radius.jsx` + the `src/*.jsx` modules). Each spin plays a whole sector's 10 questions
    across 4 levels (sized 1/2/3/4). **The radius mirrors the answers
    per-question:** each level's ring fills one segment per Yes, in that level's
    color (`LEVEL_COLORS`), gaps allowed — no compensation. Level 4's four segments
@@ -174,9 +174,9 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   deploy, sanity-check `curl -sI https://greenradi.us/.git/config` returns 404.
 - **The runtime is vendored, not CDN-loaded.** React/ReactDOM/`@babel/standalone`
   are committed under `vendor/` (versioned filenames) and loaded same-origin with
-  `defer` in all three HTML entry points, so a CDN outage or compromise can't
+  `defer` in all four HTML entry points, so a CDN outage or compromise can't
   blank or hijack the page and the playa-offline story improves. To upgrade, see
-  `vendor/README.md` (download the pinned URL, verify the bytes, update all three
+  `vendor/README.md` (download the pinned URL, verify the bytes, update all four
   entry points). Because the filenames are versioned, `_headers` serves `/vendor/*`
   with `Cache-Control: immutable, max-age=1y` (a new version is a new URL) — returning
   visitors skip ~7 RTTs; `og-card.png` is unversioned at root and deliberately not
@@ -237,16 +237,29 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 ## Gotchas (hard-won)
 
 - **Babel shared scope.** Every `<script type="text/babel">` runs in one shared
-  scope, so components defined in `green-radius.jsx` (e.g. `ShareCard`) are
+  scope, so components defined in the game scripts (`src/*.jsx`,
+  `green-radius.jsx`) — e.g. `ShareCard` in `src/share-card.jsx` — are
   referenced by **bare name** across babel scripts — they are **not** `window`
   properties. Only plain scripts that assign `window.X = …` create real globals
   (`window.SECTORS` in `game-data.js`, `window.ResultState` in `result-state.js`,
   `window.Rank` in `rank.js`).
   Mounting a component via `window.ShareCard` → `undefined` → renders nothing.
   *(This was the blank-`/result/` bug fixed in #19.)*
+- **Game-script order matters.** The UI is split across `src/*.jsx` +
+  `green-radius.jsx` (PR #55). `index.html` lists all nine in order —
+  `src/core.jsx` first (declares the shared hooks/constants), `green-radius.jsx`
+  last (its final `Object.assign(window, …)` expose reads earlier modules) —
+  while `result/`, `city/`, and `admin/` load only the modules they render
+  (`core` + `badge`, plus `share-card` on `result/`), still core-first.
+  Adding a new cross-module reference to one of those pages' components means
+  adding the module's `<script>` tag there too.
+  Top-level `const` initializers evaluate at script load, so a module may only
+  reference an earlier module's names at eval time (render-time JSX references
+  are fine in any order).
 - **`/result/` must load the same web fonts as `index.html`.** `ShareCard` inherits
-  its font (`Space Grotesk`), so the Google-Fonts `<link>` lives in **both**
-  `index.html` and `result/index.html`; drop it from `result/index.html` and the
+  its font (`Space Grotesk`), so the vendored `@font-face` block + the
+  `/vendor/fonts/space-grotesk-v22-latin.woff2` preload live in **both**
+  `index.html` and `result/index.html`; drop them from `result/index.html` and the
   shared card silently renders in a serif fallback.
 - **`localStorage` versioning.** Bump `STORAGE_VERSION` whenever the saved shape
   changes; `loadSaved` drops any save whose `version` doesn't match.
@@ -255,7 +268,8 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   the watched assets directory and can truncate in-flight asset fetches. Run
   `npx wrangler dev --persist-to <dir outside the repo>` instead.
 - **No build, no tests, no CI.** The only compile gate is
-  `bun build green-radius.jsx` (catches JSX/syntax errors — the "could not resolve
+  `bun build` run over each game script — `src/*.jsx` and `green-radius.jsx` —
+  (catches JSX/syntax errors — the "could not resolve
   react" message is *expected*; React is a global from `vendor/`, not a module).
   Verify gameplay by hand.
 - **Deploy = merge.** No staging. `main` is branch-protected (PR required).

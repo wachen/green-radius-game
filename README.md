@@ -51,7 +51,8 @@ this implementation began from a Claude Design handoff bundle.
 | Path               | Role                                                            |
 |--------------------|-----------------------------------------------------------------|
 | `index.html`       | Entry point; mounts `<GreenRadiusGame/>`                        |
-| `green-radius.jsx` | Game UI — wheel, question modal, form mode, result card, email capture, Green-Up Plan, home FAQ modal |
+| `green-radius.jsx` | Main game component (`GreenRadiusGame`) — game state, done screen, Green-Up Plan; loads last |
+| `src/`             | The rest of the game UI (shared Babel scope): core, fx, badge, wheel, question flow, share card, home, form mode |
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content             |
 | `result-state.js`  | `window.ResultState` — encode/decode a result to/from the `?r=` share payload (legacy `#hash` fallback) |
 | `rank.js`          | `window.Rank` — maps the 0–60 total to a playa-rank title ("First Spark"…"Green Supernova"); shared by the done screen and the Worker's OG description |

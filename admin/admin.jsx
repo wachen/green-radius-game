@@ -1,5 +1,5 @@
-// admin/admin.jsx — gated viewer. Reuses RadialBadge, fillsFromAnswers and
-// LEVEL_COLORS (bare names from green-radius.jsx) and window.AdminAggregate.
+// admin/admin.jsx — gated viewer. Reuses RadialBadge (src/badge.jsx),
+// fillsFromAnswers and LEVEL_COLORS (src/core.jsx) and window.AdminAggregate.
 // City tab = community tally; Camps tab = full-width all-data rows.
 const A = window.AdminAggregate;
 const useMQ = (q) => {
