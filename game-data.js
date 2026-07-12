@@ -7,7 +7,7 @@
 // Tiers 1–3 are fixed steps. Tier 4 is "advanced" — for each of its 4 slots,
 // the player picks a topic from a dropdown and answers Yes/No on it.
 // The per-sector "Our Camp's Idea" topic (id `X-camp`) is the base write-in
-// slot; the UI (green-radius.jsx `campIdeaIds`) can open up to three more on
+// slot; the UI (src/core.jsx `campIdeaIds`) can open up to three more on
 // demand per sector via synthetic ids `X-camp-2/3/4` — not present in this
 // file, generated client-side. Each slot collects a free-text description
 // alongside its own Yes/No, submitted as an `X-camp-note` / `X-camp-N-note`

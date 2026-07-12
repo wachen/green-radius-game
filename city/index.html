@@ -24,7 +24,10 @@
 <script defer src="/vendor/babel-standalone-7.29.0.min.js"></script>
 
 <script defer src="../game-data.js"></script>
-<script type="text/babel" src="../green-radius.jsx"></script>
+<!-- Just the game-UI modules this page renders (shared Babel scope, core
+     first): RadialBadge + SectorIcon live in badge.jsx. -->
+<script type="text/babel" src="../src/core.jsx"></script>
+<script type="text/babel" src="../src/badge.jsx"></script>
 
 <style>
   /* Same vendored Space Grotesk as index.html (see the comment there). */
@@ -85,7 +88,7 @@
 </noscript>
 
 <script type="text/babel" data-presets="react">
-// RadialBadge and SectorIcon are defined in green-radius.jsx (another text/babel
+// RadialBadge and SectorIcon are defined in src/badge.jsx (another text/babel
 // script). Babel-standalone runs all text/babel scripts in one shared scope, so
 // they are referenced by bare name here — they are NOT window properties.
 

@@ -167,6 +167,16 @@
 <script defer src="game-data.js"></script>
 <script defer src="result-state.js"></script>
 <script defer src="rank.js"></script>
+<!-- Game UI modules. One shared Babel scope, executed in document order:
+     src/core.jsx must load first, green-radius.jsx (the main component) last. -->
+<script type="text/babel" src="src/core.jsx"></script>
+<script type="text/babel" src="src/fx.jsx"></script>
+<script type="text/babel" src="src/badge.jsx"></script>
+<script type="text/babel" src="src/wheel.jsx"></script>
+<script type="text/babel" src="src/question-flow.jsx"></script>
+<script type="text/babel" src="src/share-card.jsx"></script>
+<script type="text/babel" src="src/home.jsx"></script>
+<script type="text/babel" src="src/form-mode.jsx"></script>
 <script type="text/babel" src="green-radius.jsx"></script>
 </head>
 <body>

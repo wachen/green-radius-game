@@ -12,6 +12,6 @@ page). Do not edit these files.
 
 To upgrade: download the new pinned URL into a new versioned filename,
 verify the bytes (`openssl dgst -sha384 -binary <file> | openssl base64 -A`
-against a second fetch), update the three HTML entry points, then delete the
+against a second fetch), update the four HTML entry points, then delete the
 old file. React and Babel are MIT-licensed; license headers ship inside the
 minified files.

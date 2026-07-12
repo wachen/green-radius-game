@@ -27,7 +27,8 @@ No build step — the browser compiles the JSX in place via `@babel/standalone`.
 | Path               | Role                                                                 |
 |--------------------|----------------------------------------------------------------------|
 | `index.html`       | Entry point; mounts `<GreenRadiusGame/>`                             |
-| `green-radius.jsx` | The whole game UI — wheel, question modal, form mode, result card, done/email screen, home FAQ modal |
+| `green-radius.jsx` | Main game component (`GreenRadiusGame`) — game state/phases, intro, done/email screen, Green-Up Plan; loads **last** |
+| `src/`             | The rest of the game UI, one shared Babel scope split by area: `core.jsx` (hooks, constants, persistence, scoring — loads **first**), `fx.jsx`, `badge.jsx`, `wheel.jsx`, `question-flow.jsx`, `share-card.jsx`, `home.jsx`, `form-mode.jsx` |
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content (BLAST framework) |
 | `result-state.js`  | `window.ResultState` — encode/decode a result to/from the `?r=` share payload (legacy `#hash` fallback) |
 | `rank.js`          | `window.Rank` — isomorphic module mapping a 0–60 total to a playa-rank title ("First Spark"…"Green Supernova"); also imported by the Worker for the OG description |
@@ -44,10 +45,14 @@ No build step — the browser compiles the JSX in place via `@babel/standalone`.
 ### One JSX gotcha worth knowing
 
 `@babel/standalone` runs every `<script type="text/babel">` in a **shared scope**, so
-components defined in `green-radius.jsx` (e.g. `ShareCard`) are referenced by **bare
-name** from other pages like `result/index.html` — they are *not* `window` properties.
-Only the plain scripts attach to `window` (`window.SECTORS`, `window.ResultState`, `window.Rank`).
-Referencing a component as `window.Something` silently renders nothing.
+components defined in the game scripts (`src/*.jsx`, `green-radius.jsx`) — e.g. `ShareCard`
+in `src/share-card.jsx` — are referenced by **bare name** from other pages like `result/index.html`.
+Babel-standalone's global evaluation (plus `const`→`var` downleveling) does technically leave these
+names sitting on `window`, but only on pages that load the defining script — that's an implementation
+detail nothing should depend on, so bare name is still the rule. The plain scripts' `window.X = …`
+assignments (`window.SECTORS`, `window.ResultState`, `window.Rank`) are the only intentional `window` API.
+Referencing a component as `window.Something` silently renders nothing on pages where the defining
+script hasn't been loaded.
 
 ## Run it locally
 
@@ -85,7 +90,7 @@ static site still serves — so you don't need them to work on the UI.
 3. If you changed the **wiring** (data flow, the `/api/complete` contract, an
    external integration, or a gotcha), update
    [`docs/architecture.md`](docs/architecture.md) to match.
-4. Bump `APP_VERSION` in `green-radius.jsx` (the deploy stamp on the home
+4. Bump `APP_VERSION` in `src/core.jsx` (the deploy stamp on the home
    screen) to the PR number, e.g. `v48`.
 5. Push and open a PR against `main`; PRs are squash-merged, and merging
    ships instantly (remember: **merge = deploy**).
