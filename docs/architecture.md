@@ -239,11 +239,15 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 - **Babel shared scope.** Every `<script type="text/babel">` runs in one shared
   scope, so components defined in the game scripts (`src/*.jsx`,
   `green-radius.jsx`) — e.g. `ShareCard` in `src/share-card.jsx` — are
-  referenced by **bare name** across babel scripts — they are **not** `window`
-  properties. Only plain scripts that assign `window.X = …` create real globals
+  referenced by **bare name** across babel scripts. Babel-standalone evaluates
+  each script globally and downlevels `const` to `var`, so these top-level names
+  do land on `window` — but only on pages whose `<script>` list includes the
+  defining module, so nothing should rely on the `window` attachment. Plain
+  scripts that assign `window.X = …` create the only intentional globals
   (`window.SECTORS` in `game-data.js`, `window.ResultState` in `result-state.js`,
   `window.Rank` in `rank.js`).
-  Mounting a component via `window.ShareCard` → `undefined` → renders nothing.
+  Mounting a component via `window.ShareCard` → `undefined` → renders nothing
+  when the defining script isn't loaded on that page.
   *(This was the blank-`/result/` bug fixed in #19.)*
 - **Game-script order matters.** The UI is split across `src/*.jsx` +
   `green-radius.jsx` (PR #55). `index.html` lists all nine in order —
