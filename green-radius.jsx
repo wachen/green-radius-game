@@ -28,29 +28,30 @@ function greenUpSteps(sectors, answers, notes) {
 // expanded; renders nothing when there are no gaps. Never mounted on /result/. Shows
 // at most the 3 lowest-level ideas per sector (steps arrive level-ascending, L1→L4),
 // so advanced camps whose only gaps are high-level still get concrete next steps.
-// Inverted color scheme: a dark-green box (lighter than the score card's brown).
+// Soft color scheme: a pale leaf-green box (lighter than the score card's brown),
+// with deep-forest text for contrast.
 // `emailed` gates the "full list emailed" footnote so it can't contradict a
 // delivery-failure message shown below the card.
 function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
   const groups = greenUpSteps(sectors, answers, notes);
   if (!groups.length) return null;
   return (
-    <div style={{ marginTop: 20, textAlign: 'left', background: 'linear-gradient(160deg, #3ea75e 0%, #2d8850 52%, #164f2b 100%)', borderRadius: 12, overflow: 'hidden' }}>
+    <div style={{ marginTop: 20, textAlign: 'left', background: 'linear-gradient(160deg, #eaf6e2 0%, #dff0d4 100%)', borderRadius: 12, overflow: 'hidden' }}>
       <div style={{ padding: '20px 16px 16px' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', textAlign: 'center', margin: '0 0 18px' }}>Your Green-Up Plan</div>
-        <div style={{ fontSize: 13, color: '#fff', opacity: 0.7, textAlign: 'center', margin: '0 0 14px' }}>Some ideas to grow your radius next year</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#1f4a2c', textAlign: 'center', margin: '0 0 18px' }}>Your Green-Up Plan</div>
+        <div style={{ fontSize: 13, color: '#1f4a2c', opacity: 0.8, textAlign: 'center', margin: '0 0 14px' }}>Some ideas to grow your radius next year</div>
         {groups.map(g => (
           <div key={g.sector} style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase', color: '#dffbef', marginBottom: 4 }}>{g.sector}</div>
+            <div style={{ fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase', color: '#3d6b2e', marginBottom: 4 }}>{g.sector}</div>
             {g.steps.slice(0, 3).map((st, i) => (
-              <div key={i} style={{ padding: '4px 0', fontSize: 14, color: '#fff' }}>
-                <span style={{ opacity: 0.55 }}>L{st.level} · </span>{st.title}
+              <div key={i} style={{ padding: '4px 0', fontSize: 14, color: '#1f4a2c' }}>
+                <span style={{ opacity: 0.85 }}>L{st.level} · </span>{st.title}
               </div>
             ))}
           </div>
         ))}
         {emailed && (
-          <div style={{ fontSize: 12, fontStyle: 'italic', color: '#fff', opacity: 0.6, textAlign: 'center', margin: '10px 0 0' }}>
+          <div style={{ fontSize: 12, fontStyle: 'italic', color: '#1f4a2c', opacity: 0.8, textAlign: 'center', margin: '10px 0 0' }}>
             The full list is in your email
           </div>
         )}
@@ -738,8 +739,13 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
               background: palette.accent, color: '#fff', fontSize: 13, fontWeight: 800,
               letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               boxShadow: `0 3px 0 ${palette.accentDark}` }}>
-            ⬇ Download
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M8 2.5V9M4.5 6.5L8 9l3.5-2.5" />
+              <path d="M3 9H13" />
+            </svg>
+            Download
           </button>
           <button onClick={handleShare}
             style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
@@ -832,18 +838,23 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         >← Back</button>
       </div>
 
-      {/* wheel */}
-      <Wheel
-        sectors={sectors}
-        fills={displayStates}
-        rotation={rotation}
-        spinning={spinning}
-        canSpin={!allDone}
-        onSpin={onSpin}
-        variant={variant}
-        palette={palette}
-        shinePaused={!!activeQuestion}
-      />
+      {/* wheel (+ sector-done toast anchored above the center hub) */}
+      <div style={{ position: 'relative' }}>
+        <Wheel
+          sectors={sectors}
+          fills={displayStates}
+          rotation={rotation}
+          spinning={spinning}
+          canSpin={!allDone}
+          onSpin={onSpin}
+          variant={variant}
+          palette={palette}
+          shinePaused={!!activeQuestion}
+        />
+        {toast && (
+          <ResultToast kind={toast.kind} sector={toast.sector} greens={toast.greens} palette={palette} onClose={() => setToast(null)}/>
+        )}
+      </div>
 
       {/* score, in the gap between wheel and status bar */}
       <div style={{ textAlign: 'center', marginTop: 8 }}>
@@ -943,9 +954,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           palette={palette}
           variant={variant}
         />
-      )}
-      {toast && (
-        <ResultToast kind={toast.kind} sector={toast.sector} greens={toast.greens} palette={palette} onClose={() => setToast(null)}/>
       )}
       {celebration && (
         <Celebration sector={celebration.sector} palette={palette} onDone={() => setCelebration(null)}/>

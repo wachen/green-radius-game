@@ -176,10 +176,10 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
         disabled={!canSpin || spinning}
         style={{
           position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
-          width: 96, height: 96, borderRadius: '50%', border: 'none',
+          width: 104, height: 104, borderRadius: '50%', border: 'none',
           background: spinning ? palette.hub : palette.accent,
           color: palette.bg,
-          fontSize: 13, fontWeight: 800, letterSpacing: '0.12em',
+          fontSize: 14, fontWeight: 800, letterSpacing: '0.12em',
           textTransform: 'uppercase',
           cursor: canSpin && !spinning ? 'pointer' : 'default',
           boxShadow: dim

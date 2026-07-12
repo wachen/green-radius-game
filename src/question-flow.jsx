@@ -422,16 +422,17 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
             <button type="button" onClick={back} aria-label="Go back to the previous question"
               style={{ background: 'none', border: 'none',
                 color: palette.text + '99', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                letterSpacing: '0.1em', textTransform: 'uppercase',
                 fontFamily: 'inherit', padding: '6px 8px', minHeight: 32 }}>
               ‹ Back
             </button>
           ) : (
-            <span style={{ visibility: 'hidden', fontSize: 12, fontWeight: 700, padding: '6px 8px' }} aria-hidden="true">‹ Back</span>
+            <span style={{ visibility: 'hidden', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '6px 8px' }} aria-hidden="true">‹ Back</span>
           )}
           <div style={{ flex: 1, textAlign: 'center', fontSize: 12, color: palette.text + '99' }}>
             {isTier4 ? 'Advanced' : `${stepNumber} of 10`}
           </div>
-          <span style={{ visibility: 'hidden', fontSize: 12, fontWeight: 700, padding: '6px 8px' }} aria-hidden="true">‹ Back</span>
+          <span style={{ visibility: 'hidden', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '6px 8px' }} aria-hidden="true">‹ Back</span>
         </div>
       </div>
     </div>
@@ -439,9 +440,12 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
 }
 
 // ─── result toast (between questions and next spin) ───────────────────────────
+// Anchored above the wheel's center hub button by its owner (see the wheel
+// wrapper in green-radius.jsx). The offset below must clear the hub: hub
+// radius 52px (src/wheel.jsx) + a small gap.
 function ResultToast({ kind, sector, greens, palette, onClose }) {
   useEffect(() => {
-    const t = setTimeout(onClose, 2400);
+    const t = setTimeout(onClose, 3400);
     return () => clearTimeout(t);
   }, [onClose]);
 
@@ -450,21 +454,22 @@ function ResultToast({ kind, sector, greens, palette, onClose }) {
 
   return (
     <div role="status" aria-live="polite" style={{
-      position: 'fixed', inset: 0, zIndex: 9, pointerEvents: 'none',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      position: 'absolute', left: '50%', top: 'calc(50% - 62px)',
+      transform: 'translate(-50%, -100%)',
+      zIndex: 9, pointerEvents: 'none',
       animation: 'qm-fade 0.25s ease',
     }}>
       <div style={{
         background: anyGreen ? '#5BA84A' : '#3a2a20',
-        color: '#fff', padding: '22px 28px', borderRadius: 18,
+        color: '#fff', padding: '16px 20px', borderRadius: 16,
         boxShadow: '0 18px 48px rgba(0,0,0,0.4)',
-        textAlign: 'center', maxWidth: 320,
+        textAlign: 'center', maxWidth: 260,
         animation: 'qm-up 0.3s cubic-bezier(0.2,0.8,0.2,1)',
       }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', opacity: 0.8, marginBottom: 6 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', opacity: 0.8, marginBottom: 5 }}>
           {sector?.name?.toUpperCase()} · DONE
         </div>
-        <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.25, textWrap: 'pretty' }}>
+        <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.25, textWrap: 'pretty' }}>
           {anyGreen
             ? `${greens} of 10 answered yes`
             : 'Sector done · no yeses this time. Room to grow!'}
