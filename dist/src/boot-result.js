@@ -1,0 +1,150 @@
+// @generated from src/boot-result.jsx by scripts/build.js — DO NOT EDIT.
+// Edit the .jsx source, then run: bun run scripts/build.js
+const data = window.ResultState.decode(new URLSearchParams(window.location.search).get("r") || window.location.hash);
+function ResultView({ sectors, fills, campName, leadName, year }) {
+  const cardSvgRef = React.useRef(null);
+  const cardPngRef = React.useRef(null);
+  const [copied, setCopied] = React.useState(false);
+  const [downloadFailed, setDownloadFailed] = React.useState(false);
+  const total = sectors.reduce((n, s) => n + (fills[s.id] && fills[s.id].totalYes || 0), 0);
+  const slug = (campName || "theme-camp").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "theme-camp";
+  const resultUrl = window.location.href;
+  React.useEffect(() => {
+    if (!cardSvgRef.current)
+      return;
+    let alive = true;
+    svgToPngBlob(cardSvgRef.current).then((b) => {
+      if (alive)
+        cardPngRef.current = b;
+    }).catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  async function handleDownload() {
+    if (!cardSvgRef.current)
+      return;
+    try {
+      await downloadSvgAsPng(cardSvgRef.current, `green-radius-${slug}.png`);
+    } catch {
+      setDownloadFailed(true);
+      setTimeout(() => setDownloadFailed(false), 1500);
+    }
+  }
+  async function handleShare() {
+    const shareText = `Our camp reached ${total}/60. Build your camp's Green Radius:`;
+    const blob = cardPngRef.current;
+    const file = blob ? new File([blob], `green-radius-${slug}.png`, { type: "image/png" }) : null;
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: "Our Green Radius", text: shareText, url: resultUrl });
+        return;
+      } catch (e) {
+        if (e && e.name === "AbortError")
+          return;
+      }
+    }
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Our Green Radius", text: shareText, url: resultUrl });
+        return;
+      } catch (e) {
+        if (e && e.name === "AbortError")
+          return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(resultUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied("error");
+      setTimeout(() => setCopied(false), 1500);
+    }
+  }
+  const btn = {
+    flex: 1,
+    padding: "14px 0",
+    borderRadius: 12,
+    border: "none",
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: 800,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6
+  };
+  return React.createElement("div", {
+    style: { width: "min(360px, 100%)", display: "flex", flexDirection: "column", gap: 14 }
+  }, React.createElement(ShareCard, {
+    sectors,
+    fills,
+    campName,
+    leadName,
+    year,
+    palette: {}
+  }), React.createElement("div", {
+    style: { display: "flex", gap: 10 }
+  }, React.createElement("button", {
+    onClick: handleDownload,
+    style: { ...btn, background: "#7AB85C", boxShadow: "0 3px 0 #558040" }
+  }, React.createElement(DownloadIcon, null), downloadFailed ? "Couldn't download" : "Download"), React.createElement("button", {
+    onClick: handleShare,
+    style: { ...btn, background: "#3B6FD4", boxShadow: "0 3px 0 #2b539e" }
+  }, copied === "error" ? "Couldn't copy link" : copied ? "Link copied!" : "↗ Share link")), React.createElement("div", {
+    "aria-hidden": "true",
+    style: { position: "absolute", left: -99999, top: 0, width: CARD_W, height: CARD_H, overflow: "hidden", pointerEvents: "none" }
+  }, React.createElement(ResultCardSVG, {
+    svgRef: cardSvgRef,
+    sectors,
+    fills,
+    campName,
+    leadName,
+    year
+  })));
+}
+const root = ReactDOM.createRoot(document.getElementById("root"));
+if (!data) {
+  root.render(React.createElement("div", {
+    style: {
+      background: "linear-gradient(155deg, #1c1410 0%, #2a1c14 100%)",
+      borderRadius: 24,
+      color: "#fff",
+      padding: "36px 28px",
+      maxWidth: 360,
+      textAlign: "center",
+      boxShadow: "0 24px 60px rgba(0,0,0,0.5)"
+    }
+  }, React.createElement("div", {
+    style: { fontSize: 10, letterSpacing: "0.25em", fontWeight: 700, opacity: 0.6, marginBottom: 10 }
+  }, "GREEN RADIUS"), React.createElement("div", {
+    style: { fontSize: 20, fontWeight: 800, marginBottom: 8 }
+  }, "This result link looks incomplete."), React.createElement("div", {
+    style: { fontSize: 13, lineHeight: 1.5, opacity: 0.75, marginBottom: 20 }
+  }, "Result links carry the whole scorecard after the # mark, so make sure the full link was copied. Or start fresh and build your own."), React.createElement("a", {
+    href: "/",
+    style: {
+      display: "inline-block",
+      background: "#5BA84A",
+      color: "#fff",
+      padding: "12px 22px",
+      borderRadius: 14,
+      fontWeight: 700,
+      fontSize: 14,
+      textDecoration: "none",
+      boxShadow: "0 3px 0 #3d7a31"
+    }
+  }, "Play your own Green Radius")));
+} else {
+  root.render(React.createElement(ResultView, {
+    sectors: window.SECTORS,
+    fills: data.fills,
+    campName: data.campName,
+    leadName: data.leadName,
+    year: data.year
+  }));
+}
