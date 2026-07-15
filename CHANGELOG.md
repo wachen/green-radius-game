@@ -11,6 +11,7 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 ## Polish: presentation, keepsakes & small screens (#64–)
 
 - Added this changelog, documenting every release since #1 (#64)
+- Home screen fits above the fold on modern iPhones and the FAQ got a little shorter, spacing only (#67)
 - Results email now opens with the result — X/60 achieved plus a per-sector table; playa-rank titles retired everywhere (#66)
 - Admin City tab glow-up — the /city/ card look (teal hero, dust glow) plus pulse tiles, superlatives, and a top-10 mini-badge leaderboard (#65)
 
