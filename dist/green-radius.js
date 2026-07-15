@@ -374,7 +374,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
         greens[s.id] = sectorFill(s, answers).totalYes;
       });
       const year = new Date().getFullYear();
-      const resultUrl = window.location.origin + "/result/?r=" + window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
+      const resultUrl = window.location.origin + "/result/?r=" + window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills, campId });
       const email = (overrideEmail != null ? overrideEmail : camp.email || "").trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         if (gen === submitGenRef.current)
@@ -687,7 +687,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
     };
     const year = new Date().getFullYear();
     const total = sectors.reduce((n, s) => n + (fills[s.id] ? fills[s.id].totalYes : 0), 0);
-    const resultUrl = window.location.origin + "/result/?r=" + window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills });
+    const resultUrl = window.location.origin + "/result/?r=" + window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills, campId });
     const email = (camp.email || "").trim();
     const slug = (camp.campName || "theme-camp").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "theme-camp";
     const needsRetry = submitState === "error" || submitResult && submitResult.email !== "sent";

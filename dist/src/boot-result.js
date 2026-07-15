@@ -6,6 +6,7 @@ function ResultView({ sectors, fills, campName, leadName, year }) {
   const cardPngRef = React.useRef(null);
   const [copied, setCopied] = React.useState(false);
   const [downloadFailed, setDownloadFailed] = React.useState(false);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
   const total = sectors.reduce((n, s) => n + (fills[s.id] && fills[s.id].totalYes || 0), 0);
   const slug = (campName || "theme-camp").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "theme-camp";
   const resultUrl = window.location.href;
@@ -78,6 +79,43 @@ function ResultView({ sectors, fills, campName, leadName, year }) {
     justifyContent: "center",
     gap: 6
   };
+  function readExistingSave() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    } catch {
+      return null;
+    }
+  }
+  function hasMeaningfulProgress(save) {
+    return !!(save && save.answers && Object.keys(save.answers).length > 0);
+  }
+  function doImport() {
+    const save = window.ResultState.reconstructSave(data, window.SECTORS, {
+      version: STORAGE_VERSION,
+      campId: genCampId(),
+      now: new Date().toISOString()
+    });
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(save));
+    } catch (e) {}
+    try {
+      const beacon = JSON.stringify({ event: "result_resumed" });
+      if (navigator.sendBeacon)
+        navigator.sendBeacon("/api/event", beacon);
+      else
+        fetch("/api/event", { method: "POST", body: beacon, keepalive: true }).catch(() => {});
+    } catch (e) {}
+    window.location.href = "/";
+  }
+  function handleContinue() {
+    const existing = readExistingSave();
+    const differentCamp = !(data && data.campId) || !!(existing && existing.campId && existing.campId !== data.campId);
+    if (hasMeaningfulProgress(existing) && differentCamp) {
+      setConfirmOpen(true);
+      return;
+    }
+    doImport();
+  }
   return React.createElement("div", {
     style: { width: "min(360px, 100%)", display: "flex", flexDirection: "column", gap: 14 }
   }, React.createElement(ShareCard, {
@@ -96,6 +134,63 @@ function ResultView({ sectors, fills, campName, leadName, year }) {
     onClick: handleShare,
     style: { ...btn, background: "#3B6FD4", boxShadow: "0 3px 0 #2b539e" }
   }, copied === "error" ? "Couldn't copy link" : copied ? "Link copied!" : "↗ Share link")), React.createElement("div", {
+    style: { borderTop: "1px solid #2a262022", paddingTop: 14, display: "flex", flexDirection: "column", gap: 8 }
+  }, React.createElement("button", {
+    onClick: handleContinue,
+    style: { ...btn, background: "#5BA84A", boxShadow: "0 3px 0 #3d7a31", textTransform: "uppercase" }
+  }, "Continue improving"), React.createElement("div", {
+    style: { fontSize: 12, lineHeight: 1.45, color: "#2a2620aa", textAlign: "center" }
+  }, "Load this scorecard on this device to keep answering and raise your radius.")), confirmOpen && React.createElement("div", {
+    role: "dialog",
+    "aria-modal": "true",
+    style: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 50,
+      background: "rgba(20,16,12,0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 24
+    }
+  }, React.createElement("div", {
+    style: {
+      background: "#F3ECDD",
+      borderRadius: 20,
+      maxWidth: 340,
+      width: "100%",
+      padding: "24px 22px",
+      boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
+      color: "#2a2620"
+    }
+  }, React.createElement("div", {
+    style: { fontSize: 18, fontWeight: 800, marginBottom: 8 }
+  }, "Replace your in-progress game?"), React.createElement("div", {
+    style: { fontSize: 13.5, lineHeight: 1.5, opacity: 0.8, marginBottom: 18 }
+  }, "This device already has a game in progress. Loading this scorecard will replace it, and that progress will be lost."), React.createElement("div", {
+    style: { display: "flex", gap: 10 }
+  }, React.createElement("button", {
+    onClick: () => setConfirmOpen(false),
+    style: {
+      ...btn,
+      color: "#2a2620",
+      background: "#DCD2BE",
+      boxShadow: "0 3px 0 #b3a98a",
+      textTransform: "none",
+      letterSpacing: "normal",
+      fontWeight: 700
+    }
+  }, "Keep mine"), React.createElement("button", {
+    onClick: doImport,
+    style: {
+      ...btn,
+      background: "#5BA84A",
+      boxShadow: "0 3px 0 #3d7a31",
+      textTransform: "none",
+      letterSpacing: "normal",
+      fontWeight: 800
+    }
+  }, "Replace it")))), React.createElement("div", {
     "aria-hidden": "true",
     style: { position: "absolute", left: -99999, top: 0, width: CARD_W, height: CARD_H, overflow: "hidden", pointerEvents: "none" }
   }, React.createElement(ResultCardSVG, {
