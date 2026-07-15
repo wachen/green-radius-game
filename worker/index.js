@@ -13,10 +13,15 @@ const NOTE_KEYS = new Set(
 );
 const ALLOWED_ORIGIN = 'https://greenradi.us';
 
+// Funnel analytics: the only event names POST /api/event will record. Anything
+// else is silently dropped so a stray/forged name can't stuff Workers Logs.
+const ALLOWED_EVENTS = new Set(['game_started', 'mode_chosen', 'submit_attempted', 'submit_succeeded', 'submit_failed']);
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/api/complete' && request.method === 'POST') return handleComplete(request, env);
+    if (url.pathname === '/api/event' && request.method === 'POST') return handleEvent(request);
     if (url.pathname === '/api/admin/responses' && request.method === 'GET') return handleAdminResponses(request, env);
     if (url.pathname === '/api/city' && request.method === 'GET') return handleCity(env, ctx);
     // Liveness probe for the external uptime monitor (Cloudflare Free has no
@@ -111,6 +116,30 @@ async function handleComplete(request, env) {
   return json({
     sheet: sheetRes.status === 'fulfilled' && sheetRes.value ? 'ok' : 'err',
     email: emailRes.status === 'fulfilled' && emailRes.value ? 'sent' : 'err',
+  });
+}
+
+// Funnel telemetry sink. Fire-and-forget from the client via sendBeacon: same
+// fail-closed Origin check as /api/complete, a tight body cap, an event-name
+// allowlist, and coarse non-PII props only (mode, sector count) — never emails,
+// camp names, or free text. Writes one structured line to Workers Logs and 204s.
+// Every non-forbidden outcome returns 204 so a beacon never surfaces an error.
+function handleEvent(request) {
+  const origin = request.headers.get('Origin') || '';
+  const isLocalhost = /^http:\/\/localhost(:\d+)?$/.test(origin);
+  if (origin !== ALLOWED_ORIGIN && !isLocalhost) return new Response(null, { status: 403 });
+
+  return request.text().then((raw) => {
+    if (raw.length > 1024) return new Response(null, { status: 204 });
+    let body;
+    try { body = JSON.parse(raw); } catch { return new Response(null, { status: 204 }); }
+    if (!body || typeof body !== 'object' || !ALLOWED_EVENTS.has(body.event)) return new Response(null, { status: 204 });
+
+    const evt = { type: 'funnel_event', event: body.event };
+    if (body.mode === 'board' || body.mode === 'form') evt.mode = body.mode;
+    if (Number.isFinite(body.sectors)) evt.sectors = Math.max(0, Math.min(6, body.sectors | 0));
+    console.log(JSON.stringify(evt));
+    return new Response(null, { status: 204 });
   });
 }
 

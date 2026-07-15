@@ -17,8 +17,9 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
   `@babel/standalone` from the committed **`vendor/`** directory (same-origin, no
   CDN at runtime); Babel compiles the JSX *in the browser*, then mounts
   `<GreenRadiusGame/>`.
-- **One small Cloudflare Worker.** `worker/index.js` handles five dynamic routes —
-  `POST /api/complete` (result capture), the Access-gated
+- **One small Cloudflare Worker.** `worker/index.js` handles six dynamic routes —
+  `POST /api/complete` (result capture), `POST /api/event` (fail-closed funnel
+  telemetry sink — see Analytics below), the Access-gated
   `GET /api/admin/responses` (admin viewer read path),
   `GET /api/health` (liveness probe for the external uptime monitor — returns
   `{ok:true}`, no secrets/upstreams, `no-store`),
@@ -233,6 +234,13 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   question content (game UI; the Worker's Green-Up Plan email section). `result-state.js`
   resolves its global via `globalThis` too, so all three import into the Worker bundle
   without a module-eval throw.
+
+## Analytics (pageviews + funnel)
+
+Two independent, privacy-conscious layers. Neither is load-bearing for gameplay.
+
+- **Cloudflare Web Analytics (CWA).** A `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"..."}'>` beacon in the `<head>` of the three **public** pages only — `index.html`, `result/index.html`, `city/index.html` (**not** `admin/`, which is Access-gated and internal). It reports pageviews + Web Vitals to the Cloudflare dashboard; no cookies, no PII. The beacon token is **public by design** and committed to the repo (swap it via the CWA site in the Cloudflare dashboard). The CWA site is created out-of-band in the dashboard/API, not by this repo. The beacon has no Subresource Integrity hash on purpose — that matches Cloudflare's official snippet (Cloudflare rotates the file). No CSP change was needed: `_headers` only sets `frame-ancestors 'none'`, so there is no `script-src`/`connect-src` to widen for `cloudflareinsights.com`.
+- **Funnel events → `POST /api/event` (Worker).** `green-radius.jsx`'s `trackEvent(event, props)` helper fires a fire-and-forget `navigator.sendBeacon` (keepalive `fetch` fallback), fully wrapped so a telemetry failure can never touch gameplay. It is called at exactly five funnel points: `game_started` (first interaction past the pick-mode landing), `mode_chosen` (`{mode:'board'|'form'}`), `submit_attempted` (`{mode, sectors}` = count of sectors with any Yes), `submit_succeeded`, `submit_failed` (both `{mode}`). The Worker route mirrors `/api/complete`'s **fail-closed Origin check** (must be `https://greenradi.us` or `http://localhost:*`, absent Origin rejected → 403), caps the body at 1 KB, drops any event name not in the `ALLOWED_EVENTS` allowlist, then writes **one structured `console.log` line** (`{type:'funnel_event', event, mode?, sectors?}`) to Workers Logs and returns **204**. **No PII by contract:** event name + coarse props only — never emails, camp names, or free text. Every non-forbidden outcome returns 204 so a beacon never surfaces an error to the player.
 
 ## Gotchas (hard-won)
 

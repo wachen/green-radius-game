@@ -2,6 +2,20 @@
 // Two design directions are exposed via the `variant` prop ("dimensional" | "flat-playa").
 // Loads last: the src/*.jsx modules define everything else in the same shared Babel scope.
 
+// Fire-and-forget funnel analytics. sendBeacon survives the page-unload that a
+// submit or navigation can trigger; the keepalive fetch is a fallback for the
+// rare browser without it. Fully wrapped so a telemetry hiccup can never touch
+// gameplay. Non-PII by contract: event name + coarse props (mode, sector count)
+// only — never camp names, emails, or free text. Sink is the Worker's
+// POST /api/event; see docs/architecture.md.
+function trackEvent(event, props) {
+  try {
+    const body = JSON.stringify({ event, ...props });
+    if (navigator.sendBeacon) navigator.sendBeacon('/api/event', body);
+    else fetch('/api/event', { method: 'POST', body, keepalive: true }).catch(() => {});
+  } catch (e) { /* analytics must never break the game */ }
+}
+
 // Green-Up Plan data: every "No" answer becomes a next-year step. Levels 1–3 come
 // from sector.levels[0..2]; level 4 from sector.tier4Topics. Grouped by sector (board
 // order), each group's steps in level order. Zero gaps → empty array (panel hides).
@@ -344,6 +358,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       const email = (overrideEmail != null ? overrideEmail : (camp.email || '')).trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { if (gen === submitGenRef.current) setSubmitState('error'); return; }
       setSubmitState('sending');
+      const evMode = mode === 'form' ? 'form' : 'board';
+      trackEvent('submit_attempted', { mode: evMode, sectors: Object.values(greens).filter(v => v > 0).length });
       // Write-in idea text rides the same answers map as `X-camp-note` entries
       // (only when its topic was answered), landing in the sheet's Answers JSON.
       const noteEntries = {};
@@ -368,10 +384,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         setSubmitResult({ sheet: j.sheet, email: j.email });
         // "done" = at least one channel landed, so we stop auto-retrying on reload.
         // The per-channel copy + the Try-again button surface any partial failure.
-        if (j.sheet === 'ok' || j.email === 'sent') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); }
-        else setSubmitState('error');
+        if (j.sheet === 'ok' || j.email === 'sent') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); trackEvent('submit_succeeded', { mode: evMode }); }
+        else { setSubmitState('error'); trackEvent('submit_failed', { mode: evMode }); }
       } catch {
         if (gen === submitGenRef.current) setSubmitState('error');
+        trackEvent('submit_failed', { mode: evMode });
       }
     })();
   }, [sectors, answers, customNotes, camp, fills, mode]);
@@ -526,6 +543,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     if (mode !== 'board') freshProgress();
     setCamp(info);
     setMode('board');
+    trackEvent('mode_chosen', { mode: 'board' });
     setPhase('playing');
     if (debugFill) {
       // demo: pre-fill a varied answer pattern for screenshotting
@@ -542,6 +560,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     if (mode !== 'form') freshProgress();
     setCamp(info);
     setMode('form');
+    trackEvent('mode_chosen', { mode: 'form' });
     setPhase('form');
   }
 
@@ -551,7 +570,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   if (phase === 'pick-mode') {
     return (
       <ModePicker
-        onPick={(mode) => setPhase(mode === 'board' ? 'intro' : 'form-intro')}
+        onPick={(mode) => { trackEvent('game_started'); setPhase(mode === 'board' ? 'intro' : 'form-intro'); }}
         palette={palette}
       />
     );
