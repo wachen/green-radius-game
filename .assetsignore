@@ -46,6 +46,7 @@ docs
 worker
 wrangler.jsonc
 CLAUDE.md
+CHANGELOG.md
 scripts
 
 # CI + tests — dev-only, never served from the prod domain
