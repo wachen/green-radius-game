@@ -62,6 +62,14 @@ dashboard uses a **Destinations** model (one app can have up to 5; they share on
    deploy. They are **not** secrets (they only let the Worker *verify* a token, never mint
    one), so committing them is fine.
 
+A second Access app ("green-radius-game - Cloudflare Workers") gates the Worker's
+**preview URLs** (`*-green-radius-game.<account>.workers.dev`). It isn't created
+here in Zero Trust — it comes from the one-click **Enable Cloudflare Access**
+toggle on the Worker's Preview URLs setting (Workers & Pages → green-radius-game →
+Settings → Domains & Routes) and uses the account-wide reusable "Cloudflare
+Workers Preview URLs" policy. Keep that policy's email list in sync with the
+admin allowlist above.
+
 Without these, the Worker returns 403 (Access not configured) and the page won't
 load — by design. The viewer is also graceful: until `Answers JSON` has data, the
 City heatmap / per-question detail and the Camps ✓/✗ tokens fall back to a

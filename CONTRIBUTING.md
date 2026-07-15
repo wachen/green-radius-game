@@ -93,6 +93,8 @@ static site still serves — so you don't need them to work on the UI.
 4. Bump `APP_VERSION` in `src/core.jsx` (the deploy stamp on the home
    screen) to the PR number, e.g. `v48`.
 5. Push and open a PR against `main`; PRs are squash-merged, and merging
-   ships instantly (remember: **merge = deploy**).
+   ships instantly (remember: **merge = deploy**). Every branch push also
+   builds a Cloudflare preview URL you can review live before merging — it's
+   gated by Cloudflare Access (team email allowlist), so expect a login step.
 
 Happy hacking. 🌱

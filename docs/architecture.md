@@ -168,7 +168,14 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   `assets.directory = "."`, `assets.binding = "ASSETS"`, `nodejs_compat`. Secrets —
   `SHEETS_WEBAPP_URL`, `SHEETS_SHARED_SECRET`, `RESEND_API_KEY` — are Worker secrets
   (dashboard in prod; `.dev.vars` locally). **HSTS preload is active on
-  `greenradi.us`** — the site must never go offline.
+  `greenradi.us`** — the site must never go offline. The Worker answers **only**
+  on `greenradi.us`: `wrangler.jsonc` pins `workers_dev: false` (the persistent
+  workers.dev route skipped the zone's WAF/rate-limiting/Access while running
+  with production secrets — removed in PR #56) and `preview_urls: true`
+  (branch-build preview URLs stay on for PR review, gated by a Cloudflare
+  Access email allowlist on `*-green-radius-game.<account>.workers.dev`).
+  Don't flip either flag — `preview_urls` must stay explicit because its
+  default follows `workers_dev`.
 - **`.assetsignore` gates what is served.** Because `assets.directory = "."`, the
   whole repo root would otherwise be public. `.assetsignore` (NOT `.gitignore` —
   wrangler ignores `.gitignore` for assets) excludes `.git`, `.dev.vars*`,
@@ -311,9 +318,12 @@ Two independent, privacy-conscious layers. Neither is load-bearing for gameplay.
   plus `bun test` (pure-function unit tests in `test/` — no deps, Bun's built-in
   runner). Still verify gameplay by hand.
 - **Deploy = merge.** No staging. `main` is branch-protected (PR required).
-  Preview with a local static server, or `wrangler versions upload` for a real
-  Cloudflare preview URL (no prod impact). Fork PRs get **no** preview and can't
-  run secret-bearing CI.
+  Preview with a local static server, or just push a branch — Workers Builds
+  runs `wrangler versions upload` on every non-main push, producing a real
+  Cloudflare preview URL (no prod impact). Preview URLs sit behind Cloudflare
+  Access (same email allowlist as `/admin`); the Worker's persistent
+  workers.dev route is disabled (PR #56), so prod answers only on
+  `greenradi.us`. Fork PRs get **no** preview and can't run secret-bearing CI.
 
 ## Repo & deploy topology
 
