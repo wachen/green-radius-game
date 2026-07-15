@@ -10,12 +10,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Pin bun so the transpiler output is byte-identical to what was committed
+      # locally — the compile+diff gate below depends on a deterministic build.
       - uses: oven-sh/setup-bun@v2
-      - name: Parse gate (compile every game script)
+        with:
+          bun-version: 1.3.14
+      # Compile gate: recompile every game .jsx to dist/. A JSX/syntax error
+      # throws here (this replaces the old `bun build` parse gate).
+      - name: Compile gate (rebuild dist/ from the .jsx sources)
+        run: bun run scripts/build.js
+      # Sync gate: the committed dist/ artifacts must match a fresh build, so a
+      # source edit can never ship without its recompiled artifact.
+      - name: Verify committed dist/ is in sync with source
         run: |
-          for f in src/*.jsx green-radius.jsx; do
-            echo "compiling $f"
-            bun build "$f" --external react --external react/jsx-runtime --external react/jsx-dev-runtime > /dev/null
-          done
+          if [ -n "$(git status --porcelain -- dist)" ]; then
+            echo "::error::dist/ is out of sync with the .jsx sources. Run: bun run scripts/build.js"
+            git status --porcelain -- dist
+            git --no-pager diff -- dist
+            exit 1
+          fi
       - name: Unit tests
         run: bun test
