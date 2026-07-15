@@ -103,12 +103,12 @@ function AboutIcon({ kind, size = 15, color = "#558040" }) {
 function AboutSection({ icon, title, mark, divider, palette, children }) {
   return React.createElement("div", {
     style: {
-      marginTop: divider ? 20 : 22,
-      paddingTop: divider ? 20 : 0,
+      marginTop: 14,
+      paddingTop: divider ? 14 : 0,
       borderTop: divider ? "1px solid " + palette.text + "14" : "none"
     }
   }, React.createElement("div", {
-    style: { display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }
+    style: { display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }
   }, React.createElement("span", {
     "aria-hidden": "true",
     style: {
@@ -262,7 +262,7 @@ function FaqModal({ onClose, palette }) {
       color: palette.text,
       textAlign: "left",
       borderRadius: 24,
-      padding: "0 22px 18px",
+      padding: "0 22px 14px",
       maxWidth: 400,
       width: "100%",
       margin: "auto",
@@ -280,7 +280,7 @@ function FaqModal({ onClose, palette }) {
       zIndex: 5,
       background: palette.accentDark,
       margin: "0 -22px",
-      padding: "22px 22px 16px",
+      padding: "18px 22px 13px",
       borderRadius: "24px 24px 0 0",
       marginBottom: 4,
       textAlign: "center",
@@ -288,10 +288,10 @@ function FaqModal({ onClose, palette }) {
     }
   }, React.createElement("svg", {
     viewBox: "0 0 64 64",
-    width: "30",
-    height: "30",
+    width: "26",
+    height: "26",
     "aria-hidden": "true",
-    style: { display: "block", margin: "0 auto 8px" }
+    style: { display: "block", margin: "0 auto 6px" }
   }, React.createElement("circle", {
     cx: "32",
     cy: "33",
@@ -339,7 +339,7 @@ function FaqModal({ onClose, palette }) {
     mark: "#1",
     palette
   }, React.createElement("div", {
-    style: { fontSize: 13.5, lineHeight: 1.55, color: palette.text + "d1", textWrap: "pretty" }
+    style: { fontSize: 13.5, lineHeight: 1.5, color: palette.text + "d1", textWrap: "pretty" }
   }, "The playa doesn't need another form. The Green Radius is not a compliance audit; it's a mirror. See where your camp stands across six sustainability sectors, celebrate what you already do well, and discover what's possible next. The greener your choices, the further your radius reaches. And every segment one camp lights nudges the whole city greener.")), React.createElement(AboutSection, {
     icon: "sectors",
     title: "The six sectors",
@@ -347,14 +347,14 @@ function FaqModal({ onClose, palette }) {
     divider: true,
     palette
   }, React.createElement("div", {
-    style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }
+    style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }
   }, window.SECTORS.map((s) => React.createElement("div", {
     key: s.id,
     style: {
       border: "1px solid " + palette.text + "14",
       borderRadius: 14,
       background: palette.text + "06",
-      padding: "11px 12px"
+      padding: "9px 11px"
     }
   }, React.createElement("div", {
     style: { display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }
@@ -400,7 +400,7 @@ function FaqModal({ onClose, palette }) {
     }
   }), LEVEL_ROWS.map((lv, i) => React.createElement("div", {
     key: i,
-    style: { display: "flex", alignItems: "center", gap: 10, padding: "6px 0", position: "relative" }
+    style: { display: "flex", alignItems: "center", gap: 10, padding: "4px 0", position: "relative" }
   }, React.createElement("span", {
     "aria-hidden": "true",
     style: {
@@ -426,7 +426,7 @@ function FaqModal({ onClose, palette }) {
   }, lv.blurb)), React.createElement("span", {
     style: { fontSize: 11.5, color: palette.text + "99", flexShrink: 0, paddingLeft: 8, textAlign: "right" }
   }, lv.count)))), React.createElement("div", {
-    style: { fontSize: 12.5, lineHeight: 1.5, color: palette.text + "b3", marginTop: 8, textWrap: "pretty" }
+    style: { fontSize: 12.5, lineHeight: 1.5, color: palette.text + "b3", marginTop: 6, textWrap: "pretty" }
   }, "Every yes lights its own segment: 10 per sector, 60 total. An early no never blocks later progress, and Level 4 is optional extra credit with a write-in slot for your camp's own idea.")), React.createElement(AboutSection, {
     icon: "results",
     title: "Your results",
@@ -434,7 +434,7 @@ function FaqModal({ onClose, palette }) {
     divider: true,
     palette
   }, React.createElement("div", {
-    style: { fontSize: 13.5, lineHeight: 1.55, color: palette.text + "d1", textWrap: "pretty" }
+    style: { fontSize: 13.5, lineHeight: 1.5, color: palette.text + "d1", textWrap: "pretty" }
   }, "When you finish, you'll see your Green Radius and get your shareable results card plus a personal Green-Up Plan by email. Your results join the community tally, so we can celebrate progress together. It's an honor-system self-assessment: no proof, just honesty.")), React.createElement(AboutSection, {
     icon: "questions",
     title: "More questions",
@@ -444,18 +444,18 @@ function FaqModal({ onClose, palette }) {
     key: i,
     style: {
       borderTop: i === 0 ? "none" : "1px solid " + palette.text + "1a",
-      paddingTop: i === 0 ? 0 : 12,
-      paddingBottom: i === FAQ_ITEMS.length - 1 ? 0 : 12
+      paddingTop: i === 0 ? 0 : 10,
+      paddingBottom: i === FAQ_ITEMS.length - 1 ? 0 : 10
     }
   }, React.createElement("div", {
     style: { fontWeight: 700, fontSize: 13.5, marginBottom: 4 }
   }, item.q), React.createElement("div", {
-    style: { fontSize: 13, lineHeight: 1.55, color: palette.text + "d1" }
+    style: { fontSize: 13, lineHeight: 1.5, color: palette.text + "d1" }
   }, item.a)))), React.createElement("div", {
-    style: { marginTop: 26, paddingTop: 20, borderTop: "1px solid " + palette.text + "14" }
+    style: { marginTop: 16, paddingTop: 14, borderTop: "1px solid " + palette.text + "14" }
   }, React.createElement("div", {
     style: {
-      padding: "18px 16px",
+      padding: "14px 14px",
       borderRadius: 16,
       textAlign: "center",
       background: "#7AB85C14",
@@ -464,7 +464,7 @@ function FaqModal({ onClose, palette }) {
   }, React.createElement("div", {
     style: { fontSize: 10, letterSpacing: "0.2em", fontWeight: 700, color: "#558040", textTransform: "uppercase", marginBottom: 6 }
   }, "Learn More"), React.createElement("div", {
-    style: { fontSize: 12.5, lineHeight: 1.5, color: palette.text + "d1", marginBottom: 12, textWrap: "pretty" }
+    style: { fontSize: 12.5, lineHeight: 1.5, color: palette.text + "d1", marginBottom: 10, textWrap: "pretty" }
   }, "Full guidance for every sector and level lives in the Green Theme Camp Community's Resource Guide."), React.createElement("a", {
     href: RESOURCE_GUIDE_URL,
     target: "_blank",
@@ -488,9 +488,9 @@ function ModePicker({ onPick, palette }) {
     width: "100%",
     border: "none",
     cursor: "pointer",
-    padding: "18px 16px",
+    padding: "14px 16px",
     borderRadius: 18,
-    marginBottom: 12,
+    marginBottom: 10,
     textAlign: "center",
     fontFamily: "inherit"
   };
@@ -501,13 +501,13 @@ function ModePicker({ onPick, palette }) {
     faqBtnRef.current?.focus();
   }, []);
   return React.createElement("div", {
-    style: { padding: "22px 24px 22px", maxWidth: 480, margin: "0 auto", textAlign: "center" }
+    style: { padding: "14px 24px 18px", maxWidth: 480, margin: "0 auto", textAlign: "center" }
   }, React.createElement("h1", {
     style: {
       fontSize: 40,
       lineHeight: 1,
       fontWeight: 900,
-      margin: "0 0 10px",
+      margin: "0 0 8px",
       textWrap: "balance",
       color: palette.heading,
       letterSpacing: "-0.02em"
@@ -522,7 +522,7 @@ function ModePicker({ onPick, palette }) {
       justifyContent: "center",
       alignItems: "center",
       gap: 12,
-      margin: "8px 0 18px"
+      margin: "6px 0 12px"
     },
     "aria-hidden": "true"
   }, window.SECTORS.map((s) => React.createElement(SectorIcon, {
@@ -536,7 +536,7 @@ function ModePicker({ onPick, palette }) {
       lineHeight: 1.45,
       color: palette.text + "cc",
       maxWidth: 340,
-      margin: "0 auto 24px",
+      margin: "0 auto 16px",
       textWrap: "pretty"
     }
   }, "Join BLAST 2026 and track your camp's progress across all 6 sustainability sectors. Pick your path below."), React.createElement("button", {
@@ -551,10 +551,10 @@ function ModePicker({ onPick, palette }) {
     }
   }, React.createElement("svg", {
     viewBox: "0 0 64 64",
-    width: "54",
-    height: "54",
+    width: "48",
+    height: "48",
     "aria-hidden": "true",
-    style: { display: "block", margin: "0 auto 10px" }
+    style: { display: "block", margin: "0 auto 8px" }
   }, ["#A3D178", "#86C169", "#68B05C", "#56A85C", "#439F5B", "#31975B"].map((c, i) => {
     const a0 = (i * 60 - 90) * Math.PI / 180;
     const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
@@ -604,10 +604,10 @@ function ModePicker({ onPick, palette }) {
     }
   }, React.createElement("svg", {
     viewBox: "0 0 64 64",
-    width: "54",
-    height: "54",
+    width: "48",
+    height: "48",
     "aria-hidden": "true",
-    style: { display: "block", margin: "0 auto 10px" }
+    style: { display: "block", margin: "0 auto 8px" }
   }, React.createElement("rect", {
     x: "13",
     y: "6",
@@ -672,7 +672,7 @@ function ModePicker({ onPick, palette }) {
       opacity: 0.75
     }
   }, "Application · Familiar")), React.createElement("div", {
-    style: { marginTop: 6, marginBottom: 10, display: "flex", gap: 10 }
+    style: { marginTop: 4, marginBottom: 8, display: "flex", gap: 10 }
   }, React.createElement(FaqButton, {
     btnRef: faqBtnRef,
     expanded: faqOpen,
@@ -701,7 +701,7 @@ function ModePicker({ onPick, palette }) {
       textDecorationColor: palette.text + "33"
     }
   }, l.label))), React.createElement("div", {
-    style: { marginTop: 22, paddingTop: 16, borderTop: "1px solid " + palette.text + "14" }
+    style: { marginTop: 14, paddingTop: 12, borderTop: "1px solid " + palette.text + "14" }
   }, React.createElement("a", {
     href: COMMUNITY_LINK_URL,
     target: "_blank",
