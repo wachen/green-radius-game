@@ -73,3 +73,97 @@ test('decode of garbage string returns null, does not throw', () => {
   expect(ResultState.decode('')).toBeNull();
   expect(ResultState.decode(null)).toBeNull();
 });
+
+// ─── campId in the result payload (additive, backward-compatible) ─────────────
+
+test('round-trip: campId is carried through encode/decode when present', () => {
+  const fills = {};
+  for (const id of SECTOR_IDS) fills[id] = { levels: [[true], [true, false], [false, true, false], [true, false, false, false]] };
+  const encoded = ResultState.encode({ fills, campName: 'Dusty Camp', leadName: 'Sandy', year: 2026, campId: 'abc-123-uuid' });
+  const decoded = ResultState.decode(encoded);
+  expect(decoded).not.toBeNull();
+  expect(decoded.campId).toBe('abc-123-uuid');
+  // camp/fills still intact alongside the new field
+  expect(decoded.campName).toBe('Dusty Camp');
+  expect(decoded.fills.food.totalYes).toBe(fills.food.levels.flat().filter(Boolean).length);
+});
+
+test('backward-compat: a v2 link WITHOUT campId decodes with campId null (old links)', () => {
+  const fills = {};
+  for (const id of SECTOR_IDS) fills[id] = { levels: [[true], [false, false], [false, false, false], [false, false, false, false]] };
+  const encoded = ResultState.encode({ fills, campName: 'No Id Camp', year: 2025 });
+  const decoded = ResultState.decode(encoded);
+  expect(decoded).not.toBeNull();
+  expect(decoded.campId).toBeNull();
+});
+
+test('backward-compat: a legacy v1 (g array) link decodes with campId null', () => {
+  const legacy = { c: 'Legacy Camp', l: 'Old Lead', y: 2019, g: [1, 2, 3, 4, 0, 2] };
+  const encoded = toB64Url(JSON.stringify(legacy));
+  const decoded = ResultState.decode(encoded);
+  expect(decoded).not.toBeNull();
+  expect(decoded.campId).toBeNull();
+});
+
+// ─── reconstructSave: rebuild a current-shape localStorage save from a result ──
+
+import GameData from '../game-data.js';
+const SECTORS = GameData.SECTORS;
+
+// Count the Yes answers reconstructSave produced for one sector — should equal
+// that sector's totalYes in the decoded result (fixed-question Yeses + advanced count).
+function yesCountForSector(sector, answers) {
+  const fixedIds = sector.levels.slice(0, 3).flat().map(q => q.id);
+  const topicIds = (sector.tier4Topics || []).map(t => t.id);
+  return fixedIds.concat(topicIds).filter(id => answers[id] === 'yes').length;
+}
+
+function decodedFixture(campId) {
+  const fills = {};
+  for (const id of SECTOR_IDS) fills[id] = { levels: [[true], [true, false], [true, false, true], [true, true, false, false]] };
+  const p = { fills, campName: 'Rebuild Camp', leadName: 'Ari', year: 2026 };
+  if (campId) p.campId = campId;
+  return ResultState.decode(ResultState.encode(p));
+}
+
+test('reconstructSave: produces a done, all-sectors-closed current-shape save', () => {
+  const save = ResultState.reconstructSave(decodedFixture('camp-xyz'), SECTORS, { version: 7, campId: 'fallback', now: 'T0' });
+  expect(save.version).toBe(7);
+  expect(save.phase).toBe('done');
+  expect(save.mode).toBe('board');
+  expect(save.submittedAt).toBe('T0');
+  expect(save.camp.campName).toBe('Rebuild Camp');
+  expect(save.camp.leadName).toBe('Ari');
+  SECTORS.forEach(s => {
+    expect(save.sectorClosed[s.id]).toBe(true);
+    expect(save.sectorCursor[s.id]).toBe(4);
+  });
+});
+
+test('reconstructSave: answers reproduce each sector totalYes from the fills', () => {
+  const decoded = decodedFixture('camp-xyz');
+  const save = ResultState.reconstructSave(decoded, SECTORS, { version: 7, campId: 'fallback' });
+  SECTORS.forEach(s => {
+    expect(yesCountForSector(s, save.answers)).toBe(decoded.fills[s.id].totalYes);
+  });
+});
+
+test('reconstructSave: carries the payload campId when present', () => {
+  const save = ResultState.reconstructSave(decodedFixture('camp-xyz'), SECTORS, { version: 7, campId: 'fallback' });
+  expect(save.campId).toBe('camp-xyz');
+});
+
+test('reconstructSave: mints (uses fallback) campId when the payload has none (legacy link)', () => {
+  const save = ResultState.reconstructSave(decodedFixture(null), SECTORS, { version: 7, campId: 'fresh-minted' });
+  expect(save.campId).toBe('fresh-minted');
+});
+
+test('reconstructSave: schema drift — a sector with fewer fixed questions does not throw, imports what aligns', () => {
+  const decoded = decodedFixture('camp-xyz');
+  // Simulate drift: shorten the first sector to a single fixed question.
+  const drifted = SECTORS.map((s, i) => i === 0 ? { ...s, levels: [s.levels[0]], tier4Topics: [] } : s);
+  let save;
+  expect(() => { save = ResultState.reconstructSave(decoded, drifted, { version: 7, campId: 'x' }); }).not.toThrow();
+  // Aligned question still imported; the sector is still marked closed.
+  expect(save.sectorClosed.food).toBe(true);
+});
