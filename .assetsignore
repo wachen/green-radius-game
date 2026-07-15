@@ -36,12 +36,17 @@ node_modules
 
 # Source / config / docs — the repo is public on GitHub, so this is prod-domain
 # hygiene, not secrecy: no reason to also serve these from greenradi.us. (Do NOT
-# add og-card.png, downloads/, vendor/, src/, or the root .js/.jsx — those are
-# fetched at runtime. worker/index.js runs as the Worker via wrangler `main`, not fetched.)
+# add og-card.png, downloads/, vendor/, dist/, or the root .js — those are fetched
+# at runtime. dist/ holds the compiled game scripts the HTML actually loads, so it
+# MUST stay served. The .jsx sources under src/ + green-radius.jsx are no longer
+# the runtime load path, but stay served so an in-flight cached old page can still
+# boot mid-deploy. scripts/ is the dev-only build step. worker/index.js runs as the
+# Worker via wrangler `main`, not fetched.)
 docs
 worker
 wrangler.jsonc
 CLAUDE.md
+scripts
 
 # CI + tests — dev-only, never served from the prod domain
 .github

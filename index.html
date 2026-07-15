@@ -162,22 +162,24 @@
 
 <script defer src="/vendor/react-18.3.1.production.min.js"></script>
 <script defer src="/vendor/react-dom-18.3.1.production.min.js"></script>
-<script defer src="/vendor/babel-standalone-7.29.0.min.js"></script>
 
 <script defer src="game-data.js"></script>
 <script defer src="result-state.js"></script>
 <script defer src="rank.js"></script>
-<!-- Game UI modules. One shared Babel scope, executed in document order:
-     src/core.jsx must load first, green-radius.jsx (the main component) last. -->
-<script type="text/babel" src="src/core.jsx"></script>
-<script type="text/babel" src="src/fx.jsx"></script>
-<script type="text/babel" src="src/badge.jsx"></script>
-<script type="text/babel" src="src/wheel.jsx"></script>
-<script type="text/babel" src="src/question-flow.jsx"></script>
-<script type="text/babel" src="src/share-card.jsx"></script>
-<script type="text/babel" src="src/home.jsx"></script>
-<script type="text/babel" src="src/form-mode.jsx"></script>
-<script type="text/babel" src="green-radius.jsx"></script>
+<!-- Precompiled game-UI modules (dist/ artifacts built from the .jsx sources by
+     scripts/build.js — no in-browser Babel). Plain classic-runtime scripts that
+     share one global scope, executed in document order: core.js first,
+     green-radius.js last, then the page boot. -->
+<script defer src="dist/src/core.js"></script>
+<script defer src="dist/src/fx.js"></script>
+<script defer src="dist/src/badge.js"></script>
+<script defer src="dist/src/wheel.js"></script>
+<script defer src="dist/src/question-flow.js"></script>
+<script defer src="dist/src/share-card.js"></script>
+<script defer src="dist/src/home.js"></script>
+<script defer src="dist/src/form-mode.js"></script>
+<script defer src="dist/green-radius.js"></script>
+<script defer src="dist/src/boot-index.js"></script>
 
 <!-- Cloudflare Web Analytics (pageviews + Web Vitals). The beacon token is public by design, safe to commit. -->
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "02765e32c9dc4e309cc4ce42de3523c7"}'></script>
@@ -209,32 +211,5 @@
   </div>
 </noscript>
 
-<script type="text/babel" data-presets="react">
-const PALETTE = {
-  label: 'Alkali Flat',
-  bg: '#ede9e0',
-  canvas: '#2a2620',
-  card: '#fcfaf4',
-  text: '#2a2620',
-  heading: '#2a2620',
-  hub: '#3a3128',
-  hubStroke: '#4a4036',
-  accent: '#7AB85C',
-  accentDark: '#558040',
-};
-
-function App() {
-  return (
-    <div className="grg-shell">
-      <div className="grg-frame">
-        <GreenRadiusGame variant="flat-playa" palette={PALETTE}/>
-      </div>
-      <FxLayer/>
-    </div>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-</script>
 </body>
 </html>

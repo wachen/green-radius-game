@@ -8,20 +8,18 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
 <script defer src="/vendor/react-18.3.1.production.min.js"></script>
 <script defer src="/vendor/react-dom-18.3.1.production.min.js"></script>
-<script defer src="/vendor/babel-standalone-7.29.0.min.js"></script>
 <script defer src="../game-data.js"></script>
-<!-- Just the game-UI modules admin.jsx renders (shared Babel scope, core
-     first): RadialBadge/SectorIcon (badge.jsx) + core's scoring helpers. -->
-<script type="text/babel" src="../src/core.jsx"></script>
-<script type="text/babel" src="../src/badge.jsx"></script>
+<!-- Just the precompiled game-UI modules admin renders (dist/ artifacts, core
+     first): RadialBadge/SectorIcon (badge.js) + core's scoring helpers. Then
+     aggregate.js, the admin app, and the page boot. -->
+<script defer src="../dist/src/core.js"></script>
+<script defer src="../dist/src/badge.js"></script>
 <script defer src="./aggregate.js"></script>
-<script type="text/babel" src="./admin.jsx"></script>
+<script defer src="../dist/admin/admin.js"></script>
+<script defer src="../dist/src/boot-admin.js"></script>
 <style>path:focus-visible{outline:2px solid #e8c15a}button:focus-visible{outline:2px solid #45c483;outline-offset:2px}</style>
 </head>
 <body style="margin:0;background:#0e1712;color:#eaf2ec;font-family:system-ui,sans-serif">
 <div id="root"><div style="text-align:center;padding:60px 0;color:#93a89b">Loading the admin viewer…</div></div>
-<script type="text/babel" data-presets="react">
-  ReactDOM.createRoot(document.getElementById('root')).render(<AdminApp sectors={window.SECTORS} />);
-</script>
 </body>
 </html>

@@ -33,8 +33,10 @@ this implementation began from a Claude Design handoff bundle.
 
 ## Stack
 
-- Static HTML + React 18 (UMD, vendored same-origin in `vendor/`), with in-browser JSX via `@babel/standalone`
-- **No build step** — the browser compiles the JSX
+- Static HTML + React 18 (UMD, vendored same-origin in `vendor/`); the game's `.jsx` sources are
+  precompiled to classic-runtime JS by a small Bun build step (`scripts/build.js`) into committed
+  `dist/` artifacts, which the browser loads directly
+- **No bundler, no npm** — the compile step is one Bun script, not a build pipeline
 - A small **Cloudflare Worker** (`worker/index.js`) backs five dynamic routes:
   `POST /api/complete` (saves a result row to a Google Sheet and emails the camp a
   shareable link), the Cloudflare Access–gated `GET /api/admin/responses` (the
@@ -52,7 +54,8 @@ this implementation began from a Claude Design handoff bundle.
 |--------------------|-----------------------------------------------------------------|
 | `index.html`       | Entry point; mounts `<GreenRadiusGame/>`                        |
 | `green-radius.jsx` | Main game component (`GreenRadiusGame`) — game state, done screen, Green-Up Plan; loads last |
-| `src/`             | The rest of the game UI (shared Babel scope): core, fx, badge, wheel, question flow, share card, home, form mode |
+| `src/`             | The rest of the game UI (shared global scope): core, fx, badge, wheel, question flow, share card, home, form mode, plus per-page boot scripts |
+| `dist/`            | Committed, compiled classic-JS artifacts (built by `scripts/build.js` from the `.jsx` sources) — what the HTML entry points actually load |
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content             |
 | `result-state.js`  | `window.ResultState` — encode/decode a result to/from the `?r=` share payload (legacy `#hash` fallback) |
 | `rank.js`          | `window.Rank` — maps the 0–60 total to a playa-rank title ("First Spark"…"Green Supernova"); shared by the done screen and the Worker's OG description |
@@ -60,7 +63,7 @@ this implementation began from a Claude Design handoff bundle.
 | `city/`            | Public community-progress page (`/city/`), rendered from `GET /api/city` |
 | `admin/`           | Internal Cloudflare Access–gated response viewer (City + Camps), read-only |
 | `worker/`          | Cloudflare Worker (`/api/complete` + `/api/admin/responses` + `/api/city` + `/result/?r=` OG unfurl + `/api/health`) |
-| `vendor/`          | Pinned React/ReactDOM/Babel runtime, served same-origin        |
+| `vendor/`          | Pinned React/ReactDOM runtime, served same-origin (Babel is kept committed but no longer loaded) |
 | `downloads/`       | Printable board-game + how-to-play PDFs                          |
 
 ## Architecture
