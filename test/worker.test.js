@@ -1,6 +1,5 @@
 import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
 import { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, sendEmail } from '../worker/index.js';
-import Rank from '../rank.js';
 import GameData from '../game-data.js';
 
 function b64url(data) {
@@ -149,10 +148,10 @@ describe('verifyAccessJwt', () => {
 
 describe('headlineEmailHtml', () => {
   const greens = { food: 7, water: 4, waste: 10, transport: 2, shelter: 5, power: 6 };
-  test('states rank title, total, and all six sector scores', () => {
+  test('states the total and all six sector scores, no rank title', () => {
     const html = headlineEmailHtml(greens);
-    expect(html).toContain('<strong>34</strong>/60 green points');
-    expect(html).toContain(Rank.titleFor(34));
+    expect(html).toContain('<strong>34</strong>/60 achieved');
+    expect(html).not.toContain('Wide Beacon');
     for (const s of GameData.SECTORS) {
       expect(html).toContain(s.name);
     }
@@ -176,7 +175,7 @@ describe('sendEmail body order', () => {
     } finally { globalThis.fetch = originalFetch; }
     const html = sent.html;
     const iIntro = html.indexOf('Thanks for playing');
-    const iHead = html.indexOf('/60 green points');
+    const iHead = html.indexOf('/60 achieved');
     const iLink = html.indexOf('View &amp; share');
     const iFooter = html.indexOf('Questions? Just reply');
     expect(iIntro).toBeGreaterThanOrEqual(0);

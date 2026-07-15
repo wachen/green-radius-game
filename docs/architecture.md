@@ -275,7 +275,7 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   `/api/city` matches no asset.
 - **Per-camp OG (Worker `HTMLRewriter`).** `GET /result/?r=<payload>` decodes the
   payload server-side (reusing `result-state.js`) and rewrites `og:title`/`og:description`
-  to the camp's name + score + playa-rank (`rank.js`). The OG image stays the static
+  to the camp's name + score. The OG image stays the static
   `og-card.png` (no headless render in Workers). **Fail-open:** any missing param,
   decode error, or rewrite issue serves the unmodified static page — a generic unfurl
   is fine, a broken result page is not. **Routing requirement (load-bearing):** Workers +
@@ -291,12 +291,13 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   already lands in the Sheet on completion and in any link the camp shares, so the
   marginal exposure is low-sensitivity. `safeResultUrl` still passes the emailed `?r=`
   link (it checks `pathname`, which the query doesn't change).
-- **`rank.js` and `game-data.js` are isomorphic** (`module.exports` + a `globalThis`
-  assign) so the browser and the Worker share one source: `rank.js` for the playa-rank
-  title (done-screen headline, Web Share text, OG description), `game-data.js` for the
-  question content (game UI; the Worker's Green-Up Plan email section). `result-state.js`
-  resolves its global via `globalThis` too, so all three import into the Worker bundle
-  without a module-eval throw.
+- **`game-data.js` is isomorphic** (`module.exports` + a `globalThis` assign) so the
+  browser and the Worker share one source for the question content (game UI; the
+  Worker's email headline + Green-Up Plan sections). `result-state.js` resolves its
+  global via `globalThis` too, so both import into the Worker bundle without a
+  module-eval throw. `rank.js` (playa-rank titles) was retired in #66 — no page loads
+  it and the Worker no longer imports it; the file stays committed and served for
+  cached pre-#66 pages, deletable once cached HTML ages out.
 
 ## Analytics (pageviews + funnel)
 
@@ -317,7 +318,7 @@ Two independent, privacy-conscious layers. Neither is load-bearing for gameplay.
   includes the defining module, so nothing should rely on the `window`
   attachment. Plain scripts that assign `window.X = …` create the only
   intentional globals (`window.SECTORS` in `game-data.js`, `window.ResultState`
-  in `result-state.js`, `window.Rank` in `rank.js`).
+  in `result-state.js`).
   Mounting a component via `window.ShareCard` → `undefined` → renders nothing
   when the defining script isn't loaded on that page.
   *(This was the blank-`/result/` bug fixed in #19.)*

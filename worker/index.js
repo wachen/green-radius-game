@@ -1,5 +1,4 @@
 import ResultState from '../result-state.js';
-import Rank from '../rank.js';
 import GameData from '../game-data.js';
 import AdminAggregate from '../admin/aggregate.js';
 
@@ -160,7 +159,7 @@ async function resultWithOg(request, env, r) {
   const total = ResultState.SECTOR_IDS.reduce((n, id) => n + ((data.fills[id] && data.fills[id].totalYes) | 0), 0);
   const camp = String(data.campName || '').slice(0, 80).trim();
   const title = camp ? `${camp}'s Green Radius` : 'Our Green Radius';
-  const desc = `A ${Rank.titleFor(total)} at ${total}/60. See the card and build your own at greenradi.us.`;
+  const desc = `${total}/60 achieved. See the card and build your own at greenradi.us.`;
   return new HTMLRewriter()
     .on('meta[property="og:title"]', { element(e) { e.setAttribute('content', title); } })
     .on('meta[property="og:description"]', { element(e) { e.setAttribute('content', desc); } })
@@ -204,13 +203,14 @@ export async function sendEmail(env, to, campName, resultUrl, answers, greens) {
 // The email's headline: the result itself. Sector names/order come from
 // game-data (the same source the sheet and UI use); inline CSS only so it
 // renders in every client. Dark green (#3d7a31) stays readable on white.
+// No playa-rank title here by decision: the score speaks for itself.
 export function headlineEmailHtml(greens) {
   const total = GameData.SECTORS.reduce((n, s) => n + ((greens && greens[s.id]) | 0), 0);
   const rows = GameData.SECTORS.map(s =>
     `<tr><td style="padding:2px 14px 2px 0;color:#555">${escAttr(s.name)}</td>` +
     `<td style="padding:2px 0;font-weight:bold;color:#3d7a31;font-variant-numeric:tabular-nums">${(greens && greens[s.id]) | 0}/10</td></tr>`
   ).join('');
-  return `<p style="margin:18px 0 6px;font-size:15px"><strong>${escAttr(Rank.titleFor(total))}</strong> · <strong>${total}</strong>/60 green points</p>` +
+  return `<p style="margin:18px 0 6px;font-size:15px"><strong>${total}</strong>/60 achieved</p>` +
     `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;margin:0 0 4px">${rows}</table>`;
 }
 

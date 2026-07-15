@@ -1,8 +1,8 @@
 // rank.js — a camp's playa-rank title from its total Green Radius score (0–60).
-// Isomorphic (browser + Worker): the done screen + share text read window.Rank;
-// the Worker imports titleFor for the per-camp OG description. Resolve the global
-// via globalThis (defined in browser, Worker, and Bun) so importing this into the
-// Worker bundle never throws on an undefined top-level `this`.
+// RETIRED: rank titles were removed from all surfaces (email, OG description,
+// UI) in #66; nothing loads or imports this anymore. The file stays committed
+// and served (like vendor/babel-standalone) so cached pre-#66 pages that still
+// request it keep working; delete once cached HTML has aged out.
 (function (global) {
   'use strict';
   var BANDS = [
