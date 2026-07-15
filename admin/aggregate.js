@@ -104,6 +104,11 @@
       campName: r.campName, leadName: r.leadName, total: r.total || 0,
       perfectSectors: sectors.filter(s => ((r.greens && r.greens[s.id]) || 0) === 10).length,
       resultUrl: r.resultUrl || '',
+      // Render data for the admin mini badges + "new this week" dot. Stays
+      // admin-only: /api/city rebuilds its body field-by-field and never
+      // exposes the leaderboard.
+      greens: r.greens || {}, answers: r.answers || {},
+      timestamp: r.timestamp || 0, schemaVersion: r.schemaVersion || '',
     })).sort((a, b) => b.total - a.total).slice(0, n || 10);
   }
 

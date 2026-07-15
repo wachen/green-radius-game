@@ -14,6 +14,16 @@ const row = (name, greens, answers, ts) => ({
   answers, schemaVersion: 'v2',
 });
 
+describe('leaderboard row data', () => {
+  test('entries carry greens/answers/timestamp for mini badges', () => {
+    const rows = [row('a', { food: 8, water: 2 }, { F1: 'yes' }, 1234)];
+    const agg = A.computeAggregates(rows, SECTORS, 2000);
+    expect(agg.leaderboard[0].greens).toEqual({ food: 8, water: 2 });
+    expect(agg.leaderboard[0].answers).toEqual({ F1: 'yes' });
+    expect(agg.leaderboard[0].timestamp).toBe(1234);
+  });
+});
+
 describe('superlatives', () => {
   test('picks strongest/weakest sector, hardest question, top L4', () => {
     const rows = [
