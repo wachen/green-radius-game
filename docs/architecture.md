@@ -321,7 +321,8 @@ Two independent, privacy-conscious layers. Neither is load-bearing for gameplay.
   Preview with a local static server, or just push a branch — Workers Builds
   runs `wrangler versions upload` on every non-main push, producing a real
   Cloudflare preview URL (no prod impact). Preview URLs sit behind Cloudflare
-  Access (same email allowlist as `/admin`); the Worker's persistent
+  Access (a separate Access app/policy from `/admin`, kept in sync with
+  its email allowlist manually); the Worker's persistent
   workers.dev route is disabled (PR #56), so prod answers only on
   `greenradi.us`. Fork PRs get **no** preview and can't run secret-bearing CI.
 
