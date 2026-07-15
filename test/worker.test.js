@@ -1,5 +1,6 @@
 import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
-import { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt } from '../worker/index.js';
+import { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, sendEmail } from '../worker/index.js';
+import GameData from '../game-data.js';
 
 function b64url(data) {
   const buf = typeof data === 'string' ? Buffer.from(data, 'utf8') : Buffer.from(data);
@@ -142,5 +143,44 @@ describe('verifyAccessJwt', () => {
     const token = await makeToken();
     const twoParts = token.split('.').slice(0, 2).join('.');
     expect(await verifyAccessJwt(twoParts, env)).toBe(false);
+  });
+});
+
+describe('headlineEmailHtml', () => {
+  const greens = { food: 7, water: 4, waste: 10, transport: 2, shelter: 5, power: 6 };
+  test('states the total and all six sector scores, no rank title', () => {
+    const html = headlineEmailHtml(greens);
+    expect(html).toContain('<strong>34</strong>/60 achieved');
+    expect(html).not.toContain('Wide Beacon');
+    for (const s of GameData.SECTORS) {
+      expect(html).toContain(s.name);
+    }
+    expect(html).toContain('7/10');
+    expect(html).toContain('10/10');
+  });
+  test('missing greens degrade to 0 without throwing', () => {
+    const html = headlineEmailHtml(undefined);
+    expect(html).toContain('<strong>0</strong>/60');
+  });
+});
+
+describe('sendEmail body order', () => {
+  test('intro, headline, link, plan, footer appear in order', async () => {
+    const originalFetch = globalThis.fetch;
+    let sent;
+    globalThis.fetch = async (url, opts) => { sent = JSON.parse(opts.body); return new Response('{}', { status: 200 }); };
+    try {
+      await sendEmail({ RESEND_API_KEY: 'k' }, 'a@b.co', 'Dusty', 'https://greenradi.us/result/?r=x',
+        {}, { food: 1, water: 0, waste: 0, transport: 0, shelter: 0, power: 0 });
+    } finally { globalThis.fetch = originalFetch; }
+    const html = sent.html;
+    const iIntro = html.indexOf('Thanks for playing');
+    const iHead = html.indexOf('/60 achieved');
+    const iLink = html.indexOf('View &amp; share');
+    const iFooter = html.indexOf('Questions? Just reply');
+    expect(iIntro).toBeGreaterThanOrEqual(0);
+    expect(iHead).toBeGreaterThan(iIntro);
+    expect(iLink).toBeGreaterThan(iHead);
+    expect(iFooter).toBeGreaterThan(iLink);
   });
 });

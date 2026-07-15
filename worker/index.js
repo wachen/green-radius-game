@@ -1,5 +1,4 @@
 import ResultState from '../result-state.js';
-import Rank from '../rank.js';
 import GameData from '../game-data.js';
 import AdminAggregate from '../admin/aggregate.js';
 
@@ -115,7 +114,7 @@ async function handleComplete(request, env) {
 
   const [sheetRes, emailRes] = await Promise.allSettled([
     appendToSheet(env, row),
-    sendEmail(env, email, campName, resultUrl, answers),
+    sendEmail(env, email, campName, resultUrl, answers, greens),
   ]);
   if (sheetRes.status === 'rejected') console.error('sheet_append_failed', { outcome: 'exception' });
   if (emailRes.status === 'rejected') console.error('email_send_failed', { outcome: 'exception' });
@@ -160,7 +159,7 @@ async function resultWithOg(request, env, r) {
   const total = ResultState.SECTOR_IDS.reduce((n, id) => n + ((data.fills[id] && data.fills[id].totalYes) | 0), 0);
   const camp = String(data.campName || '').slice(0, 80).trim();
   const title = camp ? `${camp}'s Green Radius` : 'Our Green Radius';
-  const desc = `A ${Rank.titleFor(total)} at ${total}/60. See the card and build your own at greenradi.us.`;
+  const desc = `${total}/60 achieved. See the card and build your own at greenradi.us.`;
   return new HTMLRewriter()
     .on('meta[property="og:title"]', { element(e) { e.setAttribute('content', title); } })
     .on('meta[property="og:description"]', { element(e) { e.setAttribute('content', desc); } })
@@ -182,7 +181,7 @@ async function appendToSheet(env, row) {
   return true;
 }
 
-async function sendEmail(env, to, campName, resultUrl, answers) {
+export async function sendEmail(env, to, campName, resultUrl, answers, greens) {
   if (!env.RESEND_API_KEY || !resultUrl) return false;
   const href = escAttr(resultUrl);
   const r = await fetch('https://api.resend.com/emails', {
@@ -194,11 +193,25 @@ async function sendEmail(env, to, campName, resultUrl, answers) {
       reply_to: 'greenthemecamps@burningman.org',
       to: [to],
       subject: `Your Green Radius — ${campName}`,
-      html: `<p>Thanks for playing the Green Radius Game!</p><p><a href="${href}">View &amp; share your Green Radius →</a></p>${greenUpEmailHtml(answers)}<p style="color:#888;font-size:12px">Questions? Just reply to this email — it reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
+      html: `<p>Thanks for playing the Green Radius Game!</p>${headlineEmailHtml(greens)}<p><a href="${href}">View &amp; share your Green Radius →</a></p>${greenUpEmailHtml(answers)}<p style="color:#888;font-size:12px">Questions? Just reply to this email — it reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
     }),
   });
   if (!r.ok) { console.error('email_send_failed', { outcome: 'http_error', status: r.status }); return false; }
   return true;
+}
+
+// The email's headline: the result itself. Sector names/order come from
+// game-data (the same source the sheet and UI use); inline CSS only so it
+// renders in every client. Dark green (#3d7a31) stays readable on white.
+// No playa-rank title here by decision: the score speaks for itself.
+export function headlineEmailHtml(greens) {
+  const total = GameData.SECTORS.reduce((n, s) => n + ((greens && greens[s.id]) | 0), 0);
+  const rows = GameData.SECTORS.map(s =>
+    `<tr><td style="padding:2px 14px 2px 0;color:#555">${escAttr(s.name)}</td>` +
+    `<td style="padding:2px 0;font-weight:bold;color:#3d7a31;font-variant-numeric:tabular-nums">${(greens && greens[s.id]) | 0}/10</td></tr>`
+  ).join('');
+  return `<p style="margin:18px 0 6px;font-size:15px"><strong>${total}</strong>/60 achieved</p>` +
+    `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;margin:0 0 4px">${rows}</table>`;
 }
 
 // The email copy of the done screen's Green-Up Plan, mirroring greenUpSteps in
