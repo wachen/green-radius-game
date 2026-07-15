@@ -270,11 +270,13 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   state (used by `/api/city`) writes into `.wrangler/state`, which sits inside
   the watched assets directory and can truncate in-flight asset fetches. Run
   `npx wrangler dev --persist-to <dir outside the repo>` instead.
-- **No build, no tests, no CI.** The only compile gate is
+- **No build step; CI runs the parse gate + `bun test`.** GitHub Actions
+  (`.github/workflows/ci.yml`) runs on every PR: the compile gate
   `bun build` run over each game script — `src/*.jsx` and `green-radius.jsx` —
   (catches JSX/syntax errors — the "could not resolve
-  react" message is *expected*; React is a global from `vendor/`, not a module).
-  Verify gameplay by hand.
+  react" message is *expected*; React is a global from `vendor/`, not a module)
+  plus `bun test` (pure-function unit tests in `test/` — no deps, Bun's built-in
+  runner). Still verify gameplay by hand.
 - **Deploy = merge.** No staging. `main` is branch-protected (PR required).
   Preview with a local static server, or `wrangler versions upload` for a real
   Cloudflare preview URL (no prod impact). Fork PRs get **no** preview and can't
