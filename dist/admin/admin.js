@@ -108,11 +108,41 @@ const btnStyle = { background: "#45c483", color: "#06140c", border: "none", bord
 const Centered = ({ children }) => React.createElement("div", {
   style: { textAlign: "center", padding: "60px 0", color: "#93a89b" }
 }, children);
+const CITY_CARD_BG = "linear-gradient(160deg, #0e2733 0%, #14323f 100%)";
+const panelStyle = { background: "#111d16", border: "1px solid #26382e", borderRadius: 16, padding: "14px 16px" };
+function miniFills(sectors, entry) {
+  const hasAns = entry.answers && Object.keys(entry.answers).some((k) => entry.answers[k] === "yes" || entry.answers[k] === "no");
+  if (hasAns)
+    return fillsFromAnswers(sectors, entry.answers);
+  return A.isLegacy(entry) ? legacyFills(sectors, entry.greens) : approxFills(sectors, entry.greens);
+}
+function StatTile({ value, label }) {
+  return React.createElement("div", {
+    style: { ...panelStyle, textAlign: "center", padding: "12px 8px" }
+  }, React.createElement("div", {
+    style: { fontSize: 26, fontWeight: 900, color: "#7fc46a", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }
+  }, value), React.createElement("div", {
+    style: { fontSize: 9.5, letterSpacing: ".14em", color: "#93a89b", fontWeight: 800, marginTop: 2 }
+  }, label.toUpperCase()));
+}
+function Superlative({ label, value, detail }) {
+  return React.createElement("div", {
+    style: { display: "flex", alignItems: "baseline", gap: 8, padding: "6px 0", borderBottom: "1px dashed #21332a", fontSize: 13 }
+  }, React.createElement("span", {
+    style: { fontSize: 9.5, letterSpacing: ".12em", color: "#93a89b", fontWeight: 800, flexShrink: 0, width: 118 }
+  }, label.toUpperCase()), React.createElement("span", {
+    style: { flex: 1, color: "#eaf2ec", minWidth: 0 }
+  }, value), React.createElement("b", {
+    style: { fontVariantNumeric: "tabular-nums", color: "#7fc46a", flexShrink: 0 }
+  }, detail));
+}
 function CommunityTally({ sectors, rows }) {
   const agg = React.useMemo(() => A.computeAggregates(rows, sectors, Date.now()), [rows, sectors]);
+  const sup = React.useMemo(() => A.superlatives(agg, sectors), [agg, sectors]);
   const wide = useMQ("(min-width: 760px)");
   const [sel, setSel] = React.useState(null);
   const pct = Math.round(agg.tallyPct * 100);
+  const now = Date.now();
   const detail = (() => {
     if (!sel)
       return null;
@@ -131,32 +161,53 @@ function CommunityTally({ sectors, rows }) {
     return { label, text: `Camps reaching advanced step ${sel.qi + 1}`, rate, n: agg.count };
   })();
   const Hero = React.createElement("div", {
-    style: { textAlign: "center", filter: "drop-shadow(0 0 22px rgba(69,196,131,.3))" }
-  }, React.createElement(RadialBadge, {
+    style: {
+      background: CITY_CARD_BG,
+      borderRadius: 24,
+      color: "#fff",
+      padding: "24px 22px",
+      boxShadow: "0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)",
+      position: "relative",
+      overflow: "hidden",
+      textAlign: "center"
+    }
+  }, React.createElement("div", {
+    style: { position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 30%, rgba(217,136,92,0.18), transparent 60%)", pointerEvents: "none" }
+  }), React.createElement("div", {
+    style: { position: "relative" }
+  }, React.createElement("div", {
+    style: { fontSize: 10, letterSpacing: "0.25em", fontWeight: 700, opacity: 0.6, marginBottom: 4 }
+  }, "GREEN RADIUS · BLAST ", new Date().getFullYear()), React.createElement("div", {
+    style: { fontSize: 22, fontWeight: 800, lineHeight: 1.12 }
+  }, "Black Rock City"), React.createElement("div", {
+    style: { margin: "6px 0 10px" }
+  }, React.createElement("span", {
+    style: { fontSize: 34, fontWeight: 900, color: "#7fc46a", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }
+  }, agg.hasAnswers ? `${pct}%` : agg.totalYes), agg.hasAnswers && React.createElement("span", {
+    style: { fontSize: 14, fontWeight: 700, opacity: 0.65 }
+  }, " achieved")), React.createElement(RadialBadge, {
     sectors,
     fills: {},
-    size: wide ? 300 : 264,
+    size: wide ? 300 : 256,
     dark: true,
     intensities: agg.intensities,
     centerLabel: agg.hasAnswers ? `${pct}%` : `${agg.totalYes}`,
     selected: sel,
     onSelectSegment: agg.hasAnswers ? (sector, level, qi) => setSel({ sector, level, qi }) : null
   }), React.createElement("div", {
-    style: { fontSize: 13, color: "#cfe0d4", marginTop: 6 }
+    style: { fontSize: 13, color: "#d8cbb6", marginTop: 8 }
   }, React.createElement("b", {
     style: { color: "#fff" }
-  }, agg.totalYes), " of ", agg.totalPossible, " green choices · ", React.createElement("b", {
-    style: { color: "#fff" }
-  }, agg.count), " camps · +", agg.momentum.thisWeek, " this week"), agg.legacyCount > 0 && React.createElement("div", {
-    style: { fontSize: 11, color: "#7f988a", marginTop: 4 }
+  }, agg.totalYes), " of ", agg.totalPossible, " green choices"), agg.legacyCount > 0 && React.createElement("div", {
+    style: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }
   }, agg.legacyCount, " older ", agg.legacyCount === 1 ? "response" : "responses", " on the old 0 to 4 scale excluded from the tally."), !agg.hasAnswers && React.createElement("div", {
-    style: { fontSize: 11, color: "#7f988a", marginTop: 4 }
+    style: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }
   }, "Per-question detail appears once granular capture is live."), detail && React.createElement("div", {
     "data-segment-detail": true,
     style: {
-      background: "#13201a",
-      border: "1px solid #26382e",
-      borderLeft: "3px solid #45c483",
+      background: "rgba(0,0,0,0.28)",
+      border: "1px solid rgba(255,255,255,0.12)",
+      borderLeft: "3px solid #7fc46a",
       borderRadius: 10,
       padding: "9px 11px",
       margin: "10px auto 0",
@@ -164,48 +215,107 @@ function CommunityTally({ sectors, rows }) {
       textAlign: "left"
     }
   }, React.createElement("div", {
-    style: { fontSize: 10, letterSpacing: ".1em", color: "#45c483", fontWeight: 800 }
+    style: { fontSize: 10, letterSpacing: ".1em", color: "#7fc46a", fontWeight: 800 }
   }, detail.label.toUpperCase()), React.createElement("div", {
     style: { fontSize: 12.5, margin: "2px 0 4px" }
   }, detail.text), React.createElement("div", {
-    style: { color: "#93a89b", fontSize: 12 }
+    style: { color: "rgba(255,255,255,0.65)", fontSize: 12 }
   }, React.createElement("b", {
     style: { color: "#fff", fontSize: 15 }
-  }, Math.round(detail.rate * 100), "%"), " of ", detail.n, " camps")));
-  const Stats = React.createElement("div", null, React.createElement(SecHead, null, "Reaching Furthest"), React.createElement("div", {
-    "data-leaderboard": true
-  }, agg.leaderboard.slice(0, 5).map((c, i) => React.createElement("div", {
+  }, Math.round(detail.rate * 100), "%"), " of ", detail.n, " camps"))));
+  const Pulse = React.createElement("div", {
+    "data-pulse": true,
+    style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: wide ? 0 : 12 }
+  }, React.createElement(StatTile, {
+    value: agg.count,
+    label: agg.count === 1 ? "camp" : "camps"
+  }), React.createElement(StatTile, {
+    value: agg.totalYes,
+    label: "green points"
+  }), React.createElement(StatTile, {
+    value: `+${agg.momentum.thisWeek}`,
+    label: "this week"
+  }));
+  const Superlatives = sup.strongest || sup.hardest || sup.topL4 ? React.createElement("div", {
+    "data-superlatives": true,
+    style: { ...panelStyle, marginTop: 12 }
+  }, React.createElement(SecHead, {
+    style: { marginTop: 0 }
+  }, "Superlatives"), sup.strongest && React.createElement(Superlative, {
+    label: "Strongest sector",
+    value: sup.strongest.name,
+    detail: `${sup.strongest.avg.toFixed(1)}/10 avg`
+  }), sup.weakest && React.createElement(Superlative, {
+    label: "Weakest sector",
+    value: sup.weakest.name,
+    detail: `${sup.weakest.avg.toFixed(1)}/10 avg`
+  }), sup.hardest && React.createElement(Superlative, {
+    label: "Hardest question",
+    value: `${sup.hardest.title} (${sup.hardest.sector})`,
+    detail: `${Math.round(sup.hardest.rate * 100)}% of ${sup.hardest.asked}`
+  }), sup.topL4 && React.createElement(Superlative, {
+    label: "Top level 4",
+    value: `${sup.topL4.title} (${sup.topL4.sector})`,
+    detail: `${sup.topL4.yes} ${sup.topL4.yes === 1 ? "camp" : "camps"}`
+  })) : null;
+  const Leaderboard = React.createElement("div", {
+    "data-leaderboard": true,
+    style: { ...panelStyle, marginTop: 12 }
+  }, React.createElement(SecHead, {
+    style: { marginTop: 0 }
+  }, "Reaching Furthest"), agg.leaderboard.map((c, i) => React.createElement("div", {
     key: i,
     "data-rank": i + 1,
-    style: rowStyle
+    style: { ...rowStyle, gap: 10 }
   }, React.createElement("span", {
-    style: { width: 16, color: "#93a89b" }
+    style: { width: 18, color: "#93a89b", fontVariantNumeric: "tabular-nums" }
   }, i + 1), React.createElement("span", {
-    style: { flex: 1, fontWeight: 600 }
+    "aria-hidden": "true",
+    style: { flexShrink: 0, display: "inline-flex" }
+  }, React.createElement(RadialBadge, {
+    sectors,
+    fills: miniFills(sectors, c),
+    size: 30,
+    dark: true,
+    showLabels: false,
+    showCenter: false
+  })), React.createElement("span", {
+    style: { flex: 1, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
   }, c.campName, " ", i === 0 && React.createElement("span", {
     style: { color: "#e8c15a" }
-  }, "★")), React.createElement("b", {
+  }, "★"), c.timestamp && now - c.timestamp <= 7 * 86400000 ? React.createElement("span", {
+    title: "new this week",
+    style: { color: "#7fc46a", marginLeft: 4 }
+  }, "●") : null), React.createElement("b", {
     style: { fontVariantNumeric: "tabular-nums" }
-  }, c.total, "/60")))), React.createElement(SecHead, null, "Sector Standings"), React.createElement("div", {
+  }, c.total, "/60"))));
+  const Standings = React.createElement("div", {
+    style: { ...panelStyle, marginTop: 12 }
+  }, React.createElement(SecHead, {
+    style: { marginTop: 0 }
+  }, "Sector Standings"), React.createElement("div", {
     style: { display: "grid", gridTemplateColumns: wide ? "1fr 1fr" : "1fr", gap: "0 18px" }
   }, agg.sectorStandings.map((s) => React.createElement("div", {
     key: s.id,
     style: rowStyle
-  }, React.createElement("span", {
+  }, React.createElement(SectorIcon, {
+    kind: (sectors.find((x) => x.id === s.id) || {}).icon,
+    size: 13,
+    color: "#7f988a"
+  }), React.createElement("span", {
     style: { flex: 1, color: "#cdebd8" }
   }, s.name), React.createElement("b", {
     style: { fontVariantNumeric: "tabular-nums" }
   }, s.avg.toFixed(1))))));
+  const Stats = React.createElement("div", null, Pulse, Superlatives, Leaderboard, Standings);
   return wide ? React.createElement("div", {
-    style: { display: "grid", gridTemplateColumns: "320px 1fr", gap: 24, paddingTop: 16, alignItems: "start" }
+    style: { display: "grid", gridTemplateColumns: "minmax(340px, 400px) 1fr", gap: 20, paddingTop: 16, alignItems: "start" }
   }, Hero, Stats) : React.createElement("div", {
     style: { paddingTop: 12 }
-  }, Hero, React.createElement("div", {
-    style: { marginTop: 14 }
-  }, Stats));
+  }, Hero, Stats);
 }
-const SecHead = ({ children }) => React.createElement("div", {
-  style: { fontSize: 10.5, letterSpacing: ".16em", color: "#93a89b", fontWeight: 800, margin: "16px 0 6px" }
+const SecHead = ({ children, style }) => React.createElement("div", {
+  style: { fontSize: 10.5, letterSpacing: ".16em", color: "#93a89b", fontWeight: 800, margin: "16px 0 6px", ...style }
 }, String(children).toUpperCase());
 const rowStyle = { display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: "1px dashed #21332a", fontSize: 13 };
 function fmtWhen(ts) {

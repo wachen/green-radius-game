@@ -82,11 +82,45 @@ const selStyle = { background: '#101b15', color: '#93a89b', border: '1px solid #
 const btnStyle = { background: '#45c483', color: '#06140c', border: 'none', borderRadius: 8, padding: '5px 10px', fontWeight: 700, cursor: 'pointer' };
 const Centered = ({ children }) => <div style={{ textAlign: 'center', padding: '60px 0', color: '#93a89b' }}>{children}</div>;
 
+// City tab: /city/'s teal "playa dusk" card language (see src/boot-city.jsx),
+// admin-only data density stacked beside/beneath it.
+const CITY_CARD_BG = 'linear-gradient(160deg, #0e2733 0%, #14323f 100%)';
+const panelStyle = { background: '#111d16', border: '1px solid #26382e', borderRadius: 16, padding: '14px 16px' };
+
+// Mini-badge fills for a leaderboard entry — same precedence as CampRow.
+function miniFills(sectors, entry) {
+  const hasAns = entry.answers && Object.keys(entry.answers).some(k =>
+    entry.answers[k] === 'yes' || entry.answers[k] === 'no');
+  if (hasAns) return fillsFromAnswers(sectors, entry.answers);
+  return A.isLegacy(entry) ? legacyFills(sectors, entry.greens) : approxFills(sectors, entry.greens);
+}
+
+function StatTile({ value, label }) {
+  return (
+    <div style={{ ...panelStyle, textAlign: 'center', padding: '12px 8px' }}>
+      <div style={{ fontSize: 26, fontWeight: 900, color: '#7fc46a', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>{value}</div>
+      <div style={{ fontSize: 9.5, letterSpacing: '.14em', color: '#93a89b', fontWeight: 800, marginTop: 2 }}>{label.toUpperCase()}</div>
+    </div>
+  );
+}
+
+function Superlative({ label, value, detail }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '6px 0', borderBottom: '1px dashed #21332a', fontSize: 13 }}>
+      <span style={{ fontSize: 9.5, letterSpacing: '.12em', color: '#93a89b', fontWeight: 800, flexShrink: 0, width: 118 }}>{label.toUpperCase()}</span>
+      <span style={{ flex: 1, color: '#eaf2ec', minWidth: 0 }}>{value}</span>
+      <b style={{ fontVariantNumeric: 'tabular-nums', color: '#7fc46a', flexShrink: 0 }}>{detail}</b>
+    </div>
+  );
+}
+
 function CommunityTally({ sectors, rows }) {
   const agg = React.useMemo(() => A.computeAggregates(rows, sectors, Date.now()), [rows, sectors]);
+  const sup = React.useMemo(() => A.superlatives(agg, sectors), [agg, sectors]);
   const wide = useMQ('(min-width: 760px)');
   const [sel, setSel] = React.useState(null); // {sector, level, qi}
   const pct = Math.round(agg.tallyPct * 100);
+  const now = Date.now();
 
   const detail = (() => {
     if (!sel) return null;
@@ -100,58 +134,103 @@ function CommunityTally({ sectors, rows }) {
   })();
 
   const Hero = (
-    <div style={{ textAlign: 'center', filter: 'drop-shadow(0 0 22px rgba(69,196,131,.3))' }}>
-      <RadialBadge sectors={sectors} fills={{}} size={wide ? 300 : 264} dark
-        intensities={agg.intensities} centerLabel={agg.hasAnswers ? `${pct}%` : `${agg.totalYes}`}
-        selected={sel}
-        onSelectSegment={agg.hasAnswers ? (sector, level, qi) => setSel({ sector, level, qi }) : null} />
-      <div style={{ fontSize: 13, color: '#cfe0d4', marginTop: 6 }}>
-        <b style={{ color: '#fff' }}>{agg.totalYes}</b> of {agg.totalPossible} green choices · <b style={{ color: '#fff' }}>{agg.count}</b> camps · +{agg.momentum.thisWeek} this week
+    <div style={{ background: CITY_CARD_BG, borderRadius: 24, color: '#fff', padding: '24px 22px',
+      boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
+      position: 'relative', overflow: 'hidden', textAlign: 'center' }}>
+      {/* dust glow, mirroring the /city/ card */}
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 30%, rgba(217,136,92,0.18), transparent 60%)', pointerEvents: 'none' }}/>
+      <div style={{ position: 'relative' }}>
+        <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, opacity: 0.6, marginBottom: 4 }}>
+          GREEN RADIUS · BLAST {new Date().getFullYear()}
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.12 }}>Black Rock City</div>
+        <div style={{ margin: '6px 0 10px' }}>
+          <span style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{agg.hasAnswers ? `${pct}%` : agg.totalYes}</span>
+          {agg.hasAnswers && <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> achieved</span>}
+        </div>
+        <RadialBadge sectors={sectors} fills={{}} size={wide ? 300 : 256} dark
+          intensities={agg.intensities} centerLabel={agg.hasAnswers ? `${pct}%` : `${agg.totalYes}`}
+          selected={sel}
+          onSelectSegment={agg.hasAnswers ? (sector, level, qi) => setSel({ sector, level, qi }) : null} />
+        <div style={{ fontSize: 13, color: '#d8cbb6', marginTop: 8 }}>
+          <b style={{ color: '#fff' }}>{agg.totalYes}</b> of {agg.totalPossible} green choices
+        </div>
+        {agg.legacyCount > 0 && (
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
+            {agg.legacyCount} older {agg.legacyCount === 1 ? 'response' : 'responses'} on the old 0 to 4 scale excluded from the tally.
+          </div>
+        )}
+        {!agg.hasAnswers && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>Per-question detail appears once granular capture is live.</div>}
+        {detail && (
+          <div data-segment-detail style={{ background: 'rgba(0,0,0,0.28)', border: '1px solid rgba(255,255,255,0.12)', borderLeft: '3px solid #7fc46a',
+            borderRadius: 10, padding: '9px 11px', margin: '10px auto 0', maxWidth: 320, textAlign: 'left' }}>
+            <div style={{ fontSize: 10, letterSpacing: '.1em', color: '#7fc46a', fontWeight: 800 }}>{detail.label.toUpperCase()}</div>
+            <div style={{ fontSize: 12.5, margin: '2px 0 4px' }}>{detail.text}</div>
+            <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}><b style={{ color: '#fff', fontSize: 15 }}>{Math.round(detail.rate * 100)}%</b> of {detail.n} camps</div>
+          </div>
+        )}
       </div>
-      {agg.legacyCount > 0 && (
-        <div style={{ fontSize: 11, color: '#7f988a', marginTop: 4 }}>
-          {agg.legacyCount} older {agg.legacyCount === 1 ? 'response' : 'responses'} on the old 0 to 4 scale excluded from the tally.
-        </div>
-      )}
-      {!agg.hasAnswers && <div style={{ fontSize: 11, color: '#7f988a', marginTop: 4 }}>Per-question detail appears once granular capture is live.</div>}
-      {detail && (
-        <div data-segment-detail style={{ background: '#13201a', border: '1px solid #26382e', borderLeft: '3px solid #45c483',
-          borderRadius: 10, padding: '9px 11px', margin: '10px auto 0', maxWidth: 320, textAlign: 'left' }}>
-          <div style={{ fontSize: 10, letterSpacing: '.1em', color: '#45c483', fontWeight: 800 }}>{detail.label.toUpperCase()}</div>
-          <div style={{ fontSize: 12.5, margin: '2px 0 4px' }}>{detail.text}</div>
-          <div style={{ color: '#93a89b', fontSize: 12 }}><b style={{ color: '#fff', fontSize: 15 }}>{Math.round(detail.rate * 100)}%</b> of {detail.n} camps</div>
-        </div>
-      )}
     </div>
   );
 
-  const Stats = (
-    <div>
-      <SecHead>Reaching Furthest</SecHead>
-      <div data-leaderboard>
-        {agg.leaderboard.slice(0, 5).map((c, i) => (
-          <div key={i} data-rank={i + 1} style={rowStyle}>
-            <span style={{ width: 16, color: '#93a89b' }}>{i + 1}</span>
-            <span style={{ flex: 1, fontWeight: 600 }}>{c.campName} {i === 0 && <span style={{ color: '#e8c15a' }}>★</span>}</span>
-            <b style={{ fontVariantNumeric: 'tabular-nums' }}>{c.total}/60</b>
+  const Pulse = (
+    <div data-pulse style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: wide ? 0 : 12 }}>
+      <StatTile value={agg.count} label={agg.count === 1 ? 'camp' : 'camps'} />
+      <StatTile value={agg.totalYes} label="green points" />
+      <StatTile value={`+${agg.momentum.thisWeek}`} label="this week" />
+    </div>
+  );
+
+  const Superlatives = (sup.strongest || sup.hardest || sup.topL4) ? (
+    <div data-superlatives style={{ ...panelStyle, marginTop: 12 }}>
+      <SecHead style={{ marginTop: 0 }}>Superlatives</SecHead>
+      {sup.strongest && <Superlative label="Strongest sector" value={sup.strongest.name} detail={`${sup.strongest.avg.toFixed(1)}/10 avg`} />}
+      {sup.weakest && <Superlative label="Weakest sector" value={sup.weakest.name} detail={`${sup.weakest.avg.toFixed(1)}/10 avg`} />}
+      {sup.hardest && <Superlative label="Hardest question" value={`${sup.hardest.title} (${sup.hardest.sector})`} detail={`${Math.round(sup.hardest.rate * 100)}% of ${sup.hardest.asked}`} />}
+      {sup.topL4 && <Superlative label="Top level 4" value={`${sup.topL4.title} (${sup.topL4.sector})`} detail={`${sup.topL4.yes} ${sup.topL4.yes === 1 ? 'camp' : 'camps'}`} />}
+    </div>
+  ) : null;
+
+  const Leaderboard = (
+    <div data-leaderboard style={{ ...panelStyle, marginTop: 12 }}>
+      <SecHead style={{ marginTop: 0 }}>Reaching Furthest</SecHead>
+      {agg.leaderboard.map((c, i) => (
+        <div key={i} data-rank={i + 1} style={{ ...rowStyle, gap: 10 }}>
+          <span style={{ width: 18, color: '#93a89b', fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
+          <span aria-hidden="true" style={{ flexShrink: 0, display: 'inline-flex' }}>
+            <RadialBadge sectors={sectors} fills={miniFills(sectors, c)} size={30} dark showLabels={false} showCenter={false}/>
+          </span>
+          <span style={{ flex: 1, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {c.campName} {i === 0 && <span style={{ color: '#e8c15a' }}>★</span>}
+            {c.timestamp && now - c.timestamp <= 7 * 864e5 ? <span title="new this week" style={{ color: '#7fc46a', marginLeft: 4 }}>●</span> : null}
+          </span>
+          <b style={{ fontVariantNumeric: 'tabular-nums' }}>{c.total}/60</b>
+        </div>
+      ))}
+    </div>
+  );
+
+  const Standings = (
+    <div style={{ ...panelStyle, marginTop: 12 }}>
+      <SecHead style={{ marginTop: 0 }}>Sector Standings</SecHead>
+      <div style={{ display: 'grid', gridTemplateColumns: wide ? '1fr 1fr' : '1fr', gap: '0 18px' }}>
+        {agg.sectorStandings.map(s => (
+          <div key={s.id} style={rowStyle}>
+            <SectorIcon kind={(sectors.find(x => x.id === s.id) || {}).icon} size={13} color="#7f988a"/>
+            <span style={{ flex: 1, color: '#cdebd8' }}>{s.name}</span>
+            <b style={{ fontVariantNumeric: 'tabular-nums' }}>{s.avg.toFixed(1)}</b>
           </div>
         ))}
       </div>
-      <SecHead>Sector Standings</SecHead>
-      <div style={{ display: 'grid', gridTemplateColumns: wide ? '1fr 1fr' : '1fr', gap: '0 18px' }}>
-        {agg.sectorStandings.map(s => (
-          <div key={s.id} style={rowStyle}><span style={{ flex: 1, color: '#cdebd8' }}>{s.name}</span>
-            <b style={{ fontVariantNumeric: 'tabular-nums' }}>{s.avg.toFixed(1)}</b></div>
-        ))}
-      </div>
     </div>
   );
 
+  const Stats = <div>{Pulse}{Superlatives}{Leaderboard}{Standings}</div>;
   return wide
-    ? <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 24, paddingTop: 16, alignItems: 'start' }}>{Hero}{Stats}</div>
-    : <div style={{ paddingTop: 12 }}>{Hero}<div style={{ marginTop: 14 }}>{Stats}</div></div>;
+    ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 400px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{Hero}{Stats}</div>
+    : <div style={{ paddingTop: 12 }}>{Hero}{Stats}</div>;
 }
-const SecHead = ({ children }) => <div style={{ fontSize: 10.5, letterSpacing: '.16em', color: '#93a89b', fontWeight: 800, margin: '16px 0 6px' }}>{String(children).toUpperCase()}</div>;
+const SecHead = ({ children, style }) => <div style={{ fontSize: 10.5, letterSpacing: '.16em', color: '#93a89b', fontWeight: 800, margin: '16px 0 6px', ...style }}>{String(children).toUpperCase()}</div>;
 const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px dashed #21332a', fontSize: 13 };
 
 // ── Camps: full-width scannable rows ─────────────────────────────────────────
