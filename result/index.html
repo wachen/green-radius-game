@@ -34,6 +34,11 @@
 <script type="text/babel" src="../src/share-card.jsx"></script>
 <script defer src="../result-state.js"></script>
 
+<!-- Cloudflare Web Analytics (pageviews + Web Vitals). The beacon token is public by design, safe to commit.
+     TODO(owner): swap PLACEHOLDER_REPLACE_WITH_CWA_TOKEN for the greenradi.us Web Analytics site token
+     from the Cloudflare dashboard (same token as index.html and city/). See docs/architecture.md. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "PLACEHOLDER_REPLACE_WITH_CWA_TOKEN"}'></script>
+
 <style>
   /* Same vendored Space Grotesk as index.html (see the comment there). */
   @font-face {
