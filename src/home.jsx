@@ -67,10 +67,10 @@ function AboutIcon({ kind, size = 15, color = '#558040' }) {
 function AboutSection({ icon, title, mark, divider, palette, children }) {
   return (
     <div style={{
-      marginTop: divider ? 20 : 22, paddingTop: divider ? 20 : 0,
+      marginTop: 14, paddingTop: divider ? 14 : 0,
       borderTop: divider ? '1px solid ' + palette.text + '14' : 'none',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
         <span aria-hidden="true" style={{
           width: 27, height: 27, borderRadius: 8, background: '#7AB85C26',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -175,7 +175,7 @@ function FaqModal({ onClose, palette }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           background: palette.card, color: palette.text, textAlign: 'left',
-          borderRadius: 24, padding: '0 22px 18px',
+          borderRadius: 24, padding: '0 22px 14px',
           maxWidth: 400, width: '100%', margin: 'auto',
           boxShadow: '0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
           position: 'relative',
@@ -185,7 +185,7 @@ function FaqModal({ onClose, palette }) {
       >
         <div style={{
           position: 'sticky', top: 0, zIndex: 5, background: palette.accentDark,
-          margin: '0 -22px', padding: '22px 22px 16px', borderRadius: '24px 24px 0 0',
+          margin: '0 -22px', padding: '18px 22px 13px', borderRadius: '24px 24px 0 0',
           marginBottom: 4, textAlign: 'center',
           boxShadow: '0 8px 16px -10px rgba(0,0,0,0.35)',
         }}>
@@ -194,7 +194,7 @@ function FaqModal({ onClose, palette }) {
               math and coloring as the "Play the Game" tile (minus its
               pointer notch), shrunk to a medallion so it reads clean on the
               cream card the way it does on the tile's solid green. */}
-          <svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true" style={{ display: 'block', margin: '0 auto 8px' }}>
+          <svg viewBox="0 0 64 64" width="26" height="26" aria-hidden="true" style={{ display: 'block', margin: '0 auto 6px' }}>
             <circle cx="32" cy="33" r="26" fill={palette.accent}/>
             {['#A3D178', '#86C169', '#68B05C', '#56A85C', '#439F5B', '#31975B'].map((c, i) => {
               const a0 = (i * 60 - 90) * Math.PI / 180;
@@ -218,7 +218,7 @@ function FaqModal({ onClose, palette }) {
         </div>
 
         <AboutSection icon="why" title="Why this exists" mark="#1" palette={palette}>
-          <div style={{ fontSize: 13.5, lineHeight: 1.55, color: palette.text + 'd1', textWrap: 'pretty' }}>
+          <div style={{ fontSize: 13.5, lineHeight: 1.5, color: palette.text + 'd1', textWrap: 'pretty' }}>
             The playa doesn't need another form. The Green Radius is not a compliance
             audit; it's a mirror. See where your camp stands across six sustainability
             sectors, celebrate what you already do well, and discover what's possible
@@ -228,11 +228,11 @@ function FaqModal({ onClose, palette }) {
         </AboutSection>
 
         <AboutSection icon="sectors" title="The six sectors" mark="#2" divider palette={palette}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
             {window.SECTORS.map(s => (
               <div key={s.id} style={{
                 border: '1px solid ' + palette.text + '14', borderRadius: 14,
-                background: palette.text + '06', padding: '11px 12px',
+                background: palette.text + '06', padding: '9px 11px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
                   <span aria-hidden="true" style={{
@@ -261,7 +261,7 @@ function FaqModal({ onClose, palette }) {
               borderRadius: 2, background: 'linear-gradient(' + LEVEL_COLORS.join(',') + ')', opacity: 0.35,
             }}/>
             {LEVEL_ROWS.map((lv, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', position: 'relative' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', position: 'relative' }}>
                 <span aria-hidden="true" style={{
                   width: 24, height: 24, borderRadius: 7, background: LEVEL_COLORS[i],
                   color: '#fff', fontSize: 12, fontWeight: 800, flexShrink: 0,
@@ -276,7 +276,7 @@ function FaqModal({ onClose, palette }) {
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: palette.text + 'b3', marginTop: 8, textWrap: 'pretty' }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: palette.text + 'b3', marginTop: 6, textWrap: 'pretty' }}>
             Every yes lights its own segment: 10 per sector, 60 total. An early no never
             blocks later progress, and Level 4 is optional extra credit with a write-in
             slot for your camp's own idea.
@@ -284,7 +284,7 @@ function FaqModal({ onClose, palette }) {
         </AboutSection>
 
         <AboutSection icon="results" title="Your results" mark="#4" divider palette={palette}>
-          <div style={{ fontSize: 13.5, lineHeight: 1.55, color: palette.text + 'd1', textWrap: 'pretty' }}>
+          <div style={{ fontSize: 13.5, lineHeight: 1.5, color: palette.text + 'd1', textWrap: 'pretty' }}>
             When you finish, you'll see your Green Radius and get your shareable results
             card plus a personal Green-Up Plan by email. Your results join the community
             tally, so we can celebrate progress together. It's an honor-system
@@ -296,10 +296,10 @@ function FaqModal({ onClose, palette }) {
           {FAQ_ITEMS.map((item, i) => (
             <div key={i} style={{
               borderTop: i === 0 ? 'none' : '1px solid ' + palette.text + '1a',
-              paddingTop: i === 0 ? 0 : 12, paddingBottom: i === FAQ_ITEMS.length - 1 ? 0 : 12,
+              paddingTop: i === 0 ? 0 : 10, paddingBottom: i === FAQ_ITEMS.length - 1 ? 0 : 10,
             }}>
               <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 4 }}>{item.q}</div>
-              <div style={{ fontSize: 13, lineHeight: 1.55, color: palette.text + 'd1' }}>{item.a}</div>
+              <div style={{ fontSize: 13, lineHeight: 1.5, color: palette.text + 'd1' }}>{item.a}</div>
             </div>
           ))}
         </AboutSection>
@@ -307,13 +307,13 @@ function FaqModal({ onClose, palette }) {
         {/* Back cover: closes the guide with the same hairline rhythm used
             between sections above, plus one small utility-label eyebrow to
             bookend the masthead at the top. */}
-        <div style={{ marginTop: 26, paddingTop: 20, borderTop: '1px solid ' + palette.text + '14' }}>
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid ' + palette.text + '14' }}>
           <div style={{
-            padding: '18px 16px', borderRadius: 16, textAlign: 'center',
+            padding: '14px 14px', borderRadius: 16, textAlign: 'center',
             background: '#7AB85C14', border: '1px solid #7AB85C33',
           }}>
             <div style={{ fontSize: 10, letterSpacing: '0.2em', fontWeight: 700, color: '#558040', textTransform: 'uppercase', marginBottom: 6 }}>Learn More</div>
-            <div style={{ fontSize: 12.5, lineHeight: 1.5, color: palette.text + 'd1', marginBottom: 12, textWrap: 'pretty' }}>
+            <div style={{ fontSize: 12.5, lineHeight: 1.5, color: palette.text + 'd1', marginBottom: 10, textWrap: 'pretty' }}>
               Full guidance for every sector and level lives in the Green Theme Camp
               Community's Resource Guide.
             </div>
@@ -334,16 +334,16 @@ function FaqModal({ onClose, palette }) {
 function ModePicker({ onPick, palette }) {
   const tileBase = {
     display: 'block', width: '100%', border: 'none', cursor: 'pointer',
-    padding: '18px 16px', borderRadius: 18, marginBottom: 12,
+    padding: '14px 16px', borderRadius: 18, marginBottom: 10,
     textAlign: 'center', fontFamily: 'inherit',
   };
   const [faqOpen, setFaqOpen] = useState(false);
   const faqBtnRef = useRef(null);
   const closeFaq = useCallback(() => { setFaqOpen(false); faqBtnRef.current?.focus(); }, []);
   return (
-    <div style={{ padding: '22px 24px 22px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+    <div style={{ padding: '14px 24px 18px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
       <h1 style={{
-        fontSize: 40, lineHeight: 1, fontWeight: 900, margin: '0 0 10px',
+        fontSize: 40, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
         textWrap: 'balance', color: palette.heading,
         letterSpacing: '-0.02em',
       }}>
@@ -352,7 +352,7 @@ function ModePicker({ onPick, palette }) {
 
       <div style={{
         display: 'flex', justifyContent: 'center', alignItems: 'center',
-        gap: 12, margin: '8px 0 18px',
+        gap: 12, margin: '6px 0 12px',
       }} aria-hidden="true">
         {window.SECTORS.map(s => (
           <SectorIcon key={s.id} kind={s.icon} size={24} color={palette.accent}/>
@@ -361,7 +361,7 @@ function ModePicker({ onPick, palette }) {
 
       <div style={{
         fontSize: 15, lineHeight: 1.45, color: palette.text + 'cc',
-        maxWidth: 340, margin: '0 auto 24px', textWrap: 'pretty',
+        maxWidth: 340, margin: '0 auto 16px', textWrap: 'pretty',
       }}>
         Join BLAST 2026 and track your camp's progress across all 6 sustainability sectors. Pick your path below.
       </div>
@@ -376,8 +376,8 @@ function ModePicker({ onPick, palette }) {
           '--grg-sh': palette.accentDark,
         }}
       >
-        <svg viewBox="0 0 64 64" width="54" height="54" aria-hidden="true"
-          style={{ display: 'block', margin: '0 auto 10px' }}>
+        <svg viewBox="0 0 64 64" width="48" height="48" aria-hidden="true"
+          style={{ display: 'block', margin: '0 auto 8px' }}>
           {/* Same wedge sequence as apple-touch-icon.png: a light-to-dark green
               ramp clockwise from the pointer with white seams and a plain dark
               hub dot — no light/dark alternation, no pale center disc, no dark
@@ -416,8 +416,8 @@ function ModePicker({ onPick, palette }) {
           '--grg-sh': palette.text + '1f',
         }}
       >
-        <svg viewBox="0 0 64 64" width="54" height="54" aria-hidden="true"
-          style={{ display: 'block', margin: '0 auto 10px' }}>
+        <svg viewBox="0 0 64 64" width="48" height="48" aria-hidden="true"
+          style={{ display: 'block', margin: '0 auto 8px' }}>
           <rect x="13" y="6" width="38" height="52" rx="6" fill="#fff" stroke="currentColor" strokeWidth="2.5"/>
           {[['#68B05C', 15], ['#56A85C', 26], ['#439F5B', 37]].map(([c, y]) => (
             <g key={y}>
@@ -444,7 +444,7 @@ function ModePicker({ onPick, palette }) {
         </div>
       </button>
 
-      <div style={{ marginTop: 6, marginBottom: 10, display: 'flex', gap: 10 }}>
+      <div style={{ marginTop: 4, marginBottom: 8, display: 'flex', gap: 10 }}>
         <FaqButton btnRef={faqBtnRef} expanded={faqOpen} onClick={() => setFaqOpen(true)} palette={palette}/>
         <CityStatsButton palette={palette}/>
       </div>
@@ -469,7 +469,7 @@ function ModePicker({ onPick, palette }) {
         ))}
       </div>
 
-      <div style={{ marginTop: 22, paddingTop: 16, borderTop: '1px solid ' + palette.text + '14' }}>
+      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid ' + palette.text + '14' }}>
         <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
           style={{
             fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
