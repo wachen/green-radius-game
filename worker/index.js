@@ -89,6 +89,12 @@ async function handleComplete(request, env) {
       if (k.endsWith('-note') && answers[k.slice(0, -5)] !== 'yes' && answers[k.slice(0, -5)] !== 'no') delete answers[k];
     }
   }
+  // Stable per-camp id (client-generated crypto.randomUUID). It rides INSIDE the
+  // answers JSON blob (no new sheet column) so the read side can dedup repeat
+  // submissions latest-wins. Bounded to safe UUID chars; anything else is dropped.
+  if (typeof body.campId === 'string' && /^[0-9a-fA-F-]{8,64}$/.test(body.campId)) {
+    answers.campId = body.campId;
+  }
   const source = body.mode === 'form' ? 'form' : 'board';
   const schemaVersion = typeof body.schemaVersion === 'string' ? body.schemaVersion.slice(0, 32) : '';
 

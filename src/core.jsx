@@ -136,6 +136,20 @@ function clearSaved() {
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
 }
 
+// A stable per-camp id, generated once when a game's save is first created and
+// carried for its lifetime (persisted as an additive `campId` key — no
+// STORAGE_VERSION bump needed). It rides to the sheet inside the answers blob so
+// the read side can dedup a camp's repeat submissions (retries/redos) instead
+// of counting each as a new camp. crypto.randomUUID needs a secure context
+// (prod is https, dev is localhost); the fallback covers anything else.
+function genCampId() {
+  try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); } catch {}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 // ─── Scoring + fill (per-point, per-question) ──────────────────────────────────
 // Every Yes is worth 1 point. A sector has 10 questions: 6 fixed (Levels 1–3,
 // sized 1/2/3) + up to 4 advanced picks (Level 4). The radius mirrors the answers
