@@ -104,7 +104,42 @@
       campName: r.campName, leadName: r.leadName, total: r.total || 0,
       perfectSectors: sectors.filter(s => ((r.greens && r.greens[s.id]) || 0) === 10).length,
       resultUrl: r.resultUrl || '',
+      // Render data for the admin mini badges + "new this week" dot. Stays
+      // admin-only: /api/city rebuilds its body field-by-field and never
+      // exposes the leaderboard.
+      greens: r.greens || {}, answers: r.answers || {},
+      timestamp: r.timestamp || 0, schemaVersion: r.schemaVersion || '',
     })).sort((a, b) => b.total - a.total).slice(0, n || 10);
+  }
+
+  // City-tab extremes. minAsked (default 3) keeps a question answered by one
+  // or two camps from winning "hardest". Write-in X-camp topics are excluded
+  // from topL4 (their shared title says nothing about what camps actually do).
+  function superlatives(agg, sectors, minAsked) {
+    var min = minAsked == null ? 3 : minAsked;
+    // Standings list every sector even with zero camps; no camps -> no extremes.
+    var st = agg.count ? (agg.sectorStandings || []) : [];
+    var hardest = null, topL4 = null;
+    sectors.forEach(function (sector) {
+      [].concat.apply([], sector.levels.slice(0, 3)).forEach(function (q) {
+        var pq = agg.perQuestion[q.id];
+        if (!pq || pq.asked < min) return;
+        if (!hardest || pq.rate < hardest.rate)
+          hardest = { id: q.id, sector: sector.name, title: q.prompt || q.title, rate: pq.rate, asked: pq.asked };
+      });
+      (sector.tier4Topics || []).forEach(function (t) {
+        if (/-camp(-\d+)?$/.test(t.id)) return;
+        var pq = agg.perQuestion[t.id];
+        if (!pq || !pq.yes) return;
+        if (!topL4 || pq.yes > topL4.yes)
+          topL4 = { id: t.id, sector: sector.name, title: t.title, yes: pq.yes, asked: pq.asked };
+      });
+    });
+    return {
+      strongest: st[0] || null,
+      weakest: st.length ? st[st.length - 1] : null,
+      hardest: hardest, topL4: topL4,
+    };
   }
 
   function computeAggregates(rows, sectors, now, windowMs) {
@@ -133,7 +168,7 @@
     };
   }
 
-  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, sectorIds, advYesCount, isLegacy, dedupeRows, identityKey };
+  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, dedupeRows, identityKey };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.AdminAggregate = api;
 })(typeof window !== 'undefined' ? window : this);

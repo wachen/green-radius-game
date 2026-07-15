@@ -8,6 +8,11 @@ so every squash-merged PR below is effectively a release. From PR #44 onward the
 `APP_VERSION` stamp (shown at the bottom of the home screen) equals the PR number, so `vNN`
 and `#NN` refer to the same release. Entries are grouped newest-first by milestone.
 
+## Polish: presentation, keepsakes & small screens (#64–)
+
+- Added this changelog, documenting every release since #1 (#64)
+- Admin City tab glow-up — the /city/ card look (teal hero, dust glow) plus pulse tiles, superlatives, and a top-10 mini-badge leaderboard (#65)
+
 ## Post-launch: safety net, analytics & payload diet (#56–#63)
 
 - Payload diet — precompiled JSX with `babel-standalone` off the critical path, cutting cold load ~87% (756 KB → 98 KB gzip) for playa-grade connections (#63)
