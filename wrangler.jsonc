@@ -4,7 +4,7 @@
   "compatibility_date": "2026-05-22",
   "main": "worker/index.js",
   "workers_dev": false,
-  "preview_urls": false,
+  "preview_urls": true,
   "observability": {
     "enabled": true,
     "logs": {
