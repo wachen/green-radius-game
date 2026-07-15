@@ -15,7 +15,7 @@ const ALLOWED_ORIGIN = 'https://greenradi.us';
 
 // Funnel analytics: the only event names POST /api/event will record. Anything
 // else is silently dropped so a stray/forged name can't stuff Workers Logs.
-const ALLOWED_EVENTS = new Set(['game_started', 'mode_chosen', 'submit_attempted', 'submit_succeeded', 'submit_failed']);
+const ALLOWED_EVENTS = new Set(['game_started', 'mode_chosen', 'submit_attempted', 'submit_succeeded', 'submit_failed', 'result_resumed']);
 
 export default {
   async fetch(request, env, ctx) {

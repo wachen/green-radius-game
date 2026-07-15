@@ -61,7 +61,13 @@
   function encode(payload) {
     var fills = payload.fills || {};
     var p = SECTOR_IDS.map(function (id) { return packSector(fills[id]); });
-    return toB64Url(JSON.stringify({ v: 2, c: payload.campName || '', l: payload.leadName || '', y: payload.year | 0, p: p }));
+    // `u` (the camp's stable campId) is additive and optional: it rides inside
+    // the same v2 envelope, so links stay v2 and every existing decoder — old
+    // browsers, the Worker OG path — ignores the extra key and still resolves
+    // the card. Omitted when absent to keep legacy-style links byte-identical.
+    var o = { v: 2, c: payload.campName || '', l: payload.leadName || '', y: payload.year | 0, p: p };
+    if (payload.campId) o.u = String(payload.campId);
+    return toB64Url(JSON.stringify(o));
   }
 
   function decode(hash) {
@@ -79,11 +85,68 @@
       } else {
         return null;
       }
-      return { campName: o.c || '', leadName: o.l || '', year: o.y | 0, fills: fills };
+      // campId is present only on newer v2 links (see encode). Legacy v1/v2
+      // links have none, so it decodes to null — every caller must treat null
+      // as "unknown camp" and mint a fresh id.
+      return { campName: o.c || '', leadName: o.l || '', year: o.y | 0, fills: fills, campId: o.u || null };
     } catch (e) { return null; }
   }
 
-  var api = { encode: encode, decode: decode, SECTOR_IDS: SECTOR_IDS };
+  // Rebuild a current-shape localStorage save from a decoded result so a camp
+  // can resume on any device (the /result/ "Continue improving" action). Pure +
+  // isomorphic: STORAGE_VERSION, a fallback campId, and the timestamp are passed
+  // in by the caller (they live in the game's core scope, not here).
+  //
+  // Fills carry only per-question booleans (fixed Levels 1–3) and an advanced
+  // COUNT (Level 4), so we map fixed answers positionally against the current
+  // SECTORS and mark the first N advanced topics Yes to reproduce the count.
+  // Notes are not in the payload, so they are simply absent (not faked).
+  //
+  // Schema-drift policy: import-what-aligns. If a sector's current fixed-question
+  // count no longer matches the payload, only the positionally-aligned answers
+  // are set (bounded by the shorter of the two) and any advanced count beyond the
+  // available topics is dropped. This never throws and never corrupts — the game
+  // recomputes every fill from `answers` — so a friendly partial import beats
+  // refusing the whole card. A real question-schema change would ship its own
+  // payload-format bump; positional drift within v2 degrades quietly.
+  function reconstructSave(decoded, sectors, opts) {
+    opts = opts || {};
+    decoded = decoded || {};
+    var fills = decoded.fills || {};
+    var answers = {};
+    var sectorCursor = {}, sectorClosed = {};
+    (sectors || []).forEach(function (s) {
+      var fill = fills[s.id] || { levels: [[], [], [], []] };
+      var levels = fill.levels || [[], [], [], []];
+      for (var li = 0; li < 3; li++) {
+        var qs = (s.levels && s.levels[li]) || [];
+        var bits = levels[li] || [];
+        for (var i = 0; i < qs.length && i < bits.length; i++) {
+          answers[qs[i].id] = bits[i] ? 'yes' : 'no';
+        }
+      }
+      var advCount = (levels[3] || []).filter(Boolean).length;
+      var topics = s.tier4Topics || [];
+      for (var t = 0; t < advCount && t < topics.length; t++) answers[topics[t].id] = 'yes';
+      sectorCursor[s.id] = 4;
+      sectorClosed[s.id] = true;
+    });
+    return {
+      version: opts.version,
+      phase: 'done',
+      camp: { campName: decoded.campName || '', leadName: decoded.leadName || '', email: '' },
+      campId: decoded.campId || opts.campId,
+      sectorCursor: sectorCursor,
+      sectorClosed: sectorClosed,
+      answers: answers,
+      customNotes: {},
+      mode: 'board',
+      submittedAt: opts.now || (typeof Date !== 'undefined' ? new Date().toISOString() : null),
+      resumed: true,
+    };
+  }
+
+  var api = { encode: encode, decode: decode, reconstructSave: reconstructSave, SECTOR_IDS: SECTOR_IDS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.ResultState = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

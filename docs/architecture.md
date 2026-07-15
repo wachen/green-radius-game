@@ -43,7 +43,8 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
                                           └─► sendEmail     → Resend → emails the /result/ link + the Green-Up Plan
                                         returns { sheet: ok|err, email: sent|err }
 
-/result/ (result/index.html):  decode(?r= payload, legacy #hash fallback) → <ShareCard> (read-only, stateless)
+/result/ (result/index.html):  decode(?r= payload, legacy #hash fallback) → <ShareCard> (read-only)
+                                └─► "Continue improving" → reconstructSave() → localStorage → / (resume at done screen)
 ```
 
 1. **Play** (`green-radius.jsx` + the `src/*.jsx` modules). Each spin plays a whole sector's 10 questions
@@ -65,11 +66,15 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
    (`greenUpSteps`/`<GreenUpPlan>`), grouped by sector and hidden when there are no
    gaps; client-only, sent nowhere and never mounted on `/result/`.
 3. **Two outputs:**
-   - **Share link** — `result-state.js` `encode({campName, leadName, year, fills})`
+   - **Share link** — `result-state.js` `encode({campName, leadName, year, fills, campId})`
      → base64url payload (v2: per sector `fixedBits*5 + advCount`, ~88 chars) →
      `https://greenradi.us/result/?r=<payload>`. Carries the **exact per-question fill**
-     so the shared page matches the in-app graphic. The payload now rides in the `?r=`
-     **query** (so the Worker can read it for the per-camp OG unfurl — see below);
+     so the shared page matches the in-app graphic. **`campId`** rides in the payload
+     as an **additive optional `u` field inside the same v2 envelope** — the format tag
+     stays `v:2`, so every existing decoder (old browsers, the Worker OG path) ignores
+     the extra key, and links minted before this change decode with `campId: null`.
+     `decode` always returns `campId` (`null` for legacy v1/v2 links). The payload rides
+     in the `?r=` **query** (so the Worker can read it for the per-camp OG unfurl — see below);
      `/result/` reads `?r=` first and falls back to the legacy `#<hash>` for older
      links. Pure client render; works with the Worker down. The done-screen
      **Share** button delivers it via Web Share L2 — `navigator.share({ files: [pngFile] })`
@@ -106,6 +111,26 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
    to `fills` and renders `<ShareCard fills=… >` read-only (legacy v1 `greens` links
    fall back to a contiguous fill). When the request carries `?r=`, the Worker first
    rewrites the OG tags (below); the client render is unchanged.
+6. **Resume / "Continue improving"** (`result/index.html` + `ResultState.reconstructSave`).
+   The result page also offers a **Continue improving** action so a camp can return on a
+   new device or keep answering. It calls `reconstructSave(decoded, window.SECTORS, {version, campId, now})`
+   — a **pure, isomorphic** helper in `result-state.js` — to rebuild a current-shape
+   localStorage save (`STORAGE_VERSION`/`STORAGE_KEY`/`genCampId` are passed in from
+   `src/core.jsx`'s shared Babel scope), then navigates to `/`, where `loadSaved` resumes
+   the game at the **done screen** (`phase:'done'`, all sectors closed, `submittedAt` set so
+   it does not auto-resubmit). Fixed answers map **positionally** to `SECTORS`; the advanced
+   **count** is reproduced by marking the first N Tier-4 topics Yes. **Notes are not in the
+   payload, so they are absent** (never faked). **campId:** carried from the payload when
+   present, else freshly minted — so a returning camp keeps one identity for dedup.
+   **Overwrite guard:** if the device already has a save with meaningful progress AND a
+   different (or unknowable, i.e. legacy-link-`null`) campId, a confirm modal asks before
+   replacing; same campId or an empty save imports silently. **Schema-drift policy:**
+   *import-what-aligns* — the payload has no question-schema version (it is purely positional),
+   so if a sector's fixed-question count no longer matches, only positionally-aligned answers
+   are set and any advanced count beyond the available topics is dropped. This never throws or
+   corrupts (the game recomputes every fill from `answers`); a real content-schema break would
+   ship its own payload-format bump. Import fires a non-PII `result_resumed` funnel event
+   (event name only) to `/api/event`.
 
 ## Integration contracts (don't break these)
 
@@ -272,7 +297,7 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 Two independent, privacy-conscious layers. Neither is load-bearing for gameplay.
 
 - **Cloudflare Web Analytics (CWA).** A `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"..."}'>` beacon in the `<head>` of the three **public** pages only — `index.html`, `result/index.html`, `city/index.html` (**not** `admin/`, which is Access-gated and internal). It reports pageviews + Web Vitals to the Cloudflare dashboard; no cookies, no PII. The beacon token is **public by design** and committed to the repo (swap it via the CWA site in the Cloudflare dashboard). The CWA site is created out-of-band in the dashboard/API, not by this repo. The beacon has no Subresource Integrity hash on purpose — that matches Cloudflare's official snippet (Cloudflare rotates the file). No CSP change was needed: `_headers` only sets `frame-ancestors 'none'`, so there is no `script-src`/`connect-src` to widen for `cloudflareinsights.com`.
-- **Funnel events → `POST /api/event` (Worker).** `green-radius.jsx`'s `trackEvent(event, props)` helper fires a fire-and-forget `navigator.sendBeacon` (keepalive `fetch` fallback), fully wrapped so a telemetry failure can never touch gameplay. It is called at exactly five funnel points: `game_started` (first interaction past the pick-mode landing), `mode_chosen` (`{mode:'board'|'form'}`), `submit_attempted` (`{mode, sectors}` = count of sectors with any Yes), `submit_succeeded`, `submit_failed` (both `{mode}`). The Worker route mirrors `/api/complete`'s **fail-closed Origin check** (must be `https://greenradi.us` or `http://localhost:*`, absent Origin rejected → 403), caps the body at 1 KB, drops any event name not in the `ALLOWED_EVENTS` allowlist, then writes **one structured `console.log` line** (`{type:'funnel_event', event, mode?, sectors?}`) to Workers Logs and returns **204**. **No PII by contract:** event name + coarse props only — never emails, camp names, or free text. Every non-forbidden outcome returns 204 so a beacon never surfaces an error to the player.
+- **Funnel events → `POST /api/event` (Worker).** `green-radius.jsx`'s `trackEvent(event, props)` helper fires a fire-and-forget `navigator.sendBeacon` (keepalive `fetch` fallback), fully wrapped so a telemetry failure can never touch gameplay. It is called at exactly five funnel points: `game_started` (first interaction past the pick-mode landing), `mode_chosen` (`{mode:'board'|'form'}`), `submit_attempted` (`{mode, sectors}` = count of sectors with any Yes), `submit_succeeded`, `submit_failed` (both `{mode}`). A sixth event, `result_resumed` (event name only), is fired by `result/index.html` — which does not load `green-radius.jsx`, so it inlines its own `sendBeacon` — when a camp imports a result via "Continue improving". The Worker route mirrors `/api/complete`'s **fail-closed Origin check** (must be `https://greenradi.us` or `http://localhost:*`, absent Origin rejected → 403), caps the body at 1 KB, drops any event name not in the `ALLOWED_EVENTS` allowlist, then writes **one structured `console.log` line** (`{type:'funnel_event', event, mode?, sectors?}`) to Workers Logs and returns **204**. **No PII by contract:** event name + coarse props only — never emails, camp names, or free text. Every non-forbidden outcome returns 204 so a beacon never surfaces an error to the player.
 
 ## Gotchas (hard-won)
 
