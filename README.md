@@ -86,7 +86,9 @@ Worker/API locally too, use `npx wrangler dev`. See
 
 Hosted on Cloudflare Workers + Static Assets. **Merging to `main` auto-deploys to
 https://greenradi.us** — there is no separate staging environment, and `main` is
-branch-protected, so changes land via pull request.
+branch-protected, so changes land via pull request. Branch pushes build
+Access-gated preview URLs for review; the Worker's workers.dev route is
+disabled, so the app answers only on greenradi.us.
 
 Manual deploy, if ever needed (requires Node.js):
 
