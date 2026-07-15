@@ -34,13 +34,17 @@ export default {
   },
 };
 
+// Fail closed: browsers always send Origin on a POST, so require it to match.
+// (An absent Origin used to slip through. This only deters casual scripted
+// abuse — the real rate-limit lives in a Cloudflare WAF rule, see docs.)
+export function originAllowed(origin) {
+  const isLocalhost = /^http:\/\/localhost(:\d+)?$/.test(origin || '');
+  return origin === ALLOWED_ORIGIN || isLocalhost;
+}
+
 async function handleComplete(request, env) {
   const origin = request.headers.get('Origin') || '';
-  const isLocalhost = /^http:\/\/localhost(:\d+)?$/.test(origin);
-  // Fail closed: browsers always send Origin on a POST, so require it to match.
-  // (An absent Origin used to slip through. This only deters casual scripted
-  // abuse — the real rate-limit lives in a Cloudflare WAF rule, see docs.)
-  if (origin !== ALLOWED_ORIGIN && !isLocalhost) return json({ error: 'forbidden' }, 403);
+  if (!originAllowed(origin)) return json({ error: 'forbidden' }, 403);
 
   const raw = await request.text();
   // 8 KB: 60 yes/no answers + up to 24 160-char write-in notes (four per
@@ -102,6 +106,8 @@ async function handleComplete(request, env) {
     appendToSheet(env, row),
     sendEmail(env, email, campName, resultUrl, answers),
   ]);
+  if (sheetRes.status === 'rejected') console.error('sheet_append_failed', { outcome: 'exception' });
+  if (emailRes.status === 'rejected') console.error('email_send_failed', { outcome: 'exception' });
   return json({
     sheet: sheetRes.status === 'fulfilled' && sheetRes.value ? 'ok' : 'err',
     email: emailRes.status === 'fulfilled' && emailRes.value ? 'sent' : 'err',
@@ -115,7 +121,7 @@ async function resultWithOg(request, env, r) {
   const res = await env.ASSETS.fetch(request);
   let data;
   try { data = ResultState.decode(r); } catch { data = null; }
-  if (!data) return res;
+  if (!data) { console.log('og_rewrite_skipped', { outcome: 'decode_failed' }); return res; }
   const total = ResultState.SECTOR_IDS.reduce((n, id) => n + ((data.fills[id] && data.fills[id].totalYes) | 0), 0);
   const camp = String(data.campName || '').slice(0, 80).trim();
   const title = camp ? `${camp}'s Green Radius` : 'Our Green Radius';
@@ -135,9 +141,10 @@ const UPSTREAM_TIMEOUT_MS = 8000;
 async function appendToSheet(env, row) {
   if (!env.SHEETS_WEBAPP_URL) return false;
   const r = await fetch(env.SHEETS_WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row), signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
-  if (!r.ok) return false;
+  if (!r.ok) { console.error('sheet_append_failed', { outcome: 'http_error', status: r.status }); return false; }
   const j = await r.json().catch(() => ({}));
-  return j.ok === true;
+  if (j.ok !== true) { console.error('sheet_append_failed', { outcome: 'bad_payload' }); return false; }
+  return true;
 }
 
 async function sendEmail(env, to, campName, resultUrl, answers) {
@@ -155,7 +162,8 @@ async function sendEmail(env, to, campName, resultUrl, answers) {
       html: `<p>Thanks for playing the Green Radius Game!</p><p><a href="${href}">View &amp; share your Green Radius →</a></p>${greenUpEmailHtml(answers)}<p style="color:#888;font-size:12px">Questions? Just reply to this email — it reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
     }),
   });
-  return r.ok;
+  if (!r.ok) { console.error('email_send_failed', { outcome: 'http_error', status: r.status }); return false; }
+  return true;
 }
 
 // The email copy of the done screen's Green-Up Plan, mirroring greenUpSteps in
@@ -195,7 +203,7 @@ function greenUpEmailHtml(answers) {
     ).join('');
 }
 
-function safeResultUrl(raw) {
+export function safeResultUrl(raw) {
   try {
     const u = new URL(raw || '');
     const okHost = u.hostname === 'greenradi.us' || u.hostname === 'localhost';
@@ -216,7 +224,7 @@ function clampField(s, n) {
 // Google Sheets treats a cell whose value starts with = + - @ (or a control char)
 // as a formula, which would execute on view/recalc (e.g. =IMPORTXML exfiltrating
 // the email column). Prefix a ' so submitted text always stays literal text.
-function sheetCell(s) {
+export function sheetCell(s) {
   return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
 }
 
@@ -351,7 +359,7 @@ async function fetchAccessJwks(teamDomain, force) {
   return jwksCache.keys;
 }
 
-async function verifyAccessJwt(token, env) {
+export async function verifyAccessJwt(token, env) {
   if (!token || !env.CF_ACCESS_AUD || !env.CF_ACCESS_TEAM_DOMAIN) return false;
   const parts = token.split('.'); if (parts.length !== 3) return false;
   let header, payload;
