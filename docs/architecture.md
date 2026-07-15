@@ -76,8 +76,14 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      hands the pre-rasterized result-card PNG to the OS share sheet — then degrades to
      sharing the `?r=` URL (Web Share L1), then to copying the link to the clipboard.
    - **`POST /api/complete`** — `{campName, email, year, greens, mode, answers,
-     schemaVersion, resultUrl}`. `greens` is now 0–10 per sector; `answers` (the full
-     map) is backend-only (→ sheet `answers_json`). Besides `qid:'yes'|'no'` entries,
+     campId, schemaVersion, resultUrl}`. `greens` is now 0–10 per sector; `answers` (the full
+     map) is backend-only (→ sheet `answers_json`). **`campId`** is a stable
+     client-generated UUID (`crypto.randomUUID`, persisted in the localStorage save as an
+     additive key, reused across reloads/redos, re-minted on start-over/exit). The Worker
+     validates it (safe UUID chars, bounded) and writes it **inside the `answers` blob**
+     (`answers.campId`) — no new sheet column — so the read side can dedup a camp's repeat
+     submissions (see the dedup note under the city tally). It never leaves the JSON blob:
+     the `/api/city` allowlist doesn't surface it and scoring/email code never reads it. Besides `qid:'yes'|'no'` entries,
      `answers` may carry up to four **`X-camp-note`**-style entries per sector: the
      free-text "Our Camp's Idea" write-ins (`campIdeaIds` — base `X-camp` plus
      synthetic `X-camp-2/3/4`), each note gated on its own slot's yes/no (client input
@@ -206,7 +212,26 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   sheet sees at most ~1 hit per colo per 5 minutes and an Apps Script outage
   serves the stale entry flagged `stale:true` (the page shows "as of <time>").
   No cache + no upstream → 503 `{error:'unavailable'}` → `/city/` shows a
-  degraded panel with the play CTA. The page itself (`city/index.html`) is a
+  degraded panel with the play CTA.
+  **Duplicate-proof aggregates (latest-wins dedup).** `computeAggregates`
+  (`admin/aggregate.js`, isomorphic — imported by both the Worker and the admin
+  page) collapses repeat submissions to one row per camp *before any tally*, so
+  `/api/city` and every admin aggregate (leaderboard, sector standings, momentum,
+  intensities, per-question) count **camps, not rows**. It is the single shared
+  choke point: both read paths reach the numbers through `computeAggregates`, and
+  the raw admin response table (from `/api/admin/responses`) is left un-deduped as
+  a full audit log. Identity precedence per row: `campId` (from the answers blob)
+  → normalized email (trim+lowercase) → normalized camp name → none (a row with no
+  identity is always kept). "Latest" = highest `timestamp`; ties keep the
+  later-appended row. Legacy rows are dropped first, so only modern rows dedup.
+  *Momentum note:* `momentum.thisWeek` counts distinct camps whose **latest**
+  submission falls in the window. Dedup can never erase a camp from that window —
+  latest-wins keeps each camp's most-recent timestamp, which is ≥ any earlier
+  in-window one — it only stops same-week resubmissions from double-counting and
+  correctly folds a returning camp (old + this-week rows) into one active camp.
+  *Known limit:* a camp's pre-`campId` rows key on email while its post-`campId`
+  rows key on `campId`, so those two eras don't merge (transition-window only).
+  The page itself (`city/index.html`) is a
   static asset built like `/result/` (vendored runtime, `RadialBadge` in
   aggregate `intensities` mode); no `run_worker_first` entry is needed because
   `/api/city` matches no asset.

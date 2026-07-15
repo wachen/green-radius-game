@@ -29,6 +29,37 @@
     return (row.total | 0) <= 24 && Object.keys(g).every(function (k) { return (g[k] | 0) <= 4; });
   }
 
+  // Read-time, latest-wins dedup so repeat submissions (retries, redos) count
+  // once instead of permanently inflating every tally. Identity precedence:
+  //   campId (rides inside the answers blob) → normalized email → normalized
+  //   camp name → none (row kept as-is; no key means no merge).
+  // "Latest" = highest timestamp; on a tie the later array position wins (sheet
+  // rows are appended chronologically, so that is the more recent submission).
+  // NOTE: a camp's pre-campId rows key on email while its post-campId rows key
+  // on campId, so those two eras won't merge — that only affects the migration
+  // window; the common retry-storm case (same client, same campId) collapses.
+  function identityKey(row) {
+    if (!row) return '';
+    var cid = (row.answers && row.answers.campId) || row.campId;
+    if (typeof cid === 'string' && cid.trim()) return 'id:' + cid.trim();
+    var email = typeof row.email === 'string' ? row.email.trim().toLowerCase() : '';
+    if (email) return 'em:' + email;
+    var name = typeof row.campName === 'string' ? row.campName.trim().toLowerCase() : '';
+    if (name) return 'nm:' + name;
+    return '';
+  }
+  function dedupeRows(rows) {
+    var latest = new Map();
+    var anon = [];
+    (rows || []).forEach(function (r) {
+      var key = identityKey(r);
+      if (!key) { anon.push(r); return; }
+      var prev = latest.get(key);
+      if (!prev || (r.timestamp | 0) >= (prev.timestamp | 0)) latest.set(key, r);
+    });
+    return Array.from(latest.values()).concat(anon);
+  }
+
   function perQuestion(rows, sectors) {
     const out = {};
     const ans = rowsWithAnswers(rows);
@@ -79,6 +110,11 @@
   function computeAggregates(rows, sectors, now, windowMs) {
     const legacyCount = rows.filter(isLegacy).length;
     rows = rows.filter(r => !isLegacy(r));
+    // Collapse repeat submissions to one row per camp (latest wins) before ANY
+    // tally, so /api/city and every admin aggregate count camps, not rows. This
+    // is the single shared choke point: both the Worker's /api/city and the
+    // admin page reach the aggregates through computeAggregates.
+    rows = dedupeRows(rows);
     const pq = perQuestion(rows, sectors);
     const totalYes = rows.reduce((n, r) => n + (r.total || 0), 0);
     const totalPossible = rows.length * sectors.length * 10;
@@ -97,7 +133,7 @@
     };
   }
 
-  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, sectorIds, advYesCount, isLegacy };
+  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, sectorIds, advYesCount, isLegacy, dedupeRows, identityKey };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.AdminAggregate = api;
 })(typeof window !== 'undefined' ? window : this);

@@ -268,6 +268,10 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   const [phase, setPhase] = useState(saved?.phase || 'pick-mode'); // pick-mode | intro | playing | done | form-intro | form
   const [camp, setCamp] = useState(saved?.camp || { campName: '', leadName: '', email: '' });
+  // Stable per-camp id: reuse the saved one so a reload/redo keeps the same
+  // identity; a fresh game (start over / exit) mints a new one (see freshProgress
+  // + handleExit). Rides to the sheet inside the answers blob for read-time dedup.
+  const [campId, setCampId] = useState(() => saved?.campId || genCampId());
 
   const [sectorCursor, setSectorCursor] = useState(() => {
     if (saved?.sectorCursor) return saved.sectorCursor;
@@ -375,6 +379,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             year, greens,
             mode: mode === 'form' ? 'form' : 'board',
             answers: { ...answers, ...noteEntries },
+            campId,
             schemaVersion: window.SCHEMA_VERSION || '',
             resultUrl,
           }),
@@ -391,7 +396,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         trackEvent('submit_failed', { mode: evMode });
       }
     })();
-  }, [sectors, answers, customNotes, camp, fills, mode]);
+  }, [sectors, answers, customNotes, camp, fills, mode, campId]);
 
   // Fire the submit once when the done screen first appears. submittedAt (persisted)
   // prevents re-sending across reloads; autoSentRef guards a double-fire in-session.
@@ -421,7 +426,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORAGE_VERSION,
-        phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt,
+        phase, camp, campId, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt,
         activeSectorId: (activeQuestion && activeQuestion.sector && activeQuestion.sector.id) || null,
       }));
     } catch {}
@@ -537,6 +542,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     autoSentRef.current = false;
     submitGenRef.current++;
     revealArmedRef.current = false;
+    setCampId(genCampId()); // a start-over is a new camp identity, not the last one
   }
 
   function startGame(info) {
@@ -683,6 +689,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setCustomNotes({});
       setMode(null);
       setCamp({ campName: '', leadName: '', email: '' });
+      setCampId(genCampId()); // next game is a new camp identity
       setSubmittedAt(null);
       setSubmitState('idle');
       setSubmitResult(null);

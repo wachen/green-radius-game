@@ -54,7 +54,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v58';
+const APP_VERSION = 'v59';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -134,6 +134,20 @@ function loadSaved(sectors) {
 
 function clearSaved() {
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
+}
+
+// A stable per-camp id, generated once when a game's save is first created and
+// carried for its lifetime (persisted as an additive `campId` key — no
+// STORAGE_VERSION bump needed). It rides to the sheet inside the answers blob so
+// the read side can dedup a camp's repeat submissions (retries/redos) instead
+// of counting each as a new camp. crypto.randomUUID needs a secure context
+// (prod is https, dev is localhost); the fallback covers anything else.
+function genCampId() {
+  try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); } catch {}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }
 
 // ─── Scoring + fill (per-point, per-question) ──────────────────────────────────
