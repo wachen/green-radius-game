@@ -22,13 +22,15 @@ it's the one wired to the live domain.
 
 ## Project layout
 
-No build step — the browser compiles the JSX in place via `@babel/standalone`.
+No bundler, no npm, no `package.json` — but a tiny compile step: `bun run scripts/build.js` transpiles the `.jsx` sources to plain classic-runtime JS (`React.createElement`, no imports) and writes the result to committed `dist/` artifacts, which the browser loads directly. There's no in-browser Babel anymore.
 
 | Path               | Role                                                                 |
 |--------------------|----------------------------------------------------------------------|
 | `index.html`       | Entry point; mounts `<GreenRadiusGame/>`                             |
-| `green-radius.jsx` | Main game component (`GreenRadiusGame`) — game state/phases, intro, done/email screen, Green-Up Plan; loads **last** |
-| `src/`             | The rest of the game UI, one shared Babel scope split by area: `core.jsx` (hooks, constants, persistence, scoring — loads **first**), `fx.jsx`, `badge.jsx`, `wheel.jsx`, `question-flow.jsx`, `share-card.jsx`, `home.jsx`, `form-mode.jsx` |
+| `green-radius.jsx` | Main game component (`GreenRadiusGame`) — game state/phases, intro, done/email screen, Green-Up Plan; loads **last**; compiles to `dist/green-radius.js` |
+| `src/`             | The rest of the game UI, one shared global scope split by area: `core.jsx` (hooks, constants, persistence, scoring — loads **first**), `fx.jsx`, `badge.jsx`, `wheel.jsx`, `question-flow.jsx`, `share-card.jsx`, `home.jsx`, `form-mode.jsx`, plus the per-page boot entry scripts `boot-index.jsx`/`boot-result.jsx`/`boot-city.jsx`/`boot-admin.jsx`; each compiles 1:1 to `dist/src/*.js` |
+| `dist/`            | Committed, compiled classic-JS artifacts (built by `scripts/build.js`, mirrors source paths) — this is what the HTML entry points actually load; never hand-edit |
+| `scripts/build.js` | The compile step: run `bun run scripts/build.js` to regenerate `dist/` from the `.jsx` sources whenever they change |
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content (BLAST framework) |
 | `result-state.js`  | `window.ResultState` — encode/decode a result to/from the `?r=` share payload (legacy `#hash` fallback) |
 | `rank.js`          | `window.Rank` — isomorphic module mapping a 0–60 total to a playa-rank title ("First Spark"…"Green Supernova"); also imported by the Worker for the OG description |
@@ -38,19 +40,20 @@ No build step — the browser compiles the JSX in place via `@babel/standalone`.
 | `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses` + `GET /api/health` + `GET /api/city` (public aggregate tally) + `GET /result/?r=` (per-camp OG unfurl); all else served as static assets |
 | `wrangler.jsonc`   | Worker + static-assets config                                         |
 | `_headers`         | Static-asset response headers (HSTS, framing, permissions)            |
-| `vendor/`          | Pinned React/ReactDOM/Babel runtime, served same-origin (see its README) |
+| `vendor/`          | Pinned React/ReactDOM runtime, served same-origin (see its README); `babel-standalone` is kept committed but no longer loaded by any page |
 | `og-card.png`      | Static Open Graph share-card image                                    |
 | `downloads/`       | Printable board-game + how-to-play PDFs                               |
 
 ### One JSX gotcha worth knowing
 
-`@babel/standalone` runs every `<script type="text/babel">` in a **shared scope**, so
-components defined in the game scripts (`src/*.jsx`, `green-radius.jsx`) — e.g. `ShareCard`
-in `src/share-card.jsx` — are referenced by **bare name** from other pages like `result/index.html`.
-Babel-standalone's global evaluation (plus `const`→`var` downleveling) does technically leave these
-names sitting on `window`, but only on pages that load the defining script — that's an implementation
-detail nothing should depend on, so bare name is still the rule. The plain scripts' `window.X = …`
-assignments (`window.SECTORS`, `window.ResultState`, `window.Rank`) are the only intentional `window` API.
+The compiled `dist/*.js` game scripts are plain classic `<script>`s (no modules, no imports), so they
+all run in a **shared global scope** — components defined in the game scripts (`src/*.jsx`,
+`green-radius.jsx`) — e.g. `ShareCard` in `src/share-card.jsx` — are referenced by **bare name** from
+other pages like `result/index.html`. Compiling with `Bun.Transpiler` still evaluates each script
+globally (plus `const`→`var` downleveling) under the hood, so these names do technically land on
+`window`, but only on pages that load the defining script — that's an implementation detail nothing
+should depend on, so bare name is still the rule. The plain scripts' `window.X = …` assignments
+(`window.SECTORS`, `window.ResultState`, `window.Rank`) are the only intentional `window` API.
 Referencing a component as `window.Something` silently renders nothing on pages where the defining
 script hasn't been loaded.
 

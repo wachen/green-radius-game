@@ -13,10 +13,11 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
 
 ## At a glance
 
-- **No-build static app.** `index.html` loads React 18 + ReactDOM +
-  `@babel/standalone` from the committed **`vendor/`** directory (same-origin, no
-  CDN at runtime); Babel compiles the JSX *in the browser*, then mounts
-  `<GreenRadiusGame/>`.
+- **No-bundler static app.** `index.html` loads React 18 + ReactDOM from the
+  committed **`vendor/`** directory (same-origin, no CDN at runtime) plus the
+  precompiled **`dist/*.js`** game scripts — classic-runtime JS built from the
+  `.jsx` sources by `scripts/build.js` (`bun run scripts/build.js`, using
+  `Bun.Transpiler`) — then mounts `<GreenRadiusGame/>`. No in-browser Babel.
 - **One small Cloudflare Worker.** `worker/index.js` handles six dynamic routes —
   `POST /api/complete` (result capture), `POST /api/event` (fail-closed funnel
   telemetry sink — see Analytics below), the Access-gated
@@ -216,12 +217,17 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   `defer` in all four HTML entry points, so a CDN outage or compromise can't
   blank or hijack the page and the playa-offline story improves. To upgrade, see
   `vendor/README.md` (download the pinned URL, verify the bytes, update all four
-  entry points). Because the filenames are versioned, `_headers` serves `/vendor/*`
-  with `Cache-Control: immutable, max-age=1y` (a new version is a new URL) — returning
-  visitors skip ~7 RTTs; `og-card.png` is unversioned at root and deliberately not
-  covered. `_headers` also sends `X-Frame-Options`/`frame-ancestors 'none'`
-  and a minimal `Permissions-Policy`; a script CSP is deliberately absent because
-  in-browser Babel needs eval and the boot scripts are inline.
+  entry points). `vendor/babel-standalone-*.min.js` stays committed and served so
+  an in-flight cached old page can still boot mid-deploy, but no entry point loads
+  it anymore — the game scripts load from the precompiled `dist/*.js` (built from
+  the `.jsx` sources by `scripts/build.js`) instead. Because the filenames are
+  versioned, `_headers` serves `/vendor/*` with `Cache-Control: immutable,
+  max-age=1y` (a new version is a new URL) — returning visitors skip ~7 RTTs;
+  `og-card.png` is unversioned at root and deliberately not covered. `_headers`
+  also sends `X-Frame-Options`/`frame-ancestors 'none'` and a minimal
+  `Permissions-Policy`; a script CSP is still deliberately absent — the boot
+  scripts are external `dist/src/boot-*.js` files now (no eval needed), but this
+  change didn't add a CSP either.
 - **Admin viewer read path.** `GET /api/admin/responses` (Worker) is gated by
   **Cloudflare Access** (edge, email allowlist on `/admin*` + `/api/admin*`) and
   additionally validates the Access JWT (`Cf-Access-Jwt-Assertion`, RS256 vs. the
@@ -301,16 +307,17 @@ Two independent, privacy-conscious layers. Neither is load-bearing for gameplay.
 
 ## Gotchas (hard-won)
 
-- **Babel shared scope.** Every `<script type="text/babel">` runs in one shared
-  scope, so components defined in the game scripts (`src/*.jsx`,
+- **Shared global scope.** The compiled `dist/*.js` game scripts are plain
+  classic `<script>`s (no modules, no imports), so they all run in one shared
+  global scope — components defined in the game scripts (`src/*.jsx`,
   `green-radius.jsx`) — e.g. `ShareCard` in `src/share-card.jsx` — are
-  referenced by **bare name** across babel scripts. Babel-standalone evaluates
-  each script globally and downlevels `const` to `var`, so these top-level names
-  do land on `window` — but only on pages whose `<script>` list includes the
-  defining module, so nothing should rely on the `window` attachment. Plain
-  scripts that assign `window.X = …` create the only intentional globals
-  (`window.SECTORS` in `game-data.js`, `window.ResultState` in `result-state.js`,
-  `window.Rank` in `rank.js`).
+  referenced by **bare name** across scripts. Compiling with `Bun.Transpiler`
+  still evaluates each script globally and downlevels `const` to `var`, so these
+  top-level names do land on `window` — but only on pages whose `<script>` list
+  includes the defining module, so nothing should rely on the `window`
+  attachment. Plain scripts that assign `window.X = …` create the only
+  intentional globals (`window.SECTORS` in `game-data.js`, `window.ResultState`
+  in `result-state.js`, `window.Rank` in `rank.js`).
   Mounting a component via `window.ShareCard` → `undefined` → renders nothing
   when the defining script isn't loaded on that page.
   *(This was the blank-`/result/` bug fixed in #19.)*
@@ -335,13 +342,15 @@ Two independent, privacy-conscious layers. Neither is load-bearing for gameplay.
   state (used by `/api/city`) writes into `.wrangler/state`, which sits inside
   the watched assets directory and can truncate in-flight asset fetches. Run
   `npx wrangler dev --persist-to <dir outside the repo>` instead.
-- **No build step; CI runs the parse gate + `bun test`.** GitHub Actions
-  (`.github/workflows/ci.yml`) runs on every PR: the compile gate
-  `bun build` run over each game script — `src/*.jsx` and `green-radius.jsx` —
-  (catches JSX/syntax errors — the "could not resolve
-  react" message is *expected*; React is a global from `vendor/`, not a module)
-  plus `bun test` (pure-function unit tests in `test/` — no deps, Bun's built-in
-  runner). Still verify gameplay by hand.
+- **Tiny compile step; CI runs the compile+diff gate + `bun test`.** GitHub
+  Actions (`.github/workflows/ci.yml`, bun pinned to `1.3.14`) runs on every PR:
+  `bun run scripts/build.js` recompiles every game script (`src/*.jsx` and
+  `green-radius.jsx`) to `dist/` via `Bun.Transpiler`, then the job fails if
+  `git status --porcelain -- dist` is non-empty (the committed `dist/` must
+  match what the sources compile to), plus `bun test` (pure-function unit tests
+  in `test/` — no deps, Bun's built-in runner). Local verification is the same:
+  run `bun run scripts/build.js`, confirm `dist/` is unchanged in git, then
+  `bun test`. Still verify gameplay by hand.
 - **Deploy = merge.** No staging. `main` is branch-protected (PR required).
   Preview with a local static server, or just push a branch — Workers Builds
   runs `wrangler versions upload` on every non-main push, producing a real
