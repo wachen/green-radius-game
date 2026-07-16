@@ -208,19 +208,20 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   `.claude/`, `.remember/`, `.superpowers/`, and editor junk, so neither the
   git-checkout deploy nor a local `wrangler deploy` can publish history or
   secrets. It also excludes the source/config/docs that have no reason to live on
-  the live domain (`worker/`, `docs/`, `wrangler.jsonc`, `CLAUDE.md`) — prod-domain
-  hygiene, since the repo is public on GitHub regardless. Runtime-fetched paths stay
-  served (`vendor/`, the root `.js`/`.jsx`, `og-card.png`, `downloads/`). After any
+  the live domain (`worker/`, `docs/`, `wrangler.jsonc`, `CLAUDE.md`, `src/`, the
+  root `green-radius.jsx`) — prod-domain hygiene, since the repo is public on
+  GitHub regardless, and (for `src/`/`green-radius.jsx`) because `dist/` is the
+  actual runtime load path now. Runtime-fetched paths stay served (`vendor/`,
+  `game-data.js`, `result-state.js`, `og-card.png`, `downloads/`). After any
   deploy, sanity-check `curl -sI https://greenradi.us/.git/config` returns 404.
-- **The runtime is vendored, not CDN-loaded.** React/ReactDOM/`@babel/standalone`
-  are committed under `vendor/` (versioned filenames) and loaded same-origin with
-  `defer` in all four HTML entry points, so a CDN outage or compromise can't
-  blank or hijack the page and the playa-offline story improves. To upgrade, see
-  `vendor/README.md` (download the pinned URL, verify the bytes, update all four
-  entry points). `vendor/babel-standalone-*.min.js` stays committed and served so
-  an in-flight cached old page can still boot mid-deploy, but no entry point loads
-  it anymore — the game scripts load from the precompiled `dist/*.js` (built from
-  the `.jsx` sources by `scripts/build.js`) instead. Because the filenames are
+- **The runtime is vendored, not CDN-loaded.** React/ReactDOM are committed under
+  `vendor/` (versioned filenames) and loaded same-origin with `defer` in all four
+  HTML entry points, so a CDN outage or compromise can't blank or hijack the page
+  and the playa-offline story improves. To upgrade, see `vendor/README.md`
+  (download the pinned URL, verify the bytes, update all four entry points).
+  `vendor/babel-standalone-*.min.js` was deleted in #70 — no entry point had
+  loaded it since #63, when the game scripts moved to the precompiled `dist/*.js`
+  (built from the `.jsx` sources by `scripts/build.js`). Because the filenames are
   versioned, `_headers` serves `/vendor/*` with `Cache-Control: immutable,
   max-age=1y` (a new version is a new URL) — returning visitors skip ~7 RTTs;
   `og-card.png` is unversioned at root and deliberately not covered. `_headers`
@@ -295,9 +296,8 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   browser and the Worker share one source for the question content (game UI; the
   Worker's email headline + Green-Up Plan sections). `result-state.js` resolves its
   global via `globalThis` too, so both import into the Worker bundle without a
-  module-eval throw. `rank.js` (playa-rank titles) was retired in #66 — no page loads
-  it and the Worker no longer imports it; the file stays committed and served for
-  cached pre-#66 pages, deletable once cached HTML ages out.
+  module-eval throw. `rank.js` (playa-rank titles, retired in #66) was deleted in
+  #70.
 
 ## Analytics (pageviews + funnel)
 

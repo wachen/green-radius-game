@@ -58,12 +58,11 @@ this implementation began from a Claude Design handoff bundle.
 | `dist/`            | Committed, compiled classic-JS artifacts (built by `scripts/build.js` from the `.jsx` sources) — what the HTML entry points actually load |
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content             |
 | `result-state.js`  | `window.ResultState` — encode/decode a result to/from the `?r=` share payload (legacy `#hash` fallback) |
-| `rank.js`          | `window.Rank` — maps the 0–60 total to a playa-rank title ("First Spark"…"Green Supernova"); shared by the done screen and the Worker's OG description |
 | `result/`          | Stateless shareable result page                                 |
 | `city/`            | Public community-progress page (`/city/`), rendered from `GET /api/city` |
 | `admin/`           | Internal Cloudflare Access–gated response viewer (City + Camps), read-only |
 | `worker/`          | Cloudflare Worker (`/api/complete` + `/api/admin/responses` + `/api/city` + `/result/?r=` OG unfurl + `/api/health`) |
-| `vendor/`          | Pinned React/ReactDOM runtime, served same-origin (Babel is kept committed but no longer loaded) |
+| `vendor/`          | Pinned React/ReactDOM runtime, served same-origin                |
 | `downloads/`       | Printable board-game + how-to-play PDFs                          |
 
 ## Architecture
