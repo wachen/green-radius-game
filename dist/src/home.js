@@ -332,6 +332,7 @@ function FaqModal({ onClose, palette }) {
     ref: closeRef,
     onClick: onClose,
     "aria-label": "Close",
+    className: "grg-hit44",
     style: { position: "absolute", top: 12, right: 22, border: "none", background: "rgba(255,255,255,0.16)", width: 40, height: 40, borderRadius: "50%", fontSize: 15, cursor: "pointer", color: palette.card, lineHeight: 1 }
   }, "✕")), React.createElement(AboutSection, {
     icon: "why",
@@ -688,6 +689,7 @@ function ModePicker({ onPick, palette }) {
     key: l.href,
     href: l.href,
     ...l.download ? { download: true } : {},
+    className: "grg-hit44",
     style: {
       display: "inline-block",
       padding: "8px 4px",

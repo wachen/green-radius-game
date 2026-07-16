@@ -10,6 +10,7 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Hardening for the playa: save safety & accessibility (#68–)
 
+- Radial badge SVGs get a spoken `aria-label`, Yes/No/FAQ-close/PDF-link touch targets grow to 44px via invisible hit-expansion, not visual size (#69)
 - Three ways to lose progress, closed: an older-version autosave is now salvaged (answers, camp info, and campId recovered) instead of wiped; a phone back-swipe during the question modal closes the modal instead of exiting the site (#68)
 
 ## Polish: presentation, keepsakes & small screens (#64–)

@@ -4,7 +4,8 @@
 function SectorIcon({ kind, size = 28, color = '#fff' }) {
   const s = size, sw = 1.8;
   const p = { fill: 'none', stroke: color, strokeWidth: sw, strokeLinecap: 'round', strokeLinejoin: 'round' };
-  const svgProps = { width: s, height: s, viewBox: '0 0 24 24' };
+  // Decorative only — always paired with a visible sector name; hide from SR.
+  const svgProps = { width: s, height: s, viewBox: '0 0 24 24', 'aria-hidden': true, focusable: false };
   switch (kind) {
     case 'water': // lucide: droplet
       return <svg {...svgProps}><path {...p} d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>;
@@ -100,8 +101,16 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
 
   let _litSeen = 0; // running index of filled segments in render order (sector→level→qi)
 
+  // Full badges (showLabels) get a spoken summary, echoing the wheel's own
+  // aria-label; small thumbnail-only uses (admin rows, camp list icons) are
+  // decorative next to their own visible label, so they're hidden from SR.
+  const badgeLabel = intensities
+    ? `Citywide green radius badge${centerLabel != null ? `, overall ${centerLabel}` : ''}.`
+    : `Green radius badge. ${sectors.map(s => `${s.name} ${(fills[s.id] && fills[s.id].totalYes) || 0} of 10`).join(', ')}.`;
+
   return (
-    <svg width={fluid ? '100%' : size} height={fluid ? undefined : size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
+    <svg width={fluid ? '100%' : size} height={fluid ? undefined : size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}
+      role={showLabels ? 'img' : undefined} aria-label={showLabels ? badgeLabel : undefined} aria-hidden={showLabels ? undefined : true}>
       {showLabels && (
         <circle cx={cx} cy={cy} r={RINGS[4]} fill={baseColor} stroke={baseStroke} strokeWidth={1}/>
       )}

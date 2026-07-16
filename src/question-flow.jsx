@@ -359,6 +359,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
                 ref={noBtnRef}
                 onClick={() => answer(false)}
                 disabled={!canAnswer}
+                className="grg-hit44"
                 style={{
                   flex: 1, padding: '14px 0', borderRadius: 14,
                   border: `1.5px solid ${palette.text}22`,
@@ -373,6 +374,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
                 ref={yesBtnRef}
                 onClick={() => answer(true)}
                 disabled={!canAnswer}
+                className="grg-hit44"
                 style={{
                   flex: 1, padding: '14px 0', borderRadius: 14,
                   border: 'none',
