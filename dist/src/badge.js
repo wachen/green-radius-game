@@ -3,7 +3,7 @@
 function SectorIcon({ kind, size = 28, color = "#fff" }) {
   const s = size, sw = 1.8;
   const p = { fill: "none", stroke: color, strokeWidth: sw, strokeLinecap: "round", strokeLinejoin: "round" };
-  const svgProps = { width: s, height: s, viewBox: "0 0 24 24" };
+  const svgProps = { width: s, height: s, viewBox: "0 0 24 24", "aria-hidden": true, focusable: false };
   switch (kind) {
     case "water":
       return React.createElement("svg", {
@@ -150,11 +150,15 @@ function RadialBadge({
   const baseStroke = dark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.12)";
   const gridStroke = dark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.18)";
   let _litSeen = 0;
+  const badgeLabel = intensities ? `Citywide green radius badge${centerLabel != null ? `, overall ${centerLabel}` : ""}.` : `Green radius badge. ${sectors.map((s) => `${s.name} ${fills[s.id] && fills[s.id].totalYes || 0} of 10`).join(", ")}.`;
   return React.createElement("svg", {
     width: fluid ? "100%" : size,
     height: fluid ? undefined : size,
     viewBox: `0 0 ${size} ${size}`,
-    style: { display: "block" }
+    style: { display: "block" },
+    role: showLabels ? "img" : undefined,
+    "aria-label": showLabels ? badgeLabel : undefined,
+    "aria-hidden": showLabels ? undefined : true
   }, showLabels && React.createElement("circle", {
     cx,
     cy,

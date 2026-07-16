@@ -90,6 +90,17 @@
   .grg-press:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 var(--grg-sh); }
   .grg-press-sm { box-shadow: 0 4px 0 var(--grg-sh); transition: transform .09s ease, box-shadow .09s ease; }
   .grg-press-sm:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 var(--grg-sh); }
+
+  /* Transparent touch-target expansion: grows the *hit area* to >=44px on
+     whichever axis the element falls short, via an invisible generated box
+     centered on it, without growing the visible chrome. Requires the element
+     itself to be positioned (relative/absolute/etc). */
+  .grg-hit44 { position: relative; }
+  .grg-hit44::after {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    width: max(44px, 100%); height: max(44px, 100%);
+    transform: translate(-50%, -50%);
+  }
   @media (prefers-reduced-motion: reduce) {
     .grg-press:active:not(:disabled)    { transform: none; box-shadow: 0 5px 0 var(--grg-sh); }
     .grg-press-sm:active:not(:disabled) { transform: none; box-shadow: 0 4px 0 var(--grg-sh); }
