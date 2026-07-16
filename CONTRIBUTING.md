@@ -33,14 +33,13 @@ No bundler, no npm, no `package.json` — but a tiny compile step: `bun run scri
 | `scripts/build.js` | The compile step: run `bun run scripts/build.js` to regenerate `dist/` from the `.jsx` sources whenever they change |
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content (BLAST framework) |
 | `result-state.js`  | `window.ResultState` — encode/decode a result to/from the `?r=` share payload (legacy `#hash` fallback) |
-| `rank.js`          | `window.Rank` — isomorphic module mapping a 0–60 total to a playa-rank title ("First Spark"…"Green Supernova"); also imported by the Worker for the OG description |
 | `result/`          | Stateless shareable result page (renders a card from the `?r=` payload, legacy `#hash` fallback) |
 | `admin/`           | Internal, Cloudflare Access–gated response viewer (City + Camps tabs); read-only |
 | `city/`            | Public community-progress page (`/city/`), rendered from `GET /api/city` |
 | `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses` + `GET /api/health` + `GET /api/city` (public aggregate tally) + `GET /result/?r=` (per-camp OG unfurl); all else served as static assets |
 | `wrangler.jsonc`   | Worker + static-assets config                                         |
 | `_headers`         | Static-asset response headers (HSTS, framing, permissions)            |
-| `vendor/`          | Pinned React/ReactDOM runtime, served same-origin (see its README); `babel-standalone` is kept committed but no longer loaded by any page |
+| `vendor/`          | Pinned React/ReactDOM runtime, served same-origin (see its README) |
 | `og-card.png`      | Static Open Graph share-card image                                    |
 | `downloads/`       | Printable board-game + how-to-play PDFs                               |
 
@@ -53,7 +52,7 @@ other pages like `result/index.html`. Compiling with `Bun.Transpiler` still eval
 globally (plus `const`→`var` downleveling) under the hood, so these names do technically land on
 `window`, but only on pages that load the defining script — that's an implementation detail nothing
 should depend on, so bare name is still the rule. The plain scripts' `window.X = …` assignments
-(`window.SECTORS`, `window.ResultState`, `window.Rank`) are the only intentional `window` API.
+(`window.SECTORS`, `window.ResultState`) are the only intentional `window` API.
 Referencing a component as `window.Something` silently renders nothing on pages where the defining
 script hasn't been loaded.
 
