@@ -364,6 +364,27 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
       return () => clearTimeout(t);
     }
   }, [phase, allDone, celebration]);
+  const modalHistoryRef = useRef(false);
+  useEffect(() => {
+    if (!activeQuestion)
+      return;
+    window.history.pushState({ grgModal: true }, "");
+    modalHistoryRef.current = true;
+    let closedByPop = false;
+    const onPopState = () => {
+      closedByPop = true;
+      modalHistoryRef.current = false;
+      setActiveQuestion(null);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      if (modalHistoryRef.current && !closedByPop) {
+        modalHistoryRef.current = false;
+        window.history.back();
+      }
+    };
+  }, [activeQuestion]);
   const runSubmit = useCallback((overrideEmail) => {
     const gen = ++submitGenRef.current;
     autoSentRef.current = true;

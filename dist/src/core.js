@@ -42,7 +42,7 @@ const COMMUNITY_LINK_URL = "https://www.greenthemecampcommunity.org/";
 const BOARD_GAME_PDF_URL = "/downloads/" + encodeURIComponent("2026.05.19 Green Radius Game -- Download for Players -- How-to-Play - Board Game - Matrix - Detail -- v 26 FINAL .pdf");
 const RESOURCE_GUIDE_URL = "https://www.greenthemecampcommunity.org/resource-guide";
 const REPORT_EMAIL = "greenthemecamps@burningman.org";
-const APP_VERSION = "v67";
+const APP_VERSION = "v68";
 function validQidSet(sectors) {
   const set = new Set;
   sectors.forEach((s) => {
@@ -86,12 +86,15 @@ function migrateSaved(data, sectors) {
     sectorClosed[s.id] = done;
     sectorCursor[s.id] = done ? 4 : 0;
   });
-  const camp = data.camp && typeof data.camp === "object" ? { campName: data.camp.campName || "", leadName: data.camp.leadName || "", email: data.camp.email || "" } : { campName: "", leadName: "", email: "" };
+  const str = (v) => typeof v === "string" ? v : "";
+  const camp = data.camp && typeof data.camp === "object" ? { campName: str(data.camp.campName), leadName: str(data.camp.leadName), email: str(data.camp.email) } : { campName: "", leadName: "", email: "" };
+  const campId = typeof data.campId === "string" && data.campId ? data.campId : genCampId();
   const mode = data.mode === "form" ? "form" : "board";
   return {
     version: STORAGE_VERSION,
     phase: mode === "form" ? "form" : "playing",
     camp,
+    campId,
     sectorCursor,
     sectorClosed,
     answers,
@@ -148,4 +151,7 @@ function fillsFromAnswers(sectors, answers) {
     out[s.id] = sectorFill(s, answers);
   });
   return out;
+}
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { migrateSaved, isCurrentShape, validQidSet, STORAGE_VERSION };
 }

@@ -343,6 +343,34 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     }
   }, [phase, allDone, celebration]);
 
+  // U8: a phone back-swipe is a browser "back" gesture. With no history entry
+  // of our own, that exits the site mid-sector. While the question modal is
+  // open, push one history entry so back-swipe closes the modal instead
+  // (already-given L1-3 answers are safe — they're written to `answers` as
+  // given; see onAnswer). Consume that entry on any other close (sector
+  // complete, reset) so it doesn't linger as a stray back-stack step. One
+  // entry per open modal, guarded by modalHistoryRef.
+  const modalHistoryRef = useRef(false);
+  useEffect(() => {
+    if (!activeQuestion) return;
+    window.history.pushState({ grgModal: true }, '');
+    modalHistoryRef.current = true;
+    let closedByPop = false;
+    const onPopState = () => {
+      closedByPop = true;
+      modalHistoryRef.current = false;
+      setActiveQuestion(null);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      if (modalHistoryRef.current && !closedByPop) {
+        modalHistoryRef.current = false;
+        window.history.back();
+      }
+    };
+  }, [activeQuestion]);
+
   // POST the result: append the row + email the card. The Worker reports the two
   // outcomes independently ({sheet, email}), so we keep them separate and tell the
   // player the truth rather than collapsing both into "sent". A generation token

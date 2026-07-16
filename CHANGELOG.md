@@ -8,6 +8,10 @@ so every squash-merged PR below is effectively a release. From PR #44 onward the
 `APP_VERSION` stamp (shown at the bottom of the home screen) equals the PR number, so `vNN`
 and `#NN` refer to the same release. Entries are grouped newest-first by milestone.
 
+## Hardening for the playa: save safety & accessibility (#68–)
+
+- Three ways to lose progress, closed: an older-version autosave is now salvaged (answers, camp info, and campId recovered) instead of wiped; a phone back-swipe during the question modal closes the modal instead of exiting the site (#68)
+
 ## Polish: presentation, keepsakes & small screens (#64–)
 
 - Added this changelog, documenting every release since #1 (#64)
