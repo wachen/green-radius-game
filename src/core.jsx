@@ -54,7 +54,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v67';
+const APP_VERSION = 'v68';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -109,14 +109,18 @@ function migrateSaved(data, sectors) {
     sectorClosed[s.id] = done;
     sectorCursor[s.id] = done ? 4 : 0;
   });
+  const str = (v) => typeof v === 'string' ? v : '';
   const camp = (data.camp && typeof data.camp === 'object')
-    ? { campName: data.camp.campName || '', leadName: data.camp.leadName || '', email: data.camp.email || '' }
+    ? { campName: str(data.camp.campName), leadName: str(data.camp.leadName), email: str(data.camp.email) }
     : { campName: '', leadName: '', email: '' };
+  // Keep the stable per-camp id (a plain string) if it survived; otherwise mint
+  // a fresh one, same as a brand-new save would.
+  const campId = typeof data.campId === 'string' && data.campId ? data.campId : genCampId();
   const mode = data.mode === 'form' ? 'form' : 'board';
   return {
     version: STORAGE_VERSION,
     phase: mode === 'form' ? 'form' : 'playing',
-    camp, sectorCursor, sectorClosed, answers, customNotes, mode,
+    camp, campId, sectorCursor, sectorClosed, answers, customNotes, mode,
     submittedAt: null, salvaged: true,
   };
 }
@@ -199,4 +203,11 @@ function fillsFromAnswers(sectors, answers) {
   const out = {};
   sectors.forEach(s => { out[s.id] = sectorFill(s, answers); });
   return out;
+}
+
+// Isomorphic export, same guarded pattern as game-data.js/result-state.js: a
+// no-op in the browser (module is undefined there), lets bun test exercise
+// the pure save-migration logic directly.
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { migrateSaved, isCurrentShape, validQidSet, STORAGE_VERSION };
 }
