@@ -48,8 +48,8 @@ wrangler.jsonc
 CLAUDE.md
 CHANGELOG.md
 scripts
-src
-green-radius.jsx
+/src
+/green-radius.jsx
 
 # CI + tests — dev-only, never served from the prod domain
 .github
