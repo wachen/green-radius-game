@@ -12,6 +12,10 @@ The Green Radius Game — a self-ranking sustainability game for Burning Man the
 
 The deep knowledge already lives in three docs — read the relevant one before changing anything:
 
+- **`docs/roadmap.md`** — the single backlog. Build only items listed under its
+  "Approved" section, in order; Wes sets priority by editing that file. Don't
+  start Proposed/Shelved items without an explicit ask, and record newly agreed
+  work there rather than in session memory.
 - **`docs/architecture.md`** — the end-to-end wiring map: data flow, the `/api/complete` contract, external integrations (Apps Script, Resend, Cloudflare), and hard-won gotchas. Read this before touching anything that crosses component/file boundaries. Update it when the *wiring* changes (not for UI-only tweaks).
 - **`CONTRIBUTING.md`** — file-by-file layout, local-dev setup, and the contribution/branch flow.
 - **`README.md`** — project overview, stack, deploy.
