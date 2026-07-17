@@ -1,0 +1,25 @@
+name: Post-deploy verify
+
+# Verifies the LIVE site (https://greenradi.us) after every deploy — catches
+# regressions like #71, where an unanchored .assetsignore pattern 404'd the
+# compiled game scripts on prod for ~15 minutes and was only caught by a
+# manual URL check. A failed run emails the repo owner via GitHub's default
+# workflow-failure notifications; that's the alert channel, no extra plumbing.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 13 * * *" # daily, off the hour to avoid GitHub's cron pile-up
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Verify prod
+        run: bun scripts/verify-prod.js
