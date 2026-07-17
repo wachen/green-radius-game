@@ -10,6 +10,7 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Roadmap refresh: 27 new Proposed ideas from the 2026-07-16 brainstorm, ordered by importance; the #82–#87 round recorded as done and the owner-side Apps Script step for #85 tracked under Waiting (#88)
 - Fixed a gap from #82: the done-screen's result-link `encode()` call was missing `contentVersion`, so links minted from the done screen (rather than right after submit) lacked the `cv` content-version stamp; both call sites now match (#87)
 - A one-time golden celebration fires when a camp reaches a perfect 60/60, bigger and gold-toned versus the existing per-sector splash; the downloaded ShareCard and result-page card get a matching gold ring/accent treatment, with every other total rendering unchanged (#86)
 - Admin junk-row flagging: the owner can flag a junk/test submission (a typed value in a new sheet "Hidden" column) to exclude it from the public `/api/city` tally and the admin City tab, while it stays visible, dimmed with a "hidden" chip, on the admin Camps tab for audit; read-side only, tolerant of the sheet column not existing yet (#85)
