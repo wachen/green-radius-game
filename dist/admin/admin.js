@@ -377,6 +377,7 @@ function SectorDigits({ sector, fill, answers, hasAnswers, legacy }) {
 }
 function CampRow({ sectors, camp, wide }) {
   const hasAnswers = rowHasAnswers(camp);
+  const hidden = !!camp.hidden;
   const legacy = A.isLegacy(camp);
   const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers) : legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens);
   const denom = legacy ? 4 : 10;
@@ -409,7 +410,7 @@ function CampRow({ sectors, camp, wide }) {
     style: { minWidth: 0 }
   }, React.createElement("div", {
     style: { fontSize: 14.5, fontWeight: 800, lineHeight: 1.25, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }
-  }, React.createElement("span", null, camp.campName), badge(camp.source), legacy && badge("old scale")), React.createElement("div", {
+  }, React.createElement("span", null, camp.campName), badge(camp.source), legacy && badge("old scale"), hidden && badge("hidden")), React.createElement("div", {
     style: { fontSize: 11.5, color: "#93a89b", marginTop: 2, overflowWrap: "anywhere" }
   }, camp.leadName, " · ", React.createElement("a", {
     "data-email": true,
@@ -497,7 +498,8 @@ function CampRow({ sectors, camp, wide }) {
     borderBottom: "1px solid #1a281f",
     padding: "8px 12px",
     contentVisibility: "auto",
-    containIntrinsicSize: "auto 84px"
+    containIntrinsicSize: "auto 84px",
+    opacity: hidden ? 0.5 : 1
   };
   return wide ? React.createElement("div", {
     "data-camp-row": true,

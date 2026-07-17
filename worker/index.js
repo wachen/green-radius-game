@@ -381,7 +381,11 @@ async function handleAdminResponses(request, env) {
   });
 }
 
-function shapeAdminRows(raw) {
+// `hidden` reflects the owner-typed "Hidden" sheet column (junk/test rows) —
+// any truthy cell value flags the row. The doGet proxy omits the key entirely
+// until the owner adds the column (see docs/admin-setup.md), so `r.hidden` is
+// `undefined` there and this defaults to `false`: a no-op until deployed.
+export function shapeAdminRows(raw) {
   return raw.slice(0, 2000).map(r => {
     let answers = {};
     try { answers = r.answers_json ? JSON.parse(r.answers_json) : (r.answers || {}); } catch { answers = {}; }
@@ -391,6 +395,7 @@ function shapeAdminRows(raw) {
       year: r.year | 0, greens: r.greens || {}, total: r.total | 0,
       source: r.source === 'form' ? 'form' : 'board', resultUrl: String(r.resultUrl || ''),
       answers, schemaVersion: String(r.schema_version || r.schemaVersion || ''),
+      hidden: !!(r.hidden && String(r.hidden).trim()),
     };
   });
 }
@@ -416,7 +421,10 @@ async function fetchSheetRows(env) {
 //  1. PRIVACY IS STRUCTURAL. The response is rebuilt field-by-field below —
 //     never spread the aggregate (computeAggregates includes a leaderboard
 //     with camp names/result URLs, and future fields must stay private by
-//     default). Nothing identifying a camp may appear here.
+//     default). Nothing identifying a camp may appear here. Rows the owner
+//     flagged junk/test (the sheet's "Hidden" column) are filtered out of
+//     every tally by computeAggregates itself (admin/aggregate.js), so this
+//     response never reflects them; the flag itself never appears here either.
 //  2. THE SHEET IS PROTECTED BY THE CACHE. Fresh responses are stored in the
 //     colo cache for a day but treated as fresh for only 5 minutes (checked
 //     in code via generatedAt — the Cache API can't serve entries past their
