@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<!-- Loads first, no defer: installs window.onerror/unhandledrejection before
+     any deferred vendor/dist script runs, so a white-screen bug still phones home. -->
+<script src="/beacon.js"></script>
 <title>Your Green Radius</title>
 <meta name="description" content="See how green this Burning Man theme camp went, sector by sector. Play your own at greenradi.us."/>
 <meta property="og:type" content="website"/>
