@@ -176,7 +176,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
         style={{
           fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-          color: palette.accentDark, marginTop: 32, lineHeight: 1.5,
+          color: palette.accentText, marginTop: 32, lineHeight: 1.5,
           textDecoration: 'none', display: 'block',
         }}
       >
@@ -737,7 +737,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
     return (
       <div style={{ padding: '32px 20px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.3em', fontWeight: 700, color: palette.accentDark, marginBottom: 8 }}>YOUR GREEN RADIUS</div>
+        <div style={{ fontSize: 11, letterSpacing: '0.3em', fontWeight: 700, color: palette.accentText, marginBottom: 8 }}>YOUR GREEN RADIUS</div>
         <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 24px', color: palette.heading, letterSpacing: '-0.01em' }}>
           {camp.campName}
         </h2>
@@ -793,7 +793,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           ) : (
             <button onClick={() => { setEmailDraft(email); setEditingEmail(true); }}
               style={{ display: 'block', margin: '-6px auto 16px', background: 'none', border: 'none',
-                color: palette.accentDark, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                color: palette.accentText, fontSize: 12, fontWeight: 700, cursor: 'pointer',
                 textDecoration: 'underline', textUnderlineOffset: 3 }}>
               Wrong email? Edit and resend
             </button>

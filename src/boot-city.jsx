@@ -7,7 +7,7 @@
 // warm-brown keepsake ShareCard) so the green wheel fills read as fresh growth.
 const CARD_BG = 'linear-gradient(160deg, #0e2733 0%, #14323f 100%)';
 const playBtn = {
-  display: 'inline-block', background: '#4c7339', color: '#fff',
+  display: 'inline-block', background: '#558040', color: '#fff',
   padding: '12px 22px', borderRadius: 14, fontWeight: 700, fontSize: 14,
   textDecoration: 'none', boxShadow: '0 3px 0 #38542b',
 };

@@ -169,7 +169,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
             onClick={() => { setHighlightMissing(true); setPage(firstIncompleteIndex); }}
             style={{
               background: 'transparent', border: 'none', cursor: 'pointer',
-              color: palette.accentDark, fontSize: 12, fontWeight: 800,
+              color: palette.accentText, fontSize: 12, fontWeight: 800,
               letterSpacing: '0.08em', textTransform: 'uppercase',
               padding: '6px 10px', minHeight: 44, fontFamily: 'inherit',
             }}
@@ -202,7 +202,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
         <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
           style={{
             fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-            color: palette.accentDark, marginTop: 20, lineHeight: 1.5,
+            color: palette.accentText, marginTop: 20, lineHeight: 1.5,
             textDecoration: 'none', display: 'block', textAlign: 'center',
           }}
         >
@@ -274,7 +274,7 @@ function CampIdeasBlock({ sector, answers, setAnswer, notes, setNote, palette, h
           style={{
             marginTop: 10, background: 'transparent', cursor: 'pointer',
             border: `1.5px dashed ${palette.text}33`, borderRadius: 8,
-            color: palette.accentDark, fontWeight: 700, fontSize: 12,
+            color: palette.accentText, fontWeight: 700, fontSize: 12,
             letterSpacing: '0.04em', padding: '9px 12px', fontFamily: 'inherit',
             width: '100%',
           }}
@@ -330,7 +330,7 @@ function FormSectorBlock({ sector, answers, setAnswer, notes, setNote, palette, 
           }}>
             <span style={{
               fontSize: 9, fontWeight: 800, letterSpacing: '0.12em',
-              textTransform: 'uppercase', color: palette.accentDark,
+              textTransform: 'uppercase', color: palette.accentText,
               background: palette.accent + '22', borderRadius: 999,
               padding: '2px 8px',
             }}>Optional</span>
