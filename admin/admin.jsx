@@ -305,6 +305,7 @@ function SectorDigits({ sector, fill, answers, hasAnswers, legacy }) {
 
 function CampRow({ sectors, camp, wide }) {
   const hasAnswers = rowHasAnswers(camp);
+  const hidden = !!camp.hidden;
   const legacy = A.isLegacy(camp);
   const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers)
     : (legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens));
@@ -324,7 +325,7 @@ function CampRow({ sectors, camp, wide }) {
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 14.5, fontWeight: 800, lineHeight: 1.25, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <span>{camp.campName}</span>
-          {badge(camp.source)}{legacy && badge('old scale')}
+          {badge(camp.source)}{legacy && badge('old scale')}{hidden && badge('hidden')}
         </div>
         <div style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
           {camp.leadName} · <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}>{camp.email}</a>
@@ -381,9 +382,11 @@ function CampRow({ sectors, camp, wide }) {
   );
 
   // content-visibility lets the browser skip layout/paint for offscreen rows —
-  // keeps a long list smooth without windowing machinery.
+  // keeps a long list smooth without windowing machinery. Hidden (owner-flagged
+  // junk/test) rows stay visible here for audit but dim, same pattern as the
+  // status/loading dim elsewhere in this file.
   const rowBase = { borderBottom: '1px solid #1a281f', padding: '8px 12px',
-    contentVisibility: 'auto', containIntrinsicSize: 'auto 84px' };
+    contentVisibility: 'auto', containIntrinsicSize: 'auto 84px', opacity: hidden ? 0.5 : 1 };
   return wide ? (
     <div data-camp-row style={{ ...rowBase, display: 'grid', alignItems: 'center', columnGap: 10,
       gridTemplateColumns: 'minmax(230px, 1.4fr) repeat(6, minmax(72px, 1fr)) 88px' }}>

@@ -25,7 +25,8 @@ function doGet(e) {
       greens: { food: r[col['Food']], water: r[col['Water']], waste: r[col['Waste']],
                 transport: r[col['Transport']], shelter: r[col['Shelter']], power: r[col['Power']] },
       total: r[col['Total']], source: r[col['Source']], resultUrl: r[col['Result URL']],
-      answers_json: r[col['Answers JSON']] || '', schema_version: r[col['Schema Version']] || ''
+      answers_json: r[col['Answers JSON']] || '', schema_version: r[col['Schema Version']] || '',
+      hidden: r[col['Hidden']] || ''
     };
   });
   return jsonOut({ ok: true, rows: rows });
@@ -33,9 +34,12 @@ function doGet(e) {
 ```
 
 The `col` lookup maps by **header text**, so the names here must match the sheet's
-header row exactly — including the pretty-printed **`Answers JSON`** and **`Schema
-Version`** columns. (The JSON keys `answers_json`/`schema_version` are what the
-Worker's `shapeAdminRows` reads — keep those as-is.) Re-deploy the web app (Manage
+header row exactly — including the pretty-printed **`Answers JSON`**, **`Schema
+Version`**, and **`Hidden`** columns. (The JSON keys `answers_json`/`schema_version`/
+`hidden` are what the Worker's `shapeAdminRows` reads — keep those as-is.) The `Hidden`
+column doesn't exist yet on the sheet — see "Flagging junk rows" below for adding it;
+until it's added, `r[col['Hidden']]` is `undefined` and `hidden` comes back `''`, which
+`shapeAdminRows` treats as "not hidden" (a safe no-op). Re-deploy the web app (Manage
 deployments → edit → New version) — same `/exec` URL, same secret.
 
 ## 2. Cloudflare Access (gates the page)
@@ -74,3 +78,32 @@ Without these, the Worker returns 403 (Access not configured) and the page won't
 load — by design. The viewer is also graceful: until `Answers JSON` has data, the
 City heatmap / per-question detail and the Camps ✓/✗ tokens fall back to a
 score-only approximation.
+
+## 3. Flagging junk rows
+
+Junk/test submissions (a teammate's manual test run, a spam entry, anything that
+shouldn't count) can be excluded from every aggregate — the public `/api/city` tally
+and the admin City tab — while staying visible on the Camps tab so you can audit them.
+This is a read-side feature: there's no button in the admin UI to flag a row, you flag
+it directly in the sheet.
+
+**To flag a row as junk:**
+
+1. Add a column header **`Hidden`** to the `2026 Results` sheet (any empty column;
+   position doesn't matter — the Apps Script `doGet` looks it up by header text).
+2. Update `doGet` to the version in step 1 above (it now reads the `Hidden` column) and
+   re-deploy the web app (Manage deployments → edit → New version).
+3. To flag a row, type anything truthy — `x`, `yes`, `1`, whatever's memorable — into
+   that row's `Hidden` cell. Leave it blank for every row that should keep counting.
+
+**What happens:**
+
+- The row disappears from `/api/city`'s numbers and the admin City tab's tally,
+  leaderboard, sector standings, and superlatives — same as if it were never
+  submitted.
+- The row still appears on the admin Camps tab, dimmed, with a small "hidden" chip,
+  so you can find and double-check what you flagged.
+- `/api/city` is colo-cached for freshness up to 5 minutes (see `docs/architecture.md`),
+  so a flag can take up to 5 minutes to disappear from the public tally.
+- Until step 1–2 above are done, the `Hidden` column doesn't exist and every row
+  reads as not-hidden — flagging is a no-op, nothing breaks.

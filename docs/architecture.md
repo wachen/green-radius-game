@@ -298,6 +298,16 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   correctly folds a returning camp (old + this-week rows) into one active camp.
   *Known limit:* a camp's pre-`campId` rows key on email while its post-`campId`
   rows key on `campId`, so those two eras don't merge (transition-window only).
+  **Junk-row flagging.** The same `computeAggregates` choke point also strips
+  owner-flagged junk/test rows before any tally: `shapeAdminRows` (Worker)
+  reads a `hidden` field off each row (sourced from the sheet's owner-typed
+  `Hidden` column via the Apps Script `doGet` — see `docs/admin-setup.md`),
+  and `computeAggregates` filters any row with `hidden` truthy out of every
+  aggregate — `/api/city` and the admin City tab alike — before dedup or
+  legacy filtering run. The raw `/api/admin/responses` list (Camps tab) is
+  never filtered, so flagged rows stay visible there, dimmed with a "hidden"
+  chip, for audit. No `Hidden` column yet on the sheet → the field is always
+  absent → nothing is excluded (a no-op until the owner adds the column).
   The page itself (`city/index.html`) is a
   static asset built like `/result/` (vendored runtime, `RadialBadge` in
   aggregate `intensities` mode); no `run_worker_first` entry is needed because

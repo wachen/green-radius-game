@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
-import { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError } from '../worker/index.js';
+import { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, shapeAdminRows } from '../worker/index.js';
 import GameData from '../game-data.js';
 
 function b64url(data) {
@@ -143,6 +143,23 @@ describe('verifyAccessJwt', () => {
     const token = await makeToken();
     const twoParts = token.split('.').slice(0, 2).join('.');
     expect(await verifyAccessJwt(twoParts, env)).toBe(false);
+  });
+});
+
+describe('shapeAdminRows hidden flag', () => {
+  test('a truthy Hidden sheet cell shapes to hidden:true', () => {
+    const rows = shapeAdminRows([{ campName: 'Junk', hidden: 'x' }]);
+    expect(rows[0].hidden).toBe(true);
+  });
+
+  test('a blank Hidden sheet cell shapes to hidden:false', () => {
+    const rows = shapeAdminRows([{ campName: 'Real', hidden: '' }]);
+    expect(rows[0].hidden).toBe(false);
+  });
+
+  test('an absent Hidden column (doGet not yet updated) shapes to hidden:false — no-op', () => {
+    const rows = shapeAdminRows([{ campName: 'Real' }]);
+    expect(rows[0].hidden).toBe(false);
   });
 });
 

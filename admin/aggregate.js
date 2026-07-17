@@ -142,7 +142,18 @@
     };
   }
 
+  // Owner-flagged junk/test rows (a truthy "Hidden" sheet cell, surfaced via
+  // shapeAdminRows' `hidden` field) are excluded from every aggregate here —
+  // this is the single shared choke point both /api/city and the admin City
+  // tab compute through — but the raw admin response list (Camps tab) is
+  // untouched so the owner can still see and audit them. No `hidden` field
+  // (sheet not yet updated) is falsy, so nothing is excluded: a no-op.
+  function isHidden(row) {
+    return !!(row && row.hidden);
+  }
+
   function computeAggregates(rows, sectors, now, windowMs) {
+    rows = (rows || []).filter(function (r) { return !isHidden(r); });
     const legacyCount = rows.filter(isLegacy).length;
     rows = rows.filter(r => !isLegacy(r));
     // Collapse repeat submissions to one row per camp (latest wins) before ANY
@@ -168,7 +179,7 @@
     };
   }
 
-  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, dedupeRows, identityKey };
+  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, identityKey };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.AdminAggregate = api;
 })(typeof window !== 'undefined' ? window : this);
