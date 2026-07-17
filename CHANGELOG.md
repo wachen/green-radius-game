@@ -10,6 +10,7 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Hardening for the playa: save safety & accessibility (#68–)
 
+- Added a post-deploy verify workflow that polls the live site for the new APP_VERSION stamp and checks a URL matrix (dist/ scripts 200, retired/excluded paths 404) after every push to `main`, catching regressions like #71 automatically (#73)
 - Changelog debt paid for the #71 hotfix and the `.assetsignore` anchoring gotcha documented in CLAUDE.md (#72)
 - Hotfix: anchored `/src` in `.assetsignore` — unanchored, it also matched `dist/src/` and briefly 404'd the compiled game scripts right after #70 deployed (#71)
 - Vendor sweep — deleted the unloaded `vendor/babel-standalone` runtime and the retired `rank.js`, and stopped serving the `.jsx` sources (`src/`, `green-radius.jsx`) on the prod domain now that `dist/` is the only runtime load path (#70)
