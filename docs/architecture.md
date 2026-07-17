@@ -82,7 +82,7 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      hands the pre-rasterized result-card PNG to the OS share sheet — then degrades to
      sharing the `?r=` URL (Web Share L1), then to copying the link to the clipboard.
    - **`POST /api/complete`** — `{campName, email, year, greens, mode, answers,
-     campId, schemaVersion, resultUrl}`. `greens` is now 0–10 per sector; `answers` (the full
+     campId, nonce, schemaVersion, resultUrl}`. `greens` is now 0–10 per sector; `answers` (the full
      map) is backend-only (→ sheet `answers_json`). **`campId`** is a stable
      client-generated UUID (`crypto.randomUUID`, persisted in the localStorage save as an
      additive key, reused across reloads/redos, re-minted on start-over/exit). The Worker
@@ -97,7 +97,14 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      (the base `*-camp-note` plus `*-camp-2/3/4-note` for each of the six sectors),
      so all four per-sector write-in notes reach the sheet/email, each still gated on
      its own slot's yes/no. The extra slots' yes/no answers score normally regardless
-     (plain `'yes'/'no'` entries aren't note-gated). Any note gets trimmed, clamped to
+     (plain `'yes'/'no'` entries aren't note-gated). **`nonce`** is a per-submission
+     idempotency id (client-minted UUID, persisted in the save as an additive key so
+     a reload mid-POST replays with the SAME value; Try Again reuses it, "edit &
+     resend" mints a fresh one). The Worker bounds it like `campId`, forwards it
+     **top-level** on the Apps Script row (the dedupe hook — an older script just
+     ignores the extra field) and sets it as the Resend **`Idempotency-Key`**
+     (`grg/<nonce>`), so a replayed POST can't double-send the email even before the
+     Apps Script learns to dedupe rows. Any note gets trimmed, clamped to
      160, run through `sheetCell`, and dropped if its own yes/no isn't in the same
      payload. Scoring ignores notes — each idea's point rides its own yes/no, never
      its note.
@@ -179,7 +186,22 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   these land in the last two columns (`Answers JSON` = `JSON.stringify(answers)`,
   `Schema Version` = the stamp), and the 6 per-sector columns + Total now carry
   0–10 / 0–60. The note entries need **no Apps Script change** — they ride inside
-  the same stringified JSON, and the admin viewer reads them back out of it. A read-only **`doGet`** (added for the admin viewer) returns the
+  the same stringified JSON, and the admin viewer reads them back out of it.
+  **Row dedupe (R4):** the Worker also sends a top-level `nonce`; once the owner
+  adds the check below to `doPost` (before `appendRow`), a reload-replayed POST
+  stops appending a duplicate row (until then the field is harmlessly ignored,
+  and read-time `campId` dedupe already keeps aggregates correct):
+
+  ```js
+  // In doPost, after the secret check, before appendRow:
+  if (body.nonce) {
+    var cache = CacheService.getScriptCache();
+    if (cache.get('nonce:' + body.nonce)) return jsonOut({ ok: true, dedup: true });
+    cache.put('nonce:' + body.nonce, '1', 21600); // 6h; put AFTER appendRow if you prefer at-least-once
+  }
+  ```
+
+  A read-only **`doGet`** (added for the admin viewer) returns the
   rows to the Worker. See `docs/admin-setup.md` for the `doGet` source and the
   Cloudflare Access setup. Quirks: a `/exec` request returns
   **302 → script.googleusercontent.com**; Cloudflare's `fetch` follows it

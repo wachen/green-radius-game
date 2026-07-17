@@ -321,6 +321,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
   const [mode, setMode] = useState(saved?.mode || null);
   const fills = useMemo(() => fillsFromAnswers(sectors, answers), [sectors, answers]);
   const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
+  const [submitNonce, setSubmitNonce] = useState(saved?.submitNonce || null);
   const [submitState, setSubmitState] = useState("idle");
   const [submitResult, setSubmitResult] = useState(null);
   const [editingEmail, setEditingEmail] = useState(false);
@@ -385,9 +386,12 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
       }
     };
   }, [activeQuestion]);
-  const runSubmit = useCallback((overrideEmail) => {
+  const runSubmit = useCallback((overrideEmail, freshNonce) => {
     const gen = ++submitGenRef.current;
     autoSentRef.current = true;
+    const nonce = !freshNonce && submitNonce || genCampId();
+    if (nonce !== submitNonce)
+      setSubmitNonce(nonce);
     fontEmbedCss();
     (async () => {
       const greens = {};
@@ -424,6 +428,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
             mode: mode === "form" ? "form" : "board",
             answers: { ...answers, ...noteEntries },
             campId,
+            nonce,
             schemaVersion: window.SCHEMA_VERSION || "",
             resultUrl
           })
@@ -446,7 +451,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
         trackEvent("submit_failed", { mode: evMode });
       }
     })();
-  }, [sectors, answers, customNotes, camp, fills, mode, campId]);
+  }, [sectors, answers, customNotes, camp, fills, mode, campId, submitNonce]);
   useEffect(() => {
     if (phase !== "done")
       return;
@@ -485,10 +490,11 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
         customNotes,
         mode,
         submittedAt,
+        submitNonce,
         activeSectorId: activeQuestion && activeQuestion.sector && activeQuestion.sector.id || null
       }));
     } catch {}
-  }, [phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, activeQuestion]);
+  }, [phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce, activeQuestion]);
   function setFormAnswer(qid, value) {
     setAnswers((prev) => ({ ...prev, [qid]: value }));
   }
@@ -583,6 +589,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
       return o;
     });
     setSubmittedAt(null);
+    setSubmitNonce(null);
     setSubmitState("idle");
     setSubmitResult(null);
     setEditingEmail(false);
@@ -676,7 +683,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
       setCamp((c) => ({ ...c, email: e }));
       setEditingEmail(false);
       setSubmitResult(null);
-      runSubmit(e);
+      runSubmit(e, true);
     }, handleExit = function() {
       const safe = submitState === "done" || !!submittedAt;
       if (!safe && !confirm("Your results haven't been emailed yet. Exit and discard them?"))
@@ -701,6 +708,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
       setCamp({ campName: "", leadName: "", email: "" });
       setCampId(genCampId());
       setSubmittedAt(null);
+      setSubmitNonce(null);
       setSubmitState("idle");
       setSubmitResult(null);
       setEditingEmail(false);

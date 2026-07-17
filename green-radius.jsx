@@ -293,6 +293,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // renderer. Derived from `answers`; an untouched sector is simply all-empty.
   const fills = useMemo(() => fillsFromAnswers(sectors, answers), [sectors, answers]);
   const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
+  // R4: per-submission idempotency nonce, persisted (additive key) so a reload
+  // mid-POST replays with the SAME nonce and the backend can dedupe the row and
+  // the email. Reused by Try Again; "edit & resend" mints a fresh one (that
+  // send is meant to go out again). Cleared with the rest of the result state.
+  const [submitNonce, setSubmitNonce] = useState(saved?.submitNonce || null);
   const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
   const [submitResult, setSubmitResult] = useState(null); // { sheet:'ok'|'err', email:'sent'|'err' } from the last POST
   const [editingEmail, setEditingEmail] = useState(false); // done-screen "edit & resend" affordance
@@ -374,9 +379,13 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // outcomes independently ({sheet, email}), so we keep them separate and tell the
   // player the truth rather than collapsing both into "sent". A generation token
   // (submitGenRef) voids a stale in-flight request if the player exits mid-send.
-  const runSubmit = useCallback((overrideEmail) => {
+  const runSubmit = useCallback((overrideEmail, freshNonce) => {
     const gen = ++submitGenRef.current;
     autoSentRef.current = true;
+    // Reuse the persisted nonce (reload/Try Again = the same submission);
+    // freshNonce (edit & resend) mints a new one so that email isn't deduped.
+    const nonce = (!freshNonce && submitNonce) || genCampId();
+    if (nonce !== submitNonce) setSubmitNonce(nonce);
     fontEmbedCss(); // warm the font cache so the Download button is snappy
     (async () => {
       const greens = {};
@@ -407,6 +416,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             mode: mode === 'form' ? 'form' : 'board',
             answers: { ...answers, ...noteEntries },
             campId,
+            nonce,
             schemaVersion: window.SCHEMA_VERSION || '',
             resultUrl,
           }),
@@ -423,7 +433,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         trackEvent('submit_failed', { mode: evMode });
       }
     })();
-  }, [sectors, answers, customNotes, camp, fills, mode, campId]);
+  }, [sectors, answers, customNotes, camp, fills, mode, campId, submitNonce]);
 
   // Fire the submit once when the done screen first appears. submittedAt (persisted)
   // prevents re-sending across reloads; autoSentRef guards a double-fire in-session.
@@ -453,11 +463,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORAGE_VERSION,
-        phase, camp, campId, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt,
+        phase, camp, campId, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce,
         activeSectorId: (activeQuestion && activeQuestion.sector && activeQuestion.sector.id) || null,
       }));
     } catch {}
-  }, [phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, activeQuestion]);
+  }, [phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce, activeQuestion]);
 
   function setFormAnswer(qid, value) {
     setAnswers(prev => ({ ...prev, [qid]: value }));
@@ -562,6 +572,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
     setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
     setSubmittedAt(null);
+    setSubmitNonce(null);
     setSubmitState('idle');
     setSubmitResult(null);
     setEditingEmail(false);
@@ -697,7 +708,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setCamp(c => ({ ...c, email: e }));
       setEditingEmail(false);
       setSubmitResult(null);
-      runSubmit(e); // pass the corrected address directly (setCamp hasn't flushed yet)
+      runSubmit(e, true); // corrected address directly (setCamp hasn't flushed) + a fresh nonce so the resend isn't deduped
     }
     const emailDraftOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailDraft.trim());
     function handleExit() {
@@ -717,6 +728,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setCamp({ campName: '', leadName: '', email: '' });
       setCampId(genCampId()); // next game is a new camp identity
       setSubmittedAt(null);
+      setSubmitNonce(null);
       setSubmitState('idle');
       setSubmitResult(null);
       setEditingEmail(false);

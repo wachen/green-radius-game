@@ -184,3 +184,24 @@ describe('sendEmail body order', () => {
     expect(iFooter).toBeGreaterThan(iLink);
   });
 });
+
+describe('sendEmail idempotency (R4 nonce)', () => {
+  const send = async (nonce) => {
+    const originalFetch = globalThis.fetch;
+    let headers;
+    globalThis.fetch = async (url, opts) => { headers = opts.headers; return new Response('{}', { status: 200 }); };
+    try {
+      await sendEmail({ RESEND_API_KEY: 'k' }, 'a@b.co', 'Dusty', 'https://greenradi.us/result/?r=x',
+        {}, { food: 0, water: 0, waste: 0, transport: 0, shelter: 0, power: 0 }, nonce);
+    } finally { globalThis.fetch = originalFetch; }
+    return headers;
+  };
+  test('nonce rides as the Resend Idempotency-Key', async () => {
+    const headers = await send('1f2e3d4c-aaaa-bbbb-cccc-1234567890ab');
+    expect(headers['Idempotency-Key']).toBe('grg/1f2e3d4c-aaaa-bbbb-cccc-1234567890ab');
+  });
+  test('no nonce, no Idempotency-Key header', async () => {
+    const headers = await send('');
+    expect('Idempotency-Key' in headers).toBe(false);
+  });
+});
