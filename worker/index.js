@@ -21,6 +21,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/complete' && request.method === 'POST') return handleComplete(request, env);
     if (url.pathname === '/api/event' && request.method === 'POST') return handleEvent(request);
+    if (url.pathname === '/api/client-error' && request.method === 'POST') return handleClientError(request);
     if (url.pathname === '/api/admin/responses' && request.method === 'GET') return handleAdminResponses(request, env);
     if (url.pathname === '/api/city' && request.method === 'GET') return handleCity(env, ctx);
     // Liveness probe for the external uptime monitor (Cloudflare Free has no
@@ -153,6 +154,37 @@ function handleEvent(request) {
     console.log(JSON.stringify(evt));
     return new Response(null, { status: 204 });
   });
+}
+
+// Client-side error beacon (log-only, nothing stored): /beacon.js installs
+// window.onerror + unhandledrejection handlers and POSTs here so a silent
+// white screen on an odd playa phone shows up in Workers Logs. Same
+// fail-closed Origin check as /api/complete/handleEvent, a tight body cap,
+// and every field re-truncated server-side so a forged/oversize beacon can't
+// stuff the logs. No storage, no upstream calls. Must never throw or hang —
+// every non-forbidden outcome resolves fast with 204.
+export function handleClientError(request) {
+  const origin = request.headers.get('Origin') || '';
+  if (!originAllowed(origin)) return Promise.resolve(new Response(null, { status: 403 }));
+
+  return request.text().then((raw) => {
+    if (raw.length > 4096) return new Response(null, { status: 204 });
+    let body;
+    try { body = JSON.parse(raw); } catch { return new Response(null, { status: 204 }); }
+    if (!body || typeof body !== 'object') return new Response(null, { status: 204 });
+
+    const evt = {
+      type: 'client_error',
+      message: clampField(body.message, 500),
+      source: clampField(body.source, 300),
+      line: Number.isFinite(body.line) ? Math.max(0, body.line | 0) : 0,
+      col: Number.isFinite(body.col) ? Math.max(0, body.col | 0) : 0,
+      path: clampField(body.path, 200),
+    };
+    if (typeof body.version === 'string' && body.version) evt.version = clampField(body.version, 32);
+    console.log(JSON.stringify(evt));
+    return new Response(null, { status: 204 });
+  }).catch(() => new Response(null, { status: 204 }));
 }
 
 // Per-camp OG: decode the ?r= hash, rewrite /result/'s og:title/description to the

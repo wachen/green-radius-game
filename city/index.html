@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<!-- Loads first, no defer: installs window.onerror/unhandledrejection before
+     any deferred vendor/dist script runs, so a white-screen bug still phones home. -->
+<script src="/beacon.js"></script>
 <title>The City's Green Radius</title>
 <meta name="description" content="How green is Black Rock City going this year? The live community tally from the Green Radius Game. Add your camp at greenradi.us."/>
 <meta property="og:type" content="website"/>

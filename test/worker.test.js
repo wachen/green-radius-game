@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
-import { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, sendEmail } from '../worker/index.js';
+import { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, sendEmail, handleClientError } from '../worker/index.js';
 import GameData from '../game-data.js';
 
 function b64url(data) {
@@ -203,5 +203,65 @@ describe('sendEmail idempotency (R4 nonce)', () => {
   test('no nonce, no Idempotency-Key header', async () => {
     const headers = await send('');
     expect('Idempotency-Key' in headers).toBe(false);
+  });
+});
+
+describe('handleClientError', () => {
+  function req({ origin = 'https://greenradi.us', body = '{}' } = {}) {
+    return new Request('https://greenradi.us/api/client-error', {
+      method: 'POST',
+      headers: origin ? { Origin: origin } : {},
+      body,
+    });
+  }
+
+  test('rejects a request with a disallowed Origin', async () => {
+    const res = await handleClientError(req({ origin: 'https://evil.com' }));
+    expect(res.status).toBe(403);
+  });
+
+  test('fails closed on an absent Origin', async () => {
+    const res = await handleClientError(req({ origin: '' }));
+    expect(res.status).toBe(403);
+  });
+
+  test('an oversize body is dropped but still 204s', async () => {
+    const res = await handleClientError(req({ body: JSON.stringify({ message: 'x'.repeat(5000) }) }));
+    expect(res.status).toBe(204);
+  });
+
+  test('malformed JSON still 204s', async () => {
+    const res = await handleClientError(req({ body: 'not json' }));
+    expect(res.status).toBe(204);
+  });
+
+  test('happy path logs one structured line and 204s', async () => {
+    const originalLog = console.log;
+    let logged;
+    console.log = (line) => { logged = line; };
+    try {
+      const res = await handleClientError(req({
+        body: JSON.stringify({ message: 'boom', source: 'app.js', line: 12, col: 3, path: '/result/', version: 'v82' }),
+      }));
+      expect(res.status).toBe(204);
+    } finally { console.log = originalLog; }
+    const evt = JSON.parse(logged);
+    expect(evt).toMatchObject({ type: 'client_error', message: 'boom', source: 'app.js', line: 12, col: 3, path: '/result/', version: 'v82' });
+  });
+
+  test('oversize fields are re-truncated server-side', async () => {
+    const originalLog = console.log;
+    let logged;
+    console.log = (line) => { logged = line; };
+    try {
+      await handleClientError(req({
+        body: JSON.stringify({ message: 'm'.repeat(600), source: 's'.repeat(400), path: 'p'.repeat(300), version: 'v'.repeat(50) }),
+      }));
+    } finally { console.log = originalLog; }
+    const evt = JSON.parse(logged);
+    expect(evt.message.length).toBe(500);
+    expect(evt.source.length).toBe(300);
+    expect(evt.path.length).toBe(200);
+    expect(evt.version.length).toBe(32);
   });
 });
