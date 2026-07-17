@@ -3,14 +3,14 @@
 const CARD_BG = "linear-gradient(160deg, #0e2733 0%, #14323f 100%)";
 const playBtn = {
   display: "inline-block",
-  background: "#5BA84A",
+  background: "#4c7339",
   color: "#fff",
   padding: "12px 22px",
   borderRadius: 14,
   fontWeight: 700,
   fontSize: 14,
   textDecoration: "none",
-  boxShadow: "0 3px 0 #3d7a31"
+  boxShadow: "0 3px 0 #38542b"
 };
 function fmtAsOf(ms) {
   return new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });

@@ -141,11 +141,11 @@ function Intro({ onStart, onBack, palette, description, initial }) {
         style={{
           width: '100%', padding: '16px', borderRadius: 14,
           border: 'none',
-          background: palette.accent,
+          background: palette.accentDark,
           color: '#fff',
           fontSize: 14, fontWeight: 800, letterSpacing: '0.15em',
           textTransform: 'uppercase', cursor: 'pointer',
-          boxShadow: `0 4px 0 ${palette.accentDark}`,
+          boxShadow: `0 4px 0 ${palette.accentDeep}`,
           minHeight: 52,
         }}
       >Start →</button>
@@ -176,7 +176,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
       <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
         style={{
           fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-          color: palette.accent, marginTop: 32, lineHeight: 1.5,
+          color: palette.accentDark, marginTop: 32, lineHeight: 1.5,
           textDecoration: 'none', display: 'block',
         }}
       >
@@ -725,7 +725,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
     return (
       <div style={{ padding: '32px 20px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.3em', fontWeight: 700, color: palette.accent, marginBottom: 8 }}>YOUR GREEN RADIUS</div>
+        <div style={{ fontSize: 11, letterSpacing: '0.3em', fontWeight: 700, color: palette.accentDark, marginBottom: 8 }}>YOUR GREEN RADIUS</div>
         <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 24px', color: palette.heading, letterSpacing: '-0.01em' }}>
           {camp.campName}
         </h2>
@@ -771,7 +771,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
                   border: `1.5px solid ${emailDraftOk ? palette.text + '22' : '#B4463A'}`, background: palette.card, color: palette.text }}
               />
               <button onClick={handleResend} disabled={!emailDraftOk}
-                style={{ padding: '0 16px', borderRadius: 10, border: 'none', background: palette.accent, color: '#fff',
+                style={{ padding: '0 16px', borderRadius: 10, border: 'none', background: palette.accentDark, color: '#fff',
                   fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
                   cursor: emailDraftOk ? 'pointer' : 'default', opacity: emailDraftOk ? 1 : 0.5, minHeight: 44 }}>Resend</button>
               <button onClick={() => setEditingEmail(false)} aria-label="Cancel editing email"
@@ -791,10 +791,10 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={handleDownload}
             style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: 'none',
-              background: palette.accent, color: '#fff', fontSize: 13, fontWeight: 800,
+              background: palette.accentDark, color: '#fff', fontSize: 13, fontWeight: 800,
               letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              boxShadow: `0 3px 0 ${palette.accentDark}` }}>
+              boxShadow: `0 3px 0 ${palette.accentDeep}` }}>
             <DownloadIcon />
             Download
           </button>
@@ -904,7 +904,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
       {/* score, in the gap between wheel and status bar */}
       <div style={{ textAlign: 'center', marginTop: 8 }}>
-        <div style={{ fontSize: 36, fontWeight: 900, color: '#5BA84A', lineHeight: 1 }}>
+        <div style={{ fontSize: 36, fontWeight: 900, color: palette.accentDark, lineHeight: 1 }}>
           {totalGreens}<span style={{ fontSize: 18, opacity: 0.5 }}>/60</span>
         </div>
       </div>

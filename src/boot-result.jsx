@@ -90,7 +90,7 @@ function ResultView({ sectors, fills, campName, leadName, year }) {
     <div style={{ width: 'min(360px, 100%)', display: 'flex', flexDirection: 'column', gap: 14 }}>
       <ShareCard sectors={sectors} fills={fills} campName={campName} leadName={leadName} year={year} palette={{}} />
       <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={handleDownload} style={{ ...btn, background: '#7AB85C', boxShadow: '0 3px 0 #558040' }}>
+        <button onClick={handleDownload} style={{ ...btn, background: '#4c7339', boxShadow: '0 3px 0 #38542b' }}>
           <DownloadIcon />
           {downloadFailed ? "Couldn't download" : 'Download'}
         </button>
@@ -99,7 +99,7 @@ function ResultView({ sectors, fills, campName, leadName, year }) {
         </button>
       </div>
       <div style={{ borderTop: '1px solid #2a262022', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <button onClick={handleContinue} style={{ ...btn, background: '#5BA84A', boxShadow: '0 3px 0 #3d7a31', textTransform: 'uppercase' }}>
+        <button onClick={handleContinue} style={{ ...btn, background: '#4c7339', boxShadow: '0 3px 0 #38542b', textTransform: 'uppercase' }}>
           Continue improving
         </button>
         <div style={{ fontSize: 12, lineHeight: 1.45, color: '#2a2620aa', textAlign: 'center' }}>
@@ -120,7 +120,7 @@ function ResultView({ sectors, fills, campName, leadName, year }) {
                 background: '#DCD2BE', boxShadow: '0 3px 0 #b3a98a', textTransform: 'none', letterSpacing: 'normal', fontWeight: 700 }}>
                 Keep mine
               </button>
-              <button onClick={doImport} style={{ ...btn, background: '#5BA84A', boxShadow: '0 3px 0 #3d7a31',
+              <button onClick={doImport} style={{ ...btn, background: '#4c7339', boxShadow: '0 3px 0 #38542b',
                 textTransform: 'none', letterSpacing: 'normal', fontWeight: 800 }}>
                 Replace it
               </button>
@@ -150,9 +150,9 @@ if (!data) {
         Result links carry the whole scorecard after the # mark, so make sure the full link was copied. Or start fresh and build your own.
       </div>
       <a href="/" style={{
-        display: 'inline-block', background: '#5BA84A', color: '#fff',
+        display: 'inline-block', background: '#4c7339', color: '#fff',
         padding: '12px 22px', borderRadius: 14, fontWeight: 700, fontSize: 14,
-        textDecoration: 'none', boxShadow: '0 3px 0 #3d7a31',
+        textDecoration: 'none', boxShadow: '0 3px 0 #38542b',
       }}>Play your own Green Radius</a>
     </div>
   );

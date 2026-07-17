@@ -151,14 +151,14 @@ function Intro({ onStart, onBack, palette, description, initial }) {
       padding: "16px",
       borderRadius: 14,
       border: "none",
-      background: palette.accent,
+      background: palette.accentDark,
       color: "#fff",
       fontSize: 14,
       fontWeight: 800,
       letterSpacing: "0.15em",
       textTransform: "uppercase",
       cursor: "pointer",
-      boxShadow: `0 4px 0 ${palette.accentDark}`,
+      boxShadow: `0 4px 0 ${palette.accentDeep}`,
       minHeight: 52
     }
   }, "Start →"), tried && !canStart && React.createElement("div", {
@@ -195,7 +195,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
       fontSize: 11,
       letterSpacing: "0.3em",
       fontWeight: 700,
-      color: palette.accent,
+      color: palette.accentDark,
       marginTop: 32,
       lineHeight: 1.5,
       textDecoration: "none",
@@ -754,7 +754,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
     return React.createElement("div", {
       style: { padding: "32px 20px", maxWidth: 480, margin: "0 auto", textAlign: "center" }
     }, React.createElement("div", {
-      style: { fontSize: 11, letterSpacing: "0.3em", fontWeight: 700, color: palette.accent, marginBottom: 8 }
+      style: { fontSize: 11, letterSpacing: "0.3em", fontWeight: 700, color: palette.accentDark, marginBottom: 8 }
     }, "YOUR GREEN RADIUS"), React.createElement("h2", {
       style: { fontSize: 28, fontWeight: 800, margin: "0 0 24px", color: palette.heading, letterSpacing: "-0.01em" }
     }, camp.campName), React.createElement("div", {
@@ -824,7 +824,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
         padding: "0 16px",
         borderRadius: 10,
         border: "none",
-        background: palette.accent,
+        background: palette.accentDark,
         color: "#fff",
         fontSize: 12,
         fontWeight: 800,
@@ -873,7 +873,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
         padding: "14px 0",
         borderRadius: 12,
         border: "none",
-        background: palette.accent,
+        background: palette.accentDark,
         color: "#fff",
         fontSize: 13,
         fontWeight: 800,
@@ -884,7 +884,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
         alignItems: "center",
         justifyContent: "center",
         gap: 6,
-        boxShadow: `0 3px 0 ${palette.accentDark}`
+        boxShadow: `0 3px 0 ${palette.accentDeep}`
       }
     }, React.createElement(DownloadIcon, null), "Download"), React.createElement("button", {
       onClick: handleShare,
@@ -1009,7 +1009,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
   })), React.createElement("div", {
     style: { textAlign: "center", marginTop: 8 }
   }, React.createElement("div", {
-    style: { fontSize: 36, fontWeight: 900, color: "#5BA84A", lineHeight: 1 }
+    style: { fontSize: 36, fontWeight: 900, color: palette.accentDark, lineHeight: 1 }
   }, totalGreens, React.createElement("span", {
     style: { fontSize: 18, opacity: 0.5 }
   }, "/60"))), React.createElement("div", {

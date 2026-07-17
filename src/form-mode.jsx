@@ -151,9 +151,9 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
               fontFamily: 'inherit', fontSize: 13, fontWeight: 800,
               letterSpacing: '0.1em', textTransform: 'uppercase', minHeight: 52,
               cursor: !allComplete ? 'default' : 'pointer',
-              background: !allComplete ? palette.text + '33' : palette.accent,
+              background: !allComplete ? palette.text + '33' : palette.accentDark,
               color: '#fff',
-              '--grg-sh': palette.accentDark,
+              '--grg-sh': palette.accentDeep,
             }}
           >Submit →</button>
         )}
@@ -202,7 +202,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
         <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
           style={{
             fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-            color: palette.accent, marginTop: 20, lineHeight: 1.5,
+            color: palette.accentDark, marginTop: 20, lineHeight: 1.5,
             textDecoration: 'none', display: 'block', textAlign: 'center',
           }}
         >
@@ -382,9 +382,9 @@ function YesNoButtons({ qid, answer, setAnswer, palette }) {
         aria-pressed={answer === 'yes'}
         style={{
           ...btnBase,
-          background: answer === 'yes' ? palette.accent : palette.text + '11',
+          background: answer === 'yes' ? palette.accentDark : palette.text + '11',
           color: answer === 'yes' ? '#fff' : palette.text,
-          boxShadow: answer === 'yes' ? `0 3px 0 ${palette.accentDark}` : 'none',
+          boxShadow: answer === 'yes' ? `0 3px 0 ${palette.accentDeep}` : 'none',
         }}
       >Yes</button>
       <button
