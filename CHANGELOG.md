@@ -8,6 +8,10 @@ so every squash-merged PR below is effectively a release. From PR #44 onward the
 `APP_VERSION` stamp (shown at the bottom of the home screen) equals the PR number, so `vNN`
 and `#NN` refer to the same release. Entries are grouped newest-first by milestone.
 
+## Roadmap round: reliability & delight (#82–)
+
+- Stamped a `CONTENT_VERSION` ("2026") into the shared result link's `?r=` payload as an optional `cv` field, so a future year-over-year ghost-ring overlay can tell whether two result links answered the same question set; legacy links without it decode unchanged (#82)
+
 ## Hardening for the playa: save safety & accessibility (#68–)
 
 - Added `docs/roadmap.md` as the single prioritized backlog, with a CLAUDE.md rule that only its Approved items get built (#80)
