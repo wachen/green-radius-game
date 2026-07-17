@@ -94,6 +94,12 @@ async function handleComplete(request, env) {
   if (typeof body.campId === 'string' && /^[0-9a-fA-F-]{8,64}$/.test(body.campId)) {
     answers.campId = body.campId;
   }
+  // R4 double-submit guard: a client-minted nonce that stays stable across a
+  // reload mid-POST. It rides top-level to the Apps Script (which can dedupe
+  // repeat appends on it; an older script just ignores the extra field) and
+  // doubles as the Resend Idempotency-Key so a replayed POST can't send the
+  // same email twice. Same bounded charset as campId.
+  const nonce = (typeof body.nonce === 'string' && /^[0-9a-fA-F-]{8,64}$/.test(body.nonce)) ? body.nonce : '';
   const source = body.mode === 'form' ? 'form' : 'board';
   const schemaVersion = typeof body.schemaVersion === 'string' ? body.schemaVersion.slice(0, 32) : '';
 
@@ -111,10 +117,11 @@ async function handleComplete(request, env) {
     answers, schemaVersion,
     resultUrl,
   };
+  if (nonce) row.nonce = nonce;
 
   const [sheetRes, emailRes] = await Promise.allSettled([
     appendToSheet(env, row),
-    sendEmail(env, email, campName, resultUrl, answers, greens),
+    sendEmail(env, email, campName, resultUrl, answers, greens, nonce),
   ]);
   if (sheetRes.status === 'rejected') console.error('sheet_append_failed', { outcome: 'exception' });
   if (emailRes.status === 'rejected') console.error('email_send_failed', { outcome: 'exception' });
@@ -181,13 +188,18 @@ async function appendToSheet(env, row) {
   return true;
 }
 
-export async function sendEmail(env, to, campName, resultUrl, answers, greens) {
+export async function sendEmail(env, to, campName, resultUrl, answers, greens, nonce) {
   if (!env.RESEND_API_KEY || !resultUrl) return false;
   const href = escAttr(resultUrl);
+  // The nonce doubles as a Resend idempotency key: a reload-replayed POST
+  // reuses the nonce so Resend drops the duplicate send. An explicit resend
+  // (edit & resend) mints a fresh nonce client-side, so it still goes out.
+  const headers = { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' };
+  if (nonce) headers['Idempotency-Key'] = 'grg/' + nonce;
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       from: 'Green Radius <hello@greenradi.us>',
       reply_to: 'greenthemecamps@burningman.org',
