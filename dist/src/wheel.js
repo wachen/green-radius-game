@@ -8,7 +8,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
   const N = sectors.length;
   const sweep = 360 / N;
   const dim = variant === "dimensional";
-  const reduceMotion = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reduceMotion = prefersReducedMotion();
   const svgRef = useRef(null);
   const prevFilledRef = useRef(null);
   const ringTint = ["#c9b89a", "#d3c4a8", "#dcd0b5", "#e4d9c1"];

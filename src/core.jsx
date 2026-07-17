@@ -5,6 +5,15 @@
 
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
+// Single shared read of the OS `prefers-reduced-motion` setting. Read-once
+// (no change listener — matches the rest of the reduced-motion gating, which
+// is also read-once) so every animation surface (Fx particles, wheel spin
+// timing, celebration/toast) checks the same thing the same way.
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 // Shared modal a11y: lock background scroll while open, and trap Tab focus inside
 // the dialog so keyboard/SR users can't wander onto the obscured page behind it.
 function useModalA11y(ref) {
@@ -54,7 +63,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v74';
+const APP_VERSION = 'v75';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.

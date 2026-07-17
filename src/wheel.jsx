@@ -15,8 +15,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
   const sweep = 360 / N;
 
   const dim = variant === 'dimensional';
-  const reduceMotion = typeof window !== 'undefined' &&
-    window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduceMotion = prefersReducedMotion();
 
   const svgRef = useRef(null);
   const prevFilledRef = useRef(null); // Set of filled cell keys from the last commit; null = first commit

@@ -1,6 +1,9 @@
 // @generated from src/core.jsx by scripts/build.js — DO NOT EDIT.
 // Edit the .jsx source, then run: bun run scripts/build.js
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
+function prefersReducedMotion() {
+  return typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 function useModalA11y(ref) {
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -42,7 +45,7 @@ const COMMUNITY_LINK_URL = "https://www.greenthemecampcommunity.org/";
 const BOARD_GAME_PDF_URL = "/downloads/" + encodeURIComponent("2026.05.19 Green Radius Game -- Download for Players -- How-to-Play - Board Game - Matrix - Detail -- v 26 FINAL .pdf");
 const RESOURCE_GUIDE_URL = "https://www.greenthemecampcommunity.org/resource-guide";
 const REPORT_EMAIL = "greenthemecamps@burningman.org";
-const APP_VERSION = "v74";
+const APP_VERSION = "v75";
 function validQidSet(sectors) {
   const set = new Set;
   sectors.forEach((s) => {

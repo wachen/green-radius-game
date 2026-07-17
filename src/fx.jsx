@@ -14,11 +14,6 @@ const FX_CAP = 300;
 
 const _fx = { canvas: null, ctx: null, ps: [], running: false, w: 0, h: 0, dpr: 1 };
 
-function _fxReduce() {
-  return typeof window !== 'undefined' && window.matchMedia &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
 function _fxDraw(ctx, p, a) {
   ctx.globalAlpha = a;
   if (p.kind === 'leaf') {
@@ -69,7 +64,7 @@ function _fxStart() {
 
 const Fx = {
   burst(x, y, spec) {
-    if (_fxReduce() || !_fx.ctx) return; // single reduced-motion gate for all juice
+    if (prefersReducedMotion() || !_fx.ctx) return; // single reduced-motion gate for all juice
     const n = spec.n || 12;
     for (let i = 0; i < n; i++) {
       const ang = (spec.angle == null ? Math.random() * FX_TAU
