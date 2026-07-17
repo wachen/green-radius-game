@@ -44,13 +44,8 @@ _(empty — move items up from Proposed to green-light them)_
 
 ## Waiting on something
 
-- **R4 Apps Script dedupe** — owner action: paste the updated `doPost` (delivered
-  2026-07-16) and redeploy the web app as a new version of the existing
-  deployment. The Worker-side email dedupe is already live.
 - **Funnel dashboard first look** — needs ~2 weeks of Web Analytics data; check
   in late July.
-- **A2 shade tune** — optional; only if the darker AA green (`#4c7339`, shipped
-  in #76) reads wrong in person. One palette token to change.
 
 ## Shelved — do not build without an explicit ask
 
@@ -60,6 +55,9 @@ _(empty — move items up from Proposed to green-light them)_
 
 ## Recently done
 
+- R4 closed end to end: Apps Script `doPost` dedupe deployed by Wes — 2026-07-16
+- A2 settled at the lightest AA greens: fills back to `#558040`, small text
+  keeps `#4c7339` via `accentText` (#81) — 2026-07-16
 - A2 contrast pass (#76) and R4 double-submit nonce (#79) — 2026-07-16
 - Hardening batch: save salvage, a11y, vendor sweep, CI boot-smoke, post-deploy
   verify, reduced-motion consolidation (#68–#75) — 2026-07-16/17
