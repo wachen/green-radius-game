@@ -10,6 +10,7 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Hardening for the playa: save safety & accessibility (#68–)
 
+- Contrast pass (review item A2): every white-labeled green button (Start, Yes, Submit, Download, Spin hub, mode tile, result/city page CTAs) and the green text links now use a single WCAG-AA action green `#4c7339`, with a deeper `#38542b` for the tactile button foot; the bright brand green stays on decorative accents (#76)
 - Reduced-motion pass: the wheel spin, particle-FX bursts, and sector celebration already honored the OS `prefers-reduced-motion` setting (skip particles, near-instant spin, quiet celebration flash) — those checks are now consolidated into one shared `prefersReducedMotion()` helper in `src/core.jsx` instead of five duplicated inline reads (#75)
 - CI now boots all four pages (`/`, `/result/`, `/city/`, `/admin/`) in headless Chromium on every PR, catching a page that loads but silently fails to render (the class of bug behind the #66-era `ShareCard`-undefined incident) before it can merge (#74)
 - Added a post-deploy verify workflow that polls the live site for the new APP_VERSION stamp and checks a URL matrix (dist/ scripts 200, retired/excluded paths 404) after every push to `main`, catching regressions like #71 automatically (#73)
