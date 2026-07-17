@@ -27,7 +27,7 @@ const FAQ_ITEMS = [
     q: "How do I report an issue or suggest an improvement?",
     a: React.createElement(React.Fragment, null, "Found a bug or have an idea? We'd love to hear it. Email ", React.createElement("a", {
       href: "mailto:" + REPORT_EMAIL,
-      style: { color: "#558040", fontWeight: 700, textDecoration: "none", borderBottom: "1.5px solid rgba(85,128,64,0.4)" }
+      style: { color: "#4c7339", fontWeight: 700, textDecoration: "none", borderBottom: "1.5px solid rgba(76,115,57,0.4)" }
     }, REPORT_EMAIL), ".")
   }
 ];
@@ -463,7 +463,7 @@ function FaqModal({ onClose, palette }) {
       border: "1px solid #7AB85C33"
     }
   }, React.createElement("div", {
-    style: { fontSize: 10, letterSpacing: "0.2em", fontWeight: 700, color: "#558040", textTransform: "uppercase", marginBottom: 6 }
+    style: { fontSize: 10, letterSpacing: "0.2em", fontWeight: 700, color: "#4c7339", textTransform: "uppercase", marginBottom: 6 }
   }, "Learn More"), React.createElement("div", {
     style: { fontSize: 12.5, lineHeight: 1.5, color: palette.text + "d1", marginBottom: 10, textWrap: "pretty" }
   }, "Full guidance for every sector and level lives in the Green Theme Camp Community's Resource Guide."), React.createElement("a", {
@@ -472,13 +472,13 @@ function FaqModal({ onClose, palette }) {
     rel: "noopener noreferrer",
     style: {
       display: "inline-block",
-      background: "#7AB85C",
+      background: "#4c7339",
       color: "#fff",
       fontWeight: 700,
       fontSize: 13,
       padding: "9px 14px",
       borderRadius: 11,
-      boxShadow: "0 4px 0 #558040",
+      boxShadow: "0 4px 0 #38542b",
       textDecoration: "none"
     }
   }, "Open the Resource Guide →")))));
@@ -546,9 +546,9 @@ function ModePicker({ onPick, palette }) {
     className: "grg-press",
     style: {
       ...tileBase,
-      background: palette.accent,
+      background: palette.accentDark,
       color: "#fff",
-      "--grg-sh": palette.accentDark
+      "--grg-sh": palette.accentDeep
     }
   }, React.createElement("svg", {
     viewBox: "0 0 64 64",
@@ -712,7 +712,7 @@ function ModePicker({ onPick, palette }) {
       fontSize: 11,
       letterSpacing: "0.3em",
       fontWeight: 700,
-      color: palette.accent,
+      color: palette.accentDark,
       lineHeight: 1.5,
       textDecoration: "none",
       display: "block"

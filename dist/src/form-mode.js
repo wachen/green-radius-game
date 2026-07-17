@@ -156,9 +156,9 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
       textTransform: "uppercase",
       minHeight: 52,
       cursor: !allComplete ? "default" : "pointer",
-      background: !allComplete ? palette.text + "33" : palette.accent,
+      background: !allComplete ? palette.text + "33" : palette.accentDark,
       color: "#fff",
-      "--grg-sh": palette.accentDark
+      "--grg-sh": palette.accentDeep
     }
   }, "Submit →")), page === lastPage && !allComplete && React.createElement("div", {
     style: { textAlign: "center", marginTop: 12 }
@@ -217,7 +217,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
       fontSize: 11,
       letterSpacing: "0.3em",
       fontWeight: 700,
-      color: palette.accent,
+      color: palette.accentDark,
       marginTop: 20,
       lineHeight: 1.5,
       textDecoration: "none",
@@ -420,9 +420,9 @@ function YesNoButtons({ qid, answer, setAnswer, palette }) {
     "aria-pressed": answer === "yes",
     style: {
       ...btnBase,
-      background: answer === "yes" ? palette.accent : palette.text + "11",
+      background: answer === "yes" ? palette.accentDark : palette.text + "11",
       color: answer === "yes" ? "#fff" : palette.text,
-      boxShadow: answer === "yes" ? `0 3px 0 ${palette.accentDark}` : "none"
+      boxShadow: answer === "yes" ? `0 3px 0 ${palette.accentDeep}` : "none"
     }
   }, "Yes"), React.createElement("button", {
     onClick: (e) => {

@@ -10,7 +10,8 @@ const PALETTE = {
   hub: "#3a3128",
   hubStroke: "#4a4036",
   accent: "#7AB85C",
-  accentDark: "#558040"
+  accentDark: "#4c7339",
+  accentDeep: "#38542b"
 };
 function App() {
   return React.createElement("div", {

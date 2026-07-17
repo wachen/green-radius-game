@@ -377,7 +377,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
       padding: "14px 0",
       borderRadius: 14,
       border: "none",
-      background: "#5BA84A",
+      background: "#4c7339",
       color: "#fff",
       fontSize: 15,
       fontWeight: 700,
@@ -385,7 +385,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
       cursor: canAnswer ? "pointer" : "default",
       opacity: canAnswer ? 1 : 0.55,
       textTransform: "uppercase",
-      boxShadow: "0 3px 0 #3d7a31"
+      boxShadow: "0 3px 0 #38542b"
     }
   }, "Yes")), (q.description || q.link) && React.createElement("div", {
     style: { marginTop: 20, paddingTop: 14, borderTop: `1px solid ${palette.text}1f` }
@@ -410,9 +410,9 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
       fontSize: 12,
       fontWeight: 700,
       letterSpacing: "0.05em",
-      color: "#5BA84A",
+      color: "#4c7339",
       textDecoration: "none",
-      borderBottom: "1px solid #5BA84A55",
+      borderBottom: "1px solid #4c733955",
       paddingBottom: 1
     }
   }, q.link.label, " ↗"))), React.createElement("div", {
@@ -465,7 +465,7 @@ function ResultToast({ kind, sector, greens, palette, onClose }) {
     }
   }, React.createElement("div", {
     style: {
-      background: anyGreen ? "#5BA84A" : "#3a2a20",
+      background: anyGreen ? "#4c7339" : "#3a2a20",
       color: "#fff",
       padding: "16px 20px",
       borderRadius: 16,

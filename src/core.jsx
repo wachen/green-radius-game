@@ -63,7 +63,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v75';
+const APP_VERSION = 'v76';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -168,9 +168,10 @@ function genCampId() {
 // sized 1/2/3) + up to 4 advanced picks (Level 4). The radius mirrors the answers
 // exactly — each level's ring fills per question — so a No just leaves its
 // segment empty (no compensation, gaps allowed).
-// A green ramp: Level 1 picks up where the Spin hub's accent green (#7AB85C,
-// set in index.html) leaves off and deepens per level to the Level-4 dark
-// green, so a lit wheel reads as green radiating outward from the center.
+// A green ramp: Level 1 starts near the brand accent green (#7AB85C) and
+// deepens per level to the Level-4 dark green, so a lit wheel reads as green
+// radiating outward from the center. (The Spin hub itself uses accentDark so
+// its white label passes WCAG AA.)
 const LEVEL_COLORS = ['#68B05C', '#56A85C', '#439F5B', '#31975B'];
 
 // Up to 4 write-in "Our Camp's Idea" slots per sector. The first is the
