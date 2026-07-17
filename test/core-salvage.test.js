@@ -11,7 +11,7 @@ const SECTORS = GameData.SECTORS;
 // actually want to exercise here — none of them touch React.
 globalThis.React = { useState: () => {}, useEffect: () => {}, useRef: () => {}, useMemo: () => {}, useCallback: () => {} };
 const Core = (await import('../src/core.jsx')).default;
-const { migrateSaved, isCurrentShape, STORAGE_VERSION } = Core;
+const { migrateSaved, isCurrentShape, STORAGE_VERSION, PERFECT_TOTAL, isPerfectTotal } = Core;
 
 function freshSectorMap(fn) {
   const o = {};
@@ -163,5 +163,25 @@ describe('isCurrentShape', () => {
   test('rejects a save missing per-sector cursor/closed entries', () => {
     const bad = currentShapeSave({ sectorCursor: {}, sectorClosed: {} });
     expect(isCurrentShape(bad, SECTORS)).toBe(false);
+  });
+});
+
+describe('isPerfectTotal: 60/60 golden-moment detection', () => {
+  test('PERFECT_TOTAL is 60 (6 sectors x 10 questions)', () => {
+    expect(PERFECT_TOTAL).toBe(60);
+  });
+
+  test('exactly 60 is perfect', () => {
+    expect(isPerfectTotal(60)).toBe(true);
+  });
+
+  test('anything below 60 is not perfect', () => {
+    expect(isPerfectTotal(59)).toBe(false);
+    expect(isPerfectTotal(0)).toBe(false);
+    expect(isPerfectTotal(-1)).toBe(false);
+  });
+
+  test('a value above 60 (should never occur, but is not a false positive) is not perfect', () => {
+    expect(isPerfectTotal(61)).toBe(false);
   });
 });

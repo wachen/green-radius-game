@@ -333,6 +333,8 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
   const submitGenRef = useRef(0);
   const spinTimerRef = useRef(null);
   const [restored, setRestored] = useState(saved?.salvaged || false);
+  const [goldenSeen, setGoldenSeen] = useState(saved?.goldenSeen || false);
+  const [showGolden, setShowGolden] = useState(false);
   const revealArmedRef = useRef(false);
   const rankRef = useRef(null);
   const revealReduceMotion = prefersReducedMotion();
@@ -343,6 +345,12 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
     if (revealActive && revealDone && rankRef.current)
       Fx.leafBurst(rankRef.current);
   }, [revealActive, revealDone]);
+  useEffect(() => {
+    if (phase === "done" && isPerfectTotal(totalYesAll) && !goldenSeen) {
+      setShowGolden(true);
+      setGoldenSeen(true);
+    }
+  }, [phase, totalYesAll, goldenSeen]);
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState(() => {
@@ -491,10 +499,11 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
         mode,
         submittedAt,
         submitNonce,
+        goldenSeen,
         activeSectorId: activeQuestion && activeQuestion.sector && activeQuestion.sector.id || null
       }));
     } catch {}
-  }, [phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce, activeQuestion]);
+  }, [phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce, goldenSeen, activeQuestion]);
   function setFormAnswer(qid, value) {
     setAnswers((prev) => ({ ...prev, [qid]: value }));
   }
@@ -596,6 +605,8 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
     autoSentRef.current = false;
     submitGenRef.current++;
     revealArmedRef.current = false;
+    setGoldenSeen(false);
+    setShowGolden(false);
     setCampId(genCampId());
   }
   function startGame(info) {
@@ -712,6 +723,8 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
       setSubmitState("idle");
       setSubmitResult(null);
       setEditingEmail(false);
+      setGoldenSeen(false);
+      setShowGolden(false);
       setPhase("pick-mode");
     };
     const year = new Date().getFullYear();
@@ -958,7 +971,9 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
     }, "Send Feedback")), React.createElement("button", {
       onClick: handleExit,
       style: { marginTop: 24, background: "none", border: "none", color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }
-    }, "✕ Exit"));
+    }, "✕ Exit"), showGolden && React.createElement(GoldenCelebration, {
+      onDone: () => setShowGolden(false)
+    }));
   }
   const totalGreens = sectors.reduce((acc, s) => acc + (fills[s.id].totalYes || 0), 0);
   const totalAttempted = sectors.reduce((acc, s) => acc + (sectorClosed[s.id] ? 1 : 0), 0);

@@ -215,9 +215,19 @@ function fillsFromAnswers(sectors, answers) {
   return out;
 }
 
+// ─── perfect-total detection (60/60 golden moment) ─────────────────────────
+// A camp's grand total is 0-60 (6 sectors x 10 questions each). Exactly 60
+// means every question in every sector was answered Yes — the one-time
+// golden celebration in green-radius.jsx and the golden card treatment in
+// src/share-card.jsx both gate on this.
+const PERFECT_TOTAL = 60;
+function isPerfectTotal(total) {
+  return total === PERFECT_TOTAL;
+}
+
 // Isomorphic export, same guarded pattern as game-data.js/result-state.js: a
 // no-op in the browser (module is undefined there), lets bun test exercise
 // the pure save-migration logic directly.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { migrateSaved, isCurrentShape, validQidSet, STORAGE_VERSION };
+  module.exports = { migrateSaved, isCurrentShape, validQidSet, STORAGE_VERSION, PERFECT_TOTAL, isPerfectTotal };
 }

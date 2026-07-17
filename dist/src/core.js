@@ -155,6 +155,10 @@ function fillsFromAnswers(sectors, answers) {
   });
   return out;
 }
+const PERFECT_TOTAL = 60;
+function isPerfectTotal(total) {
+  return total === PERFECT_TOTAL;
+}
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { migrateSaved, isCurrentShape, validQidSet, STORAGE_VERSION };
+  module.exports = { migrateSaved, isCurrentShape, validQidSet, STORAGE_VERSION, PERFECT_TOTAL, isPerfectTotal };
 }
