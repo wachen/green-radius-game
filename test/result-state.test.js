@@ -105,6 +105,36 @@ test('backward-compat: a legacy v1 (g array) link decodes with campId null', () 
   expect(decoded.campId).toBeNull();
 });
 
+// ─── contentVersion in the result payload (additive, backward-compatible) ────
+
+test('round-trip: contentVersion is carried through encode/decode when present', () => {
+  const fills = {};
+  for (const id of SECTOR_IDS) fills[id] = { levels: [[true], [true, false], [false, true, false], [true, false, false, false]] };
+  const encoded = ResultState.encode({ fills, campName: 'Dusty Camp', leadName: 'Sandy', year: 2026, contentVersion: '2026' });
+  const decoded = ResultState.decode(encoded);
+  expect(decoded).not.toBeNull();
+  expect(decoded.contentVersion).toBe('2026');
+  // camp/fills still intact alongside the new field
+  expect(decoded.campName).toBe('Dusty Camp');
+});
+
+test('backward-compat: a v2 link WITHOUT contentVersion decodes with contentVersion undefined (old links)', () => {
+  const fills = {};
+  for (const id of SECTOR_IDS) fills[id] = { levels: [[true], [false, false], [false, false, false], [false, false, false, false]] };
+  const encoded = ResultState.encode({ fills, campName: 'No Version Camp', year: 2025 });
+  const decoded = ResultState.decode(encoded);
+  expect(decoded).not.toBeNull();
+  expect(decoded.contentVersion).toBeUndefined();
+});
+
+test('backward-compat: a legacy v1 (g array) link decodes with contentVersion undefined', () => {
+  const legacy = { c: 'Legacy Camp', l: 'Old Lead', y: 2019, g: [1, 2, 3, 4, 0, 2] };
+  const encoded = toB64Url(JSON.stringify(legacy));
+  const decoded = ResultState.decode(encoded);
+  expect(decoded).not.toBeNull();
+  expect(decoded.contentVersion).toBeUndefined();
+});
+
 // ─── reconstructSave: rebuild a current-shape localStorage save from a result ──
 
 import GameData from '../game-data.js';

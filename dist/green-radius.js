@@ -399,7 +399,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
         greens[s.id] = sectorFill(s, answers).totalYes;
       });
       const year = new Date().getFullYear();
-      const resultUrl = window.location.origin + "/result/?r=" + window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills, campId });
+      const resultUrl = window.location.origin + "/result/?r=" + window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills, campId, contentVersion: window.CONTENT_VERSION });
       const email = (overrideEmail != null ? overrideEmail : camp.email || "").trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         if (gen === submitGenRef.current)

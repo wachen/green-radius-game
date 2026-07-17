@@ -392,7 +392,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       sectors.forEach(s => { greens[s.id] = sectorFill(s, answers).totalYes; });
       const year = new Date().getFullYear();
       const resultUrl = window.location.origin + '/result/?r=' +
-        window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills, campId });
+        window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills, campId, contentVersion: window.CONTENT_VERSION });
       // overrideEmail (from the done-screen "edit & resend") wins over camp.email,
       // which may not have flushed through setCamp yet when resend fires.
       const email = (overrideEmail != null ? overrideEmail : (camp.email || '')).trim();
