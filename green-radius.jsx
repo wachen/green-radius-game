@@ -307,8 +307,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   const revealArmedRef = useRef(false); // set only when we transition playing→done in-session (board mode)
   const rankRef = useRef(null);         // the finished-screen rank word, for the closing leaf burst
-  const revealReduceMotion = typeof window !== 'undefined' && window.matchMedia &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const revealReduceMotion = prefersReducedMotion();
   const totalYesAll = sectors.reduce((n, s) => n + (fills[s.id] ? fills[s.id].totalYes : 0), 0);
   const revealActive = phase === 'done' && revealArmedRef.current && mode === 'board';
   const { value: revealValue, done: revealDone } = useResultReveal(totalYesAll, revealActive, revealReduceMotion);
@@ -512,8 +511,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setSpinning(true);
     setRotation(newRotation);
 
-    const reduceMotion = window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduceMotion = prefersReducedMotion();
     clearTimeout(spinTimerRef.current);
     spinTimerRef.current = setTimeout(() => {
       setSpinning(false);

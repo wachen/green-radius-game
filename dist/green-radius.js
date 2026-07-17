@@ -334,7 +334,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
   const [restored, setRestored] = useState(saved?.salvaged || false);
   const revealArmedRef = useRef(false);
   const rankRef = useRef(null);
-  const revealReduceMotion = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const revealReduceMotion = prefersReducedMotion();
   const totalYesAll = sectors.reduce((n, s) => n + (fills[s.id] ? fills[s.id].totalYes : 0), 0);
   const revealActive = phase === "done" && revealArmedRef.current && mode === "board";
   const { value: revealValue, done: revealDone } = useResultReveal(totalYesAll, revealActive, revealReduceMotion);
@@ -531,7 +531,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
     const newRotation = rotation + baseTurns * 360 + forwardDelta + jitter;
     setSpinning(true);
     setRotation(newRotation);
-    const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotion = prefersReducedMotion();
     clearTimeout(spinTimerRef.current);
     spinTimerRef.current = setTimeout(() => {
       setSpinning(false);

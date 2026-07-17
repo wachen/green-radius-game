@@ -481,7 +481,7 @@ function ResultToast({ kind, sector, greens, palette, onClose }) {
   }, anyGreen ? `${greens} of 10 answered yes` : "Sector done · no yeses this time. Room to grow!")));
 }
 function Celebration({ sector, palette, onDone }) {
-  const reduceMotion = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reduceMotion = prefersReducedMotion();
   useEffect(() => {
     const t = setTimeout(onDone, reduceMotion ? 1400 : 2600);
     return () => clearTimeout(t);
