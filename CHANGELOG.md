@@ -10,6 +10,7 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Result emails now send a plain-text alternative alongside the HTML body (headline, per-sector breakdown, result link, Green-Up Plan, footer) — a missing plain-text part is a common spam-filter signal; DNS check confirmed SPF/DKIM/DMARC are already fully configured for `greenradi.us` (#84)
 - Added a client-side error beacon: `/beacon.js` installs `window.onerror`/`unhandledrejection` handlers and posts a bounded, log-only report to a new `POST /api/client-error` Worker route, so silent white screens on odd playa phones now surface in Workers Logs (#83)
 - Stamped a `CONTENT_VERSION` ("2026") into the shared result link's `?r=` payload as an optional `cv` field, so a future year-over-year ghost-ring overlay can tell whether two result links answered the same question set; legacy links without it decode unchanged (#82)
 
