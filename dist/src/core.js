@@ -45,7 +45,7 @@ const COMMUNITY_LINK_URL = "https://www.greenthemecampcommunity.org/";
 const BOARD_GAME_PDF_URL = "/downloads/" + encodeURIComponent("2026.05.19 Green Radius Game -- Download for Players -- How-to-Play - Board Game - Matrix - Detail -- v 26 FINAL .pdf");
 const RESOURCE_GUIDE_URL = "https://www.greenthemecampcommunity.org/resource-guide";
 const REPORT_EMAIL = "greenthemecamps@burningman.org";
-const APP_VERSION = "v76";
+const APP_VERSION = "v79";
 function validQidSet(sectors) {
   const set = new Set;
   sectors.forEach((s) => {
