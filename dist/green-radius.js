@@ -62,10 +62,8 @@ function Intro({ onStart, onBack, palette, description, initial }) {
   const [leadName, setLeadName] = useState(initial && initial.leadName || "");
   const [email, setEmail] = useState(initial && initial.email || "");
   const [tried, setTried] = useState(false);
-  const campOk = !!campName.trim();
-  const leadOk = !!leadName.trim();
-  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const canStart = campOk && leadOk && emailOk;
+  const emailOk = email.trim() === "" || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const canStart = emailOk;
   function handleStart() {
     if (!canStart) {
       setTried(true);
@@ -73,14 +71,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
     }
     onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim() });
   }
-  const missing = [];
-  if (!campOk)
-    missing.push("a camp name");
-  if (!leadOk)
-    missing.push("your name");
-  if (!emailOk)
-    missing.push("a valid email");
-  const missingMsg = missing.length === 1 ? `Please add ${missing[0]} to continue.` : missing.length === 2 ? `Please add ${missing[0]} and ${missing[1]} to continue.` : `Please add ${missing.slice(0, -1).join(", ")}, and ${missing[missing.length - 1]} to continue.`;
+  const missingMsg = "That email doesn't look right. Fix it or leave it blank for now.";
   return React.createElement("div", {
     style: { padding: "20px 24px 28px", maxWidth: 480, margin: "0 auto", textAlign: "center" }
   }, React.createElement("div", {
@@ -117,33 +108,36 @@ function Intro({ onStart, onBack, palette, description, initial }) {
   }, "Green Radius?")), React.createElement("div", {
     style: { fontSize: 15, lineHeight: 1.5, color: palette.text + "cc", marginBottom: 32, textWrap: "pretty" }
   }, description), React.createElement("div", {
-    style: { display: "flex", flexDirection: "column", gap: 12, marginBottom: 28, textAlign: "left" }
+    style: { display: "flex", flexDirection: "column", gap: 12, marginBottom: 12, textAlign: "left" }
   }, React.createElement(Field, {
     label: "Camp name",
     value: campName,
     onChange: setCampName,
     placeholder: "Your Theme Camp",
-    palette,
-    required: true,
-    invalid: tried && !campOk
+    palette
   }), React.createElement(Field, {
     label: "Sustainability lead",
     value: leadName,
     onChange: setLeadName,
     placeholder: "Your (Playa) Name",
-    palette,
-    required: true,
-    invalid: tried && !leadOk
+    palette
   }), React.createElement(Field, {
     label: "Email address",
     value: email,
     onChange: setEmail,
     placeholder: "you@your.camp",
     palette,
-    required: true,
     invalid: tried && !emailOk,
     type: "email"
-  })), React.createElement("button", {
+  })), React.createElement("div", {
+    style: {
+      fontSize: 11,
+      lineHeight: 1.45,
+      color: palette.text + "99",
+      marginBottom: 24,
+      textWrap: "pretty"
+    }
+  }, "Optional for now. You can add these after you play."), React.createElement("button", {
     onClick: handleStart,
     "aria-label": "Start",
     style: {
@@ -179,7 +173,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
       marginTop: 16,
       textWrap: "pretty"
     }
-  }, "By continuing, you agree the Green Theme Camp Community will email your results. We store your camp name, email, and answers to track community progress, and never share or sell them."), React.createElement("div", {
+  }, "By sharing your details, you agree the Green Theme Camp Community will email your results. We store your camp name, email, and answers to track community progress, and never share or sell them."), React.createElement("div", {
     style: {
       fontSize: 10,
       letterSpacing: "0.15em",
@@ -235,6 +229,104 @@ function Field({ label, value, onChange, placeholder, palette, required, invalid
       fontFamily: "inherit"
     }
   }));
+}
+function identityComplete(camp) {
+  return !!(camp && (camp.campName || "").trim() && (camp.leadName || "").trim() && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((camp.email || "").trim()));
+}
+function DoneIdentityForm({ initial, palette, onSave }) {
+  const [campName, setCampName] = useState(initial && initial.campName || "");
+  const [leadName, setLeadName] = useState(initial && initial.leadName || "");
+  const [email, setEmail] = useState(initial && initial.email || "");
+  const [tried, setTried] = useState(false);
+  const campOk = !!campName.trim();
+  const leadOk = !!leadName.trim();
+  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const canSave = campOk && leadOk && emailOk;
+  const missing = [];
+  if (!campOk)
+    missing.push("a camp name");
+  if (!leadOk)
+    missing.push("your name");
+  if (!emailOk)
+    missing.push("a valid email");
+  const missingMsg = missing.length === 1 ? `Please add ${missing[0]} to continue.` : missing.length === 2 ? `Please add ${missing[0]} and ${missing[1]} to continue.` : `Please add ${missing.slice(0, -1).join(", ")}, and ${missing[missing.length - 1]} to continue.`;
+  function handleSave() {
+    if (!canSave) {
+      setTried(true);
+      return;
+    }
+    onSave({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim() });
+  }
+  return React.createElement("div", {
+    style: {
+      marginBottom: 16,
+      padding: "16px 16px 14px",
+      borderRadius: 14,
+      textAlign: "left",
+      background: palette.card,
+      border: `1.5px solid ${palette.accentDark}44`
+    }
+  }, React.createElement("div", {
+    style: { fontSize: 14, fontWeight: 800, color: palette.heading, marginBottom: 4 }
+  }, "Get your results"), React.createElement("div", {
+    style: { fontSize: 12.5, lineHeight: 1.5, color: palette.text + "cc", marginBottom: 12, textWrap: "pretty" }
+  }, "Add your camp details to join the city tally and get your result and Green-Up Plan by email."), React.createElement("div", {
+    style: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }
+  }, React.createElement(Field, {
+    label: "Camp name",
+    value: campName,
+    onChange: setCampName,
+    placeholder: "Your Theme Camp",
+    palette,
+    required: true,
+    invalid: tried && !campOk
+  }), React.createElement(Field, {
+    label: "Sustainability lead",
+    value: leadName,
+    onChange: setLeadName,
+    placeholder: "Your (Playa) Name",
+    palette,
+    required: true,
+    invalid: tried && !leadOk
+  }), React.createElement(Field, {
+    label: "Email address",
+    value: email,
+    onChange: setEmail,
+    placeholder: "you@your.camp",
+    palette,
+    required: true,
+    invalid: tried && !emailOk,
+    type: "email"
+  })), React.createElement("button", {
+    onClick: handleSave,
+    style: {
+      width: "100%",
+      padding: "13px 0",
+      borderRadius: 12,
+      border: "none",
+      background: palette.accentDark,
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 800,
+      letterSpacing: "0.12em",
+      textTransform: "uppercase",
+      cursor: "pointer",
+      boxShadow: `0 3px 0 ${palette.accentDeep}`,
+      minHeight: 48
+    }
+  }, "Email My Results"), tried && !canSave && React.createElement("div", {
+    role: "alert",
+    style: {
+      fontSize: 12,
+      lineHeight: 1.4,
+      color: "#B4463A",
+      marginTop: 8,
+      fontWeight: 700,
+      textWrap: "pretty"
+    }
+  }, missingMsg), React.createElement("div", {
+    style: { fontSize: 11, lineHeight: 1.45, color: palette.text + "99", marginTop: 10, textWrap: "pretty" }
+  }, "By continuing, you agree the Green Theme Camp Community will email your results. We store your camp name, email, and answers to track community progress, and never share or sell them."));
 }
 function RestoredBanner({ onDismiss }) {
   return React.createElement("div", {
@@ -461,8 +553,10 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
     }
     if (autoSentRef.current)
       return;
+    if (!identityComplete(camp))
+      return;
     runSubmit();
-  }, [phase, submittedAt, runSubmit]);
+  }, [phase, submittedAt, camp, runSubmit]);
   useEffect(() => {
     if (phase !== "done" || !cardSvgRef.current)
       return;
@@ -799,7 +893,11 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
       campName: camp.campName,
       leadName: camp.leadName,
       year
-    })), React.createElement("div", {
+    })), !submittedAt && !identityComplete(camp) ? React.createElement(DoneIdentityForm, {
+      initial: camp,
+      palette,
+      onSave: setCamp
+    }) : React.createElement(React.Fragment, null, React.createElement("div", {
       role: "status",
       "aria-live": "polite",
       style: { marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }
@@ -872,7 +970,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
         textDecoration: "underline",
         textUnderlineOffset: 3
       }
-    }, "Wrong email? Edit and resend")), React.createElement("div", {
+    }, "Wrong email? Edit and resend"))), React.createElement("div", {
       style: { display: "flex", gap: 10 }
     }, React.createElement("button", {
       onClick: handleDownload,

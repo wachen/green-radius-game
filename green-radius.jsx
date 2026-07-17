@@ -78,31 +78,25 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
 // ─── intro / camp setup ───────────────────────────────────────────────────────
 // `initial` prefills the fields from the running game's camp info, so stepping
 // back from the board/form lets the player fix a typo'd detail and continue.
+// U5: the fields are optional here — playing is never gated on identity. The
+// done screen collects whatever is missing before results are submitted, so
+// the data that reaches the sheet/email is unchanged. Only a typed-but-invalid
+// email blocks Start (better fixed now than discovered at the end).
 function Intro({ onStart, onBack, palette, description, initial }) {
   const [campName, setCampName] = useState((initial && initial.campName) || '');
   const [leadName, setLeadName] = useState((initial && initial.leadName) || '');
   const [email, setEmail] = useState((initial && initial.email) || '');
   const [tried, setTried] = useState(false);
 
-  const campOk = !!campName.trim();
-  const leadOk = !!leadName.trim();
-  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const canStart = campOk && leadOk && emailOk;
+  const emailOk = email.trim() === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const canStart = emailOk;
 
   function handleStart() {
     if (!canStart) { setTried(true); return; }
     onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim() });
   }
 
-  const missing = [];
-  if (!campOk) missing.push('a camp name');
-  if (!leadOk) missing.push('your name');
-  if (!emailOk) missing.push('a valid email');
-  const missingMsg = missing.length === 1
-    ? `Please add ${missing[0]} to continue.`
-    : missing.length === 2
-      ? `Please add ${missing[0]} and ${missing[1]} to continue.`
-      : `Please add ${missing.slice(0, -1).join(', ')}, and ${missing[missing.length - 1]} to continue.`;
+  const missingMsg = "That email doesn't look right. Fix it or leave it blank for now.";
 
   return (
     <div style={{ padding: '20px 24px 28px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
@@ -129,10 +123,17 @@ function Intro({ onStart, onBack, palette, description, initial }) {
         {description}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28, textAlign: 'left' }}>
-        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
-        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
-        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk} type="email"/>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 12, textAlign: 'left' }}>
+        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette}/>
+        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette}/>
+        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} invalid={tried && !emailOk} type="email"/>
+      </div>
+
+      <div style={{
+        fontSize: 11, lineHeight: 1.45, color: palette.text + '99',
+        marginBottom: 24, textWrap: 'pretty',
+      }}>
+        Optional for now. You can add these after you play.
       </div>
 
       <button
@@ -163,7 +164,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
         fontSize: 11, lineHeight: 1.45, color: palette.text + '99',
         marginTop: 16, textWrap: 'pretty',
       }}>
-        By continuing, you agree the Green Theme Camp Community will email your results. We store your camp name, email, and answers to track community progress, and never share or sell them.
+        By sharing your details, you agree the Green Theme Camp Community will email your results. We store your camp name, email, and answers to track community progress, and never share or sell them.
       </div>
 
       <div style={{
@@ -215,6 +216,80 @@ function Field({ label, value, onChange, placeholder, palette, required, invalid
         }}
       />
     </label>
+  );
+}
+
+// U5: the full identity needed before results can be submitted/emailed — the
+// same three fields the intro used to require, now enforced only at this point.
+function identityComplete(camp) {
+  return !!(camp && (camp.campName || '').trim() && (camp.leadName || '').trim() &&
+    /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((camp.email || '').trim()));
+}
+
+// Done-screen identity capture for players who skipped the intro fields (U5).
+// Same fields and consent line as the intro; saving hands the completed camp
+// back to the game, whose auto-send effect then fires the submit.
+function DoneIdentityForm({ initial, palette, onSave }) {
+  const [campName, setCampName] = useState((initial && initial.campName) || '');
+  const [leadName, setLeadName] = useState((initial && initial.leadName) || '');
+  const [email, setEmail] = useState((initial && initial.email) || '');
+  const [tried, setTried] = useState(false);
+
+  const campOk = !!campName.trim();
+  const leadOk = !!leadName.trim();
+  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const canSave = campOk && leadOk && emailOk;
+
+  const missing = [];
+  if (!campOk) missing.push('a camp name');
+  if (!leadOk) missing.push('your name');
+  if (!emailOk) missing.push('a valid email');
+  const missingMsg = missing.length === 1
+    ? `Please add ${missing[0]} to continue.`
+    : missing.length === 2
+      ? `Please add ${missing[0]} and ${missing[1]} to continue.`
+      : `Please add ${missing.slice(0, -1).join(', ')}, and ${missing[missing.length - 1]} to continue.`;
+
+  function handleSave() {
+    if (!canSave) { setTried(true); return; }
+    onSave({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim() });
+  }
+
+  return (
+    <div style={{
+      marginBottom: 16, padding: '16px 16px 14px', borderRadius: 14, textAlign: 'left',
+      background: palette.card, border: `1.5px solid ${palette.accentDark}44`,
+    }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: palette.heading, marginBottom: 4 }}>
+        Get your results
+      </div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.5, color: palette.text + 'cc', marginBottom: 12, textWrap: 'pretty' }}>
+        Add your camp details to join the city tally and get your result and Green-Up Plan by email.
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
+        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
+        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk} type="email"/>
+      </div>
+      <button onClick={handleSave}
+        style={{
+          width: '100%', padding: '13px 0', borderRadius: 12, border: 'none',
+          background: palette.accentDark, color: '#fff', fontSize: 13, fontWeight: 800,
+          letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
+          boxShadow: `0 3px 0 ${palette.accentDeep}`, minHeight: 48,
+        }}>Email My Results</button>
+      {tried && !canSave && (
+        <div role="alert" style={{
+          fontSize: 12, lineHeight: 1.4, color: '#B4463A',
+          marginTop: 8, fontWeight: 700, textWrap: 'pretty',
+        }}>
+          {missingMsg}
+        </div>
+      )}
+      <div style={{ fontSize: 11, lineHeight: 1.45, color: palette.text + '99', marginTop: 10, textWrap: 'pretty' }}>
+        By continuing, you agree the Green Theme Camp Community will email your results. We store your camp name, email, and answers to track community progress, and never share or sell them.
+      </div>
+    </div>
   );
 }
 
@@ -437,12 +512,16 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
   // Fire the submit once when the done screen first appears. submittedAt (persisted)
   // prevents re-sending across reloads; autoSentRef guards a double-fire in-session.
+  // U5: with the intro fields optional, an incomplete identity waits here for the
+  // done-screen form — its onSave setCamp recreates runSubmit, re-running this
+  // effect, which then fires with the completed camp.
   useEffect(() => {
     if (phase !== 'done') return;
     if (submittedAt) { setSubmitState('done'); return; }
     if (autoSentRef.current) return;
+    if (!identityComplete(camp)) return;
     runSubmit();
-  }, [phase, submittedAt, runSubmit]);
+  }, [phase, submittedAt, camp, runSubmit]);
 
   // Pre-rasterize the card so Web Share has the file ready inside the tap gesture
   // (Safari blocks share() if the file is produced by a later async step). Best-effort.
@@ -760,6 +839,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           <ResultCardSVG svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year}/>
         </div>
 
+        {/* U5: identity skipped at the intro → collect it here before anything
+            is submitted; otherwise the usual submit status + resend affordance. */}
+        {!submittedAt && !identityComplete(camp) ? (
+          <DoneIdentityForm initial={camp} palette={palette} onSave={setCamp}/>
+        ) : (<>
         <div role="status" aria-live="polite" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
           {submitState === 'sending'
             ? <>Emailing your results to <strong>{email}</strong>…</>
@@ -799,6 +883,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             </button>
           )
         )}
+        </>)}
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={handleDownload}
