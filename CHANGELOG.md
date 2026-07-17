@@ -10,6 +10,7 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Hardening for the playa: save safety & accessibility (#68–)
 
+- CI now boots all four pages (`/`, `/result/`, `/city/`, `/admin/`) in headless Chromium on every PR, catching a page that loads but silently fails to render (the class of bug behind the #66-era `ShareCard`-undefined incident) before it can merge (#74)
 - Added a post-deploy verify workflow that polls the live site for the new APP_VERSION stamp and checks a URL matrix (dist/ scripts 200, retired/excluded paths 404) after every push to `main`, catching regressions like #71 automatically (#73)
 - Changelog debt paid for the #71 hotfix and the `.assetsignore` anchoring gotcha documented in CLAUDE.md (#72)
 - Hotfix: anchored `/src` in `.assetsignore` — unanchored, it also matched `dist/src/` and briefly 404'd the compiled game scripts right after #70 deployed (#71)

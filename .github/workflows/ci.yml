@@ -31,3 +31,31 @@ jobs:
           fi
       - name: Unit tests
         run: bun test
+
+  boot-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # No package.json in this repo by design — install Playwright ad hoc,
+      # pinned to match what's exercised locally.
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.61.1
+          npx playwright install --with-deps chromium
+      # Backgrounded here so it's still running for the "Boot-smoke" step below.
+      - name: Serve the repo statically
+        run: |
+          python3 -m http.server 8000 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/ > /dev/null && exit 0
+            sleep 0.5
+          done
+          echo "::error::static server never came up"; exit 1
+      # Drives headless Chromium against /, /result/, /city/, /admin/ and
+      # asserts each one actually boots (see test/boot-smoke.mjs for what
+      # "boots" means and why this exists).
+      - name: Boot-smoke the four entry pages
+        run: node test/boot-smoke.mjs http://localhost:8000
