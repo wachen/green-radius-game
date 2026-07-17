@@ -172,6 +172,12 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   even when an extra slot was answered "No". Client prose must never flow into the
   email directly — `/api/complete` mails any address the caller supplies, so
   free-form body text would turn it into a phishing relay.
+- **The Resend call sends both `html` and `text`.** `buildEmailText` (with
+  `headlineEmailText`/`greenUpEmailText`) mirrors the same headline, per-sector
+  breakdown, result link, Green-Up Plan and footer as the HTML body, sharing the
+  Green-Up Plan's group-derivation (`greenUpGroups`) with `greenUpEmailHtml` so
+  the two renderers can't drift apart. Deliverability, not cosmetics — a missing
+  plain-text part is a common spam-filter signal.
 
 ## External integrations
 

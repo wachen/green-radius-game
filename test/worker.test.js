@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
-import { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, sendEmail, handleClientError } from '../worker/index.js';
+import { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError } from '../worker/index.js';
 import GameData from '../game-data.js';
 
 function b64url(data) {
@@ -164,6 +164,70 @@ describe('headlineEmailHtml', () => {
   });
 });
 
+describe('headlineEmailText', () => {
+  const greens = { food: 7, water: 4, waste: 10, transport: 2, shelter: 5, power: 6 };
+  test('states the total and all six sector scores as plain text, no tags', () => {
+    const text = headlineEmailText(greens);
+    expect(text).toContain('34/60 achieved');
+    for (const s of GameData.SECTORS) {
+      expect(text).toContain(s.name);
+    }
+    expect(text).toContain('Food: 7/10');
+    expect(text).toContain('Waste: 10/10');
+    expect(text).not.toContain('<');
+    expect(text).not.toContain('>');
+  });
+  test('missing greens degrade to 0 without throwing', () => {
+    expect(headlineEmailText(undefined)).toContain('0/60 achieved');
+  });
+});
+
+describe('greenUpEmailText', () => {
+  test('empty answers produce an empty plan', () => {
+    expect(greenUpEmailText({})).toBe('');
+    expect(greenUpEmailText(null)).toBe('');
+  });
+
+  test('a level "no" answer becomes a step, no HTML tags leak', () => {
+    const text = greenUpEmailText({ F1: 'no' });
+    expect(text).toContain('1 idea to grow your radius next year');
+    expect(text).toContain('FOOD');
+    expect(text).toContain('L1 · Meal Plan');
+    expect(text).not.toContain('<');
+    expect(text).not.toContain('>');
+  });
+
+  test('a write-in note answered "no" includes the camp\'s own words', () => {
+    const text = greenUpEmailText({ 'F-camp': 'no', 'F-camp-note': "Solar oven" });
+    expect(text).toContain("Our Camp's Idea: Solar oven");
+  });
+});
+
+describe('buildEmailText', () => {
+  test('mirrors the html: intro, headline, link, plan, footer in order, no markup', () => {
+    const text = buildEmailText('https://greenradi.us/result/?r=x', { F1: 'no' },
+      { food: 3, water: 0, waste: 0, transport: 0, shelter: 0, power: 0 });
+    const iIntro = text.indexOf('Thanks for playing');
+    const iHead = text.indexOf('/60 achieved');
+    const iLink = text.indexOf('https://greenradi.us/result/?r=x');
+    const iPlan = text.indexOf('Green-Up Plan');
+    const iFooter = text.indexOf('Questions? Just reply');
+    expect(iIntro).toBeGreaterThanOrEqual(0);
+    expect(iHead).toBeGreaterThan(iIntro);
+    expect(iLink).toBeGreaterThan(iHead);
+    expect(iPlan).toBeGreaterThan(iLink);
+    expect(iFooter).toBeGreaterThan(iPlan);
+    expect(text).not.toContain('<');
+    expect(text).not.toContain('>');
+  });
+
+  test('an all-Yes result omits the plan section entirely', () => {
+    const text = buildEmailText('https://greenradi.us/result/?r=x', {},
+      { food: 10, water: 10, waste: 10, transport: 10, shelter: 10, power: 10 });
+    expect(text).not.toContain('Green-Up Plan');
+  });
+});
+
 describe('sendEmail body order', () => {
   test('intro, headline, link, plan, footer appear in order', async () => {
     const originalFetch = globalThis.fetch;
@@ -182,6 +246,21 @@ describe('sendEmail body order', () => {
     expect(iHead).toBeGreaterThan(iIntro);
     expect(iLink).toBeGreaterThan(iHead);
     expect(iFooter).toBeGreaterThan(iLink);
+  });
+
+  test('a plain-text alternative rides alongside the html, with the same result link', async () => {
+    const originalFetch = globalThis.fetch;
+    let sent;
+    globalThis.fetch = async (url, opts) => { sent = JSON.parse(opts.body); return new Response('{}', { status: 200 }); };
+    try {
+      await sendEmail({ RESEND_API_KEY: 'k' }, 'a@b.co', 'Dusty', 'https://greenradi.us/result/?r=x',
+        {}, { food: 1, water: 0, waste: 0, transport: 0, shelter: 0, power: 0 });
+    } finally { globalThis.fetch = originalFetch; }
+    expect(sent.text).toBeTruthy();
+    expect(typeof sent.text).toBe('string');
+    expect(sent.text).toContain('https://greenradi.us/result/?r=x');
+    expect(sent.text).not.toContain('<');
+    expect(sent.text).not.toContain('>');
   });
 });
 

@@ -238,6 +238,7 @@ export async function sendEmail(env, to, campName, resultUrl, answers, greens, n
       to: [to],
       subject: `Your Green Radius — ${campName}`,
       html: `<p>Thanks for playing the Green Radius Game!</p>${headlineEmailHtml(greens)}<p><a href="${href}">View &amp; share your Green Radius →</a></p>${greenUpEmailHtml(answers)}<p style="color:#888;font-size:12px">Questions? Just reply to this email — it reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
+      text: buildEmailText(resultUrl, answers, greens),
     }),
   });
   if (!r.ok) { console.error('email_send_failed', { outcome: 'http_error', status: r.status }); return false; }
@@ -258,14 +259,37 @@ export function headlineEmailHtml(greens) {
     `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;margin:0 0 4px">${rows}</table>`;
 }
 
-// The email copy of the done screen's Green-Up Plan, mirroring greenUpSteps in
-// green-radius.jsx: every "No" answer becomes a next-year step, grouped by
-// sector; a written-in "Our Camp's Idea" answered No shows the camp's own
-// words. Built server-side from the sanitized answers map (never from client
-// prose) so the only client-authored text an email can carry is the six
-// bounded, HTML-escaped write-in notes. Empty plan (all Yes) → empty string.
-function greenUpEmailHtml(answers) {
-  if (!answers) return '';
+// Plain-text counterpart to headlineEmailHtml: same total + per-sector lines, no markup.
+export function headlineEmailText(greens) {
+  const total = GameData.SECTORS.reduce((n, s) => n + ((greens && greens[s.id]) | 0), 0);
+  const lines = GameData.SECTORS.map(s => `${s.name}: ${(greens && greens[s.id]) | 0}/10`);
+  return `${total}/60 achieved\n\n${lines.join('\n')}`;
+}
+
+// Plain-text alternative for the whole result email, same substance/order/tone
+// as the html built in sendEmail: intro, headline + per-sector breakdown, the
+// result link, the Green-Up Plan (if any), then the footer.
+export function buildEmailText(resultUrl, answers, greens) {
+  const plan = greenUpEmailText(answers);
+  return [
+    'Thanks for playing the Green Radius Game!',
+    headlineEmailText(greens),
+    `View & share your Green Radius: ${resultUrl}`,
+    plan,
+    'Questions? Just reply to this email — it reaches the Green Theme Camp Community team.\ngreenthemecampcommunity.org',
+  ].filter(Boolean).join('\n\n');
+}
+
+// Derives the Green-Up Plan's sector groups from the sanitized answers map,
+// mirroring greenUpSteps in green-radius.jsx: every "No" answer becomes a
+// next-year step, grouped by sector; a written-in "Our Camp's Idea" answered
+// No shows the camp's own words. Shared by both the HTML and plain-text email
+// renderers below so the derivation logic lives in exactly one place. Built
+// server-side from the sanitized answers map (never from client prose) so the
+// only client-authored text an email can carry is the six bounded,
+// HTML-escaped write-in notes. Empty plan (all Yes) → [].
+function greenUpGroups(answers) {
+  if (!answers) return [];
   const groups = [];
   for (const s of GameData.SECTORS) {
     const steps = [];
@@ -281,6 +305,11 @@ function greenUpEmailHtml(answers) {
     });
     if (steps.length) groups.push({ name: s.name, steps });
   }
+  return groups;
+}
+
+function greenUpEmailHtml(answers) {
+  const groups = greenUpGroups(answers);
   if (!groups.length) return '';
   const count = groups.reduce((n, g) => n + g.steps.length, 0);
   return `<p style="margin:22px 0 2px"><strong>🌱 Your Green-Up Plan</strong> · ${count} ${count === 1 ? 'idea' : 'ideas'} to grow your radius next year</p>` +
@@ -293,6 +322,19 @@ function greenUpEmailHtml(answers) {
       ).join('<br>') +
       `</p>`
     ).join('');
+}
+
+// Plain-text counterpart to greenUpEmailHtml, same groups/steps, no markup.
+export function greenUpEmailText(answers) {
+  const groups = greenUpGroups(answers);
+  if (!groups.length) return '';
+  const count = groups.reduce((n, g) => n + g.steps.length, 0);
+  const header = `Your Green-Up Plan · ${count} ${count === 1 ? 'idea' : 'ideas'} to grow your radius next year`;
+  const body = groups.map(g =>
+    `${g.name.toUpperCase()}\n` +
+    g.steps.map(st => `L${st.level} · ${st.title}${st.url ? ` (${st.url})` : ''}`).join('\n')
+  ).join('\n\n');
+  return `${header}\n\n${body}`;
 }
 
 export function safeResultUrl(raw) {
