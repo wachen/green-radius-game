@@ -378,7 +378,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
                 style={{
                   flex: 1, padding: '14px 0', borderRadius: 14,
                   border: 'none',
-                  background: '#4c7339', color: '#fff',
+                  background: '#558040', color: '#fff',
                   fontSize: 15, fontWeight: 700, letterSpacing: '0.05em',
                   cursor: canAnswer ? 'pointer' : 'default',
                   opacity: canAnswer ? 1 : 0.55,
@@ -462,7 +462,7 @@ function ResultToast({ kind, sector, greens, palette, onClose }) {
       animation: 'qm-fade 0.25s ease',
     }}>
       <div style={{
-        background: anyGreen ? '#4c7339' : '#3a2a20',
+        background: anyGreen ? '#558040' : '#3a2a20',
         color: '#fff', padding: '16px 20px', borderRadius: 16,
         boxShadow: '0 18px 48px rgba(0,0,0,0.4)',
         textAlign: 'center', maxWidth: 260,

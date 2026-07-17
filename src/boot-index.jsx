@@ -12,12 +12,14 @@ const PALETTE = {
   hub: '#3a3128',
   hubStroke: '#4a4036',
   accent: '#7AB85C',
-  // accentDark doubles as the fill under white CTA labels and as green text on
-  // the tan/card surfaces, so it must clear WCAG AA (4.5:1) against all three:
-  // white labels on it, and it on #ede9e0 / #fcfaf4. #4c7339 is the lightest
-  // green in this hue that does. accentDeep is the .grg-press "foot" shadow
-  // under accentDark fills (a foot the same color as its fill disappears).
-  accentDark: '#4c7339',
+  // Two WCAG-AA action greens, each the LIGHTEST that passes its own use:
+  // accentDark fills sit under white labels (4.62:1) and may carry large text
+  // on the tan bg (3.83:1, >= 3:1); accentText is for small green text, where
+  // the tan bg #ede9e0 is the binding surface (4.56:1; even accentDark fails
+  // there at 3.83). accentDeep is the .grg-press "foot" shadow under
+  // accentDark fills (a foot the same color as its fill disappears).
+  accentDark: '#558040',
+  accentText: '#4c7339',
   accentDeep: '#38542b',
 };
 

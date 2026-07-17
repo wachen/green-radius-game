@@ -3,7 +3,7 @@
 const CARD_BG = "linear-gradient(160deg, #0e2733 0%, #14323f 100%)";
 const playBtn = {
   display: "inline-block",
-  background: "#4c7339",
+  background: "#558040",
   color: "#fff",
   padding: "12px 22px",
   borderRadius: 14,

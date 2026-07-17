@@ -129,7 +129,7 @@ function ResultView({ sectors, fills, campName, leadName, year }) {
     style: { display: "flex", gap: 10 }
   }, React.createElement("button", {
     onClick: handleDownload,
-    style: { ...btn, background: "#4c7339", boxShadow: "0 3px 0 #38542b" }
+    style: { ...btn, background: "#558040", boxShadow: "0 3px 0 #38542b" }
   }, React.createElement(DownloadIcon, null), downloadFailed ? "Couldn't download" : "Download"), React.createElement("button", {
     onClick: handleShare,
     style: { ...btn, background: "#3B6FD4", boxShadow: "0 3px 0 #2b539e" }
@@ -137,7 +137,7 @@ function ResultView({ sectors, fills, campName, leadName, year }) {
     style: { borderTop: "1px solid #2a262022", paddingTop: 14, display: "flex", flexDirection: "column", gap: 8 }
   }, React.createElement("button", {
     onClick: handleContinue,
-    style: { ...btn, background: "#4c7339", boxShadow: "0 3px 0 #38542b", textTransform: "uppercase" }
+    style: { ...btn, background: "#558040", boxShadow: "0 3px 0 #38542b", textTransform: "uppercase" }
   }, "Continue improving"), React.createElement("div", {
     style: { fontSize: 12, lineHeight: 1.45, color: "#2a2620aa", textAlign: "center" }
   }, "Load this scorecard on this device to keep answering and raise your radius.")), confirmOpen && React.createElement("div", {
@@ -184,7 +184,7 @@ function ResultView({ sectors, fills, campName, leadName, year }) {
     onClick: doImport,
     style: {
       ...btn,
-      background: "#4c7339",
+      background: "#558040",
       boxShadow: "0 3px 0 #38542b",
       textTransform: "none",
       letterSpacing: "normal",
@@ -224,7 +224,7 @@ if (!data) {
     href: "/",
     style: {
       display: "inline-block",
-      background: "#4c7339",
+      background: "#558040",
       color: "#fff",
       padding: "12px 22px",
       borderRadius: 14,
