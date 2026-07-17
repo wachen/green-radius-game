@@ -377,7 +377,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
       padding: "14px 0",
       borderRadius: 14,
       border: "none",
-      background: "#4c7339",
+      background: "#558040",
       color: "#fff",
       fontSize: 15,
       fontWeight: 700,
@@ -465,7 +465,7 @@ function ResultToast({ kind, sector, greens, palette, onClose }) {
     }
   }, React.createElement("div", {
     style: {
-      background: anyGreen ? "#4c7339" : "#3a2a20",
+      background: anyGreen ? "#558040" : "#3a2a20",
       color: "#fff",
       padding: "16px 20px",
       borderRadius: 16,

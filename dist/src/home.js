@@ -472,7 +472,7 @@ function FaqModal({ onClose, palette }) {
     rel: "noopener noreferrer",
     style: {
       display: "inline-block",
-      background: "#4c7339",
+      background: "#558040",
       color: "#fff",
       fontWeight: 700,
       fontSize: 13,
@@ -712,7 +712,7 @@ function ModePicker({ onPick, palette }) {
       fontSize: 11,
       letterSpacing: "0.3em",
       fontWeight: 700,
-      color: palette.accentDark,
+      color: palette.accentText,
       lineHeight: 1.5,
       textDecoration: "none",
       display: "block"

@@ -178,7 +178,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
           position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
           width: 104, height: 104, borderRadius: '50%', border: 'none',
           background: spinning ? palette.hub : palette.accentDark,
-          color: palette.bg,
+          color: '#fff', // pure white: the tan palette.bg is only 3.83:1 on accentDark
           fontSize: 14, fontWeight: 800, letterSpacing: '0.12em',
           textTransform: 'uppercase',
           cursor: canSpin && !spinning ? 'pointer' : 'default',

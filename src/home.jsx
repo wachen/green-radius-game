@@ -319,7 +319,7 @@ function FaqModal({ onClose, palette }) {
             </div>
             <a href={RESOURCE_GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{
               display: 'inline-block',
-              background: '#4c7339', color: '#fff', fontWeight: 700, fontSize: 13,
+              background: '#558040', color: '#fff', fontWeight: 700, fontSize: 13,
               padding: '9px 14px', borderRadius: 11, boxShadow: '0 4px 0 #38542b',
               textDecoration: 'none',
             }}>Open the Resource Guide →</a>
@@ -474,7 +474,7 @@ function ModePicker({ onPick, palette }) {
         <a href={COMMUNITY_LINK_URL} target="_blank" rel="noopener noreferrer"
           style={{
             fontSize: 11, letterSpacing: '0.3em', fontWeight: 700,
-            color: palette.accentDark, lineHeight: 1.5,
+            color: palette.accentText, lineHeight: 1.5,
             textDecoration: 'none', display: 'block',
           }}
         >

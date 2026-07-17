@@ -200,7 +200,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
       borderRadius: "50%",
       border: "none",
       background: spinning ? palette.hub : palette.accentDark,
-      color: palette.bg,
+      color: "#fff",
       fontSize: 14,
       fontWeight: 800,
       letterSpacing: "0.12em",

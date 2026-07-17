@@ -195,7 +195,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
       fontSize: 11,
       letterSpacing: "0.3em",
       fontWeight: 700,
-      color: palette.accentDark,
+      color: palette.accentText,
       marginTop: 32,
       lineHeight: 1.5,
       textDecoration: "none",
@@ -762,7 +762,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
     return React.createElement("div", {
       style: { padding: "32px 20px", maxWidth: 480, margin: "0 auto", textAlign: "center" }
     }, React.createElement("div", {
-      style: { fontSize: 11, letterSpacing: "0.3em", fontWeight: 700, color: palette.accentDark, marginBottom: 8 }
+      style: { fontSize: 11, letterSpacing: "0.3em", fontWeight: 700, color: palette.accentText, marginBottom: 8 }
     }, "YOUR GREEN RADIUS"), React.createElement("h2", {
       style: { fontSize: 28, fontWeight: 800, margin: "0 0 24px", color: palette.heading, letterSpacing: "-0.01em" }
     }, camp.campName), React.createElement("div", {
@@ -865,7 +865,7 @@ function GreenRadiusGame({ variant = "dimensional", palette, debugFill = false }
         margin: "-6px auto 16px",
         background: "none",
         border: "none",
-        color: palette.accentDark,
+        color: palette.accentText,
         fontSize: 12,
         fontWeight: 700,
         cursor: "pointer",
