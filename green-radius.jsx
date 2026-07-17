@@ -309,6 +309,13 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const submitGenRef = useRef(0);    // bumped on Exit/new game so a stale in-flight POST can't write back
   const spinTimerRef = useRef(null); // the spin->open-modal timeout; cleared on reset so it can't fire into the next game
   const [restored, setRestored] = useState(saved?.salvaged || false); // a save from an older version was salvaged
+  // R-golden: one-time 60/60 full-board celebration (additive autosave key, no
+  // STORAGE_VERSION bump). `goldenSeen` gates the trigger so a reload/replay of
+  // an already-perfect save never re-fires it; `showGolden` is the in-session
+  // overlay toggle. Both mode paths (board + form) land on the done screen the
+  // same way, so gating on `phase === 'done'` covers either.
+  const [goldenSeen, setGoldenSeen] = useState(saved?.goldenSeen || false);
+  const [showGolden, setShowGolden] = useState(false);
 
   const revealArmedRef = useRef(false); // set only when we transition playing→done in-session (board mode)
   const rankRef = useRef(null);         // the finished-screen rank word, for the closing leaf burst
@@ -320,6 +327,17 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   useEffect(() => {
     if (revealActive && revealDone && rankRef.current) Fx.leafBurst(rankRef.current);
   }, [revealActive, revealDone]);
+
+  // The 60th Yes can only land at the very last question of the very last
+  // sector (every question everywhere must be Yes to hit 60), so the done
+  // screen's first paint is the earliest reliable place to catch it for both
+  // modes at once. isPerfectTotal/PERFECT_TOTAL live in src/core.jsx.
+  useEffect(() => {
+    if (phase === 'done' && isPerfectTotal(totalYesAll) && !goldenSeen) {
+      setShowGolden(true);
+      setGoldenSeen(true);
+    }
+  }, [phase, totalYesAll, goldenSeen]);
 
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -464,10 +482,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORAGE_VERSION,
         phase, camp, campId, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce,
+        goldenSeen,
         activeSectorId: (activeQuestion && activeQuestion.sector && activeQuestion.sector.id) || null,
       }));
     } catch {}
-  }, [phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce, activeQuestion]);
+  }, [phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce, goldenSeen, activeQuestion]);
 
   function setFormAnswer(qid, value) {
     setAnswers(prev => ({ ...prev, [qid]: value }));
@@ -579,6 +598,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     autoSentRef.current = false;
     submitGenRef.current++;
     revealArmedRef.current = false;
+    setGoldenSeen(false); // a start-over is a new camp identity, so the golden moment can fire again
+    setShowGolden(false);
     setCampId(genCampId()); // a start-over is a new camp identity, not the last one
   }
 
@@ -732,6 +753,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setSubmitState('idle');
       setSubmitResult(null);
       setEditingEmail(false);
+      setGoldenSeen(false); // next game is a new camp identity, so the golden moment can fire again
+      setShowGolden(false);
       setPhase('pick-mode');
     }
 
@@ -848,6 +871,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           style={{ marginTop: 24, background: 'none', border: 'none', color: `${palette.text}99`, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
           ✕ Exit
         </button>
+
+        {showGolden && <GoldenCelebration onDone={() => setShowGolden(false)}/>}
       </div>
     );
   }

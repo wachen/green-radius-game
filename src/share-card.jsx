@@ -76,11 +76,20 @@ function DownloadIcon() {
   );
 }
 
+// Golden accent used only when a card's total is a perfect 60 (isPerfectTotal,
+// src/core.jsx). Every other total renders exactly as before this feature —
+// see the `isPerfect` gates below in both ShareCard and ResultCardSVG.
+const GOLD = '#D9A62A';
+const GOLD_LIGHT = '#F4D488';
+
 // ─── shareable card ───────────────────────────────────────────────────────────
 // fills shape: see SectorFill typedef in src/core.jsx
 function ShareCard({ sectors, fills, campName, leadName, year, palette, reveal = null }) {
   const fullTotal = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
   const total = reveal == null ? fullTotal : reveal;
+  // Gated on the currently-displayed total (not fullTotal) so a live count-up
+  // reveal only turns gold once it actually reaches 60, not before.
+  const isPerfect = isPerfectTotal(total);
   const totalRef = useRef(null);
   useEffect(() => {
     if (reveal == null || !totalRef.current) return; // no-op for the static result page
@@ -95,7 +104,9 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette, reveal =
       background: 'linear-gradient(155deg, #1c1410 0%, #2a1c14 100%)',
       borderRadius: 24, color: '#fff',
       fontFamily: "'Space Grotesk', system-ui, -apple-system, sans-serif",
-      boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
+      boxShadow: isPerfect
+        ? `0 24px 60px rgba(0,0,0,0.5), 0 0 0 2px ${GOLD}, 0 0 40px rgba(217,166,42,0.35)`
+        : '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
       position: 'relative', overflow: 'hidden',
     }}>
       {/* dust glow */}
@@ -111,14 +122,26 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette, reveal =
             {campName || 'Theme Camp'}
           </div>
           <div style={{ marginTop: 8 }}>
-            <span ref={totalRef} style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{total}</span>
+            <span ref={totalRef} style={{ fontSize: 34, fontWeight: 900, color: isPerfect ? GOLD_LIGHT : '#7fc46a', letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{total}</span>
             <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> / 60 achieved</span>
           </div>
+          {isPerfect && (
+            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', color: GOLD_LIGHT, marginTop: 6 }}>
+              A perfect 60/60
+            </div>
+          )}
         </div>
 
       <div style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', margin: '0 0 14px' }}>
-          <div style={{ width: '100%', maxWidth: 300 }}>
+          <div style={{ width: '100%', maxWidth: 300, position: 'relative' }}>
+            {isPerfect && (
+              <div aria-hidden="true" style={{
+                position: 'absolute', inset: -8, borderRadius: '50%',
+                boxShadow: `0 0 0 3px rgba(217,166,42,0.6), 0 0 24px rgba(217,166,42,0.35)`,
+                pointerEvents: 'none',
+              }}/>
+            )}
             <RadialBadge sectors={sectors} fills={fills} size={300} showGrid={true} fluid revealCount={reveal}/>
           </div>
         </div>
@@ -127,7 +150,7 @@ function ShareCard({ sectors, fills, campName, leadName, year, palette, reveal =
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 14 }}>
           {sectors.map(s => {
             const ty = (fills[s.id] && fills[s.id].totalYes) || 0;
-            const c = ty > 0 ? '#7fc46a' : 'rgba(255,255,255,0.4)';
+            const c = isPerfect ? GOLD_LIGHT : (ty > 0 ? '#7fc46a' : 'rgba(255,255,255,0.4)');
             return (
               <div key={s.id} style={{
                 background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '8px 4px',
@@ -178,10 +201,12 @@ function ResultCardSVG({ sectors, fills, campName, leadName, year, svgRef }) {
   const pad = 28;
   const name = fitCampName(campName);
   const total = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
+  const isPerfect = isPerfectTotal(total);
   const totalY = name.lines.length > 1 ? 122 : 106;
   const gridY = 440, gap = 6, cellH = 58;
   const cellW = (CARD_W - 2 * pad - 2 * gap) / 3;
   const cols = [pad, pad + cellW + gap, pad + 2 * (cellW + gap)];
+  const badgeCx = (CARD_W - 300) / 2 + 150, badgeCy = 124 + 150; // matches the badge group's translate + its own cx/cy
   return (
     <svg ref={svgRef} width={CARD_W} height={CARD_H} viewBox={`0 0 ${CARD_W} ${CARD_H}`}
       xmlns="http://www.w3.org/2000/svg"
@@ -198,6 +223,9 @@ function ResultCardSVG({ sectors, fills, campName, leadName, year, svgRef }) {
       </defs>
       <rect x="0" y="0" width={CARD_W} height={CARD_H} rx="24" fill="url(#rcBg)"/>
       <rect x="0" y="0" width={CARD_W} height={CARD_H} rx="24" fill="url(#rcGlow)"/>
+      {isPerfect && (
+        <rect x="1.5" y="1.5" width={CARD_W - 3} height={CARD_H - 3} rx="23" fill="none" stroke={GOLD} strokeWidth="2"/>
+      )}
 
       <text x={CARD_W / 2} y="46" textAnchor="middle" fontSize="10" fontWeight="700" letterSpacing="2.4" fill="#fff" opacity="0.6">
         GREEN RADIUS · BLAST {year}
@@ -206,18 +234,25 @@ function ResultCardSVG({ sectors, fills, campName, leadName, year, svgRef }) {
         <text key={i} x={CARD_W / 2} y={name.ys[i]} textAnchor="middle" fontSize={name.size} fontWeight="800" fill="#fff">{ln}</text>
       ))}
       <text x={CARD_W / 2} y={totalY} textAnchor="middle">
-        <tspan fontSize="30" fontWeight="900" fill="#7fc46a">{total}</tspan>
+        <tspan fontSize="30" fontWeight="900" fill={isPerfect ? GOLD_LIGHT : '#7fc46a'}>{total}</tspan>
         <tspan fontSize="13" fontWeight="700" fill="#fff" opacity="0.65"> / 60 achieved</tspan>
       </text>
 
+      {isPerfect && <circle cx={badgeCx} cy={badgeCy} r="132" fill="none" stroke={GOLD} strokeWidth="3" opacity="0.6"/>}
       <g transform={`translate(${(CARD_W - 300) / 2}, 124)`}>
         <RadialBadge sectors={sectors} fills={fills} size={300} showGrid={true}/>
       </g>
 
+      {isPerfect && (
+        <text x={CARD_W / 2} y="584" textAnchor="middle" fontSize="11" fontWeight="800" letterSpacing="0.6" fill={GOLD_LIGHT}>
+          A perfect 60/60
+        </text>
+      )}
+
       {sectors.map((s, i) => {
         const ty = (fills[s.id] && fills[s.id].totalYes) || 0;
         const col = cols[i % 3], rowY = gridY + (i < 3 ? 0 : cellH + gap), cx = col + cellW / 2;
-        const color = ty > 0 ? '#7fc46a' : 'rgba(255,255,255,0.4)';
+        const color = isPerfect ? GOLD_LIGHT : (ty > 0 ? '#7fc46a' : 'rgba(255,255,255,0.4)');
         return (
           <g key={s.id}>
             <rect x={col} y={rowY} width={cellW} height={cellH} rx="10" fill="#ffffff" fillOpacity="0.05"/>

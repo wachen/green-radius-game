@@ -555,3 +555,82 @@ function Celebration({ sector, palette, onDone }) {
     }
   }, "All Green!")));
 }
+function GoldenCelebration({ onDone }) {
+  const reduceMotion = prefersReducedMotion();
+  useEffect(() => {
+    if (!reduceMotion) {
+      Fx.goldBurst(window.innerWidth / 2, window.innerHeight / 2);
+      Fx.ringShock(window.innerWidth / 2, window.innerHeight / 2);
+    }
+    const t = setTimeout(onDone, reduceMotion ? 1600 : 3400);
+    return () => clearTimeout(t);
+  }, [onDone, reduceMotion]);
+  const splats = useMemo(() => {
+    const colors = ["#D9A62A", "#F4D488", "#E8C15A", "#B8860B", "#fff6da"];
+    return Array.from({ length: 26 }, (_, i) => ({
+      key: i,
+      left: 4 + Math.random() * 92,
+      top: 4 + Math.random() * 92,
+      size: 30 + Math.random() * 120,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      delay: Math.random() * 0.45,
+      blur: Math.random() < 0.3 ? 6 : 2
+    }));
+  }, []);
+  return React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 30,
+      pointerEvents: "none",
+      overflow: "hidden"
+    }
+  }, !reduceMotion && splats.map((s) => React.createElement("div", {
+    key: s.key,
+    style: {
+      position: "absolute",
+      left: `${s.left}%`,
+      top: `${s.top}%`,
+      width: s.size,
+      height: s.size,
+      marginLeft: -s.size / 2,
+      marginTop: -s.size / 2,
+      background: s.color,
+      borderRadius: "50%",
+      opacity: 0,
+      filter: `blur(${s.blur}px)`,
+      mixBlendMode: "multiply",
+      animation: `grg-splat 2.2s cubic-bezier(0.2,0.8,0.2,1) ${s.delay}s forwards`
+    }
+  })), React.createElement("div", {
+    style: {
+      position: "absolute",
+      left: "50%",
+      top: "50%",
+      transform: "translate(-50%, -50%)",
+      textAlign: "center",
+      animation: reduceMotion ? "qm-fade 0.3s ease forwards" : "grg-celeb 3.2s cubic-bezier(0.2,0.8,0.2,1) forwards"
+    }
+  }, React.createElement("div", {
+    style: {
+      fontSize: 12,
+      letterSpacing: "0.3em",
+      fontWeight: 800,
+      color: "#fff",
+      textShadow: "0 2px 8px rgba(0,0,0,0.6)",
+      marginBottom: 12
+    }
+  }, "GREEN RADIUS · 60 / 60"), React.createElement("div", {
+    style: {
+      fontSize: "clamp(32px, 10vw, 56px)",
+      fontWeight: 900,
+      color: "#F4D488",
+      textShadow: "0 4px 20px rgba(0,0,0,0.5), 0 0 70px rgba(217,166,42,0.65)",
+      letterSpacing: "-0.02em",
+      lineHeight: 1.05,
+      transform: reduceMotion ? "none" : "rotate(-2deg)",
+      fontFamily: "inherit",
+      textWrap: "balance"
+    }
+  }, "A perfect 60/60")));
+}

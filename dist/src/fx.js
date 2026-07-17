@@ -2,6 +2,7 @@
 // Edit the .jsx source, then run: bun run scripts/build.js
 const FX_TAU = Math.PI * 2;
 const FX_LEAF_COLORS = ["#68B05C", "#7AB85C", "#A3D178", "#439F5B"];
+const FX_GOLD_COLORS = ["#D9A62A", "#F4D488", "#E8C15A", "#B8860B"];
 const FX_SPARK = "#D9F2A8";
 const FX_DUST = "#d8cbb6";
 const FX_CAP = 300;
@@ -123,6 +124,10 @@ const Fx = {
     if (!c)
       return;
     this.burst(c.x, c.y, { kind: "dust", n: 10, speed: 1.6, up: 0.6, g: -0.01, drag: 0.96, life: 38, size: 7, color: FX_DUST });
+  },
+  goldBurst(x, y) {
+    this.burst(x, y, { kind: "leaf", n: 26, speed: 5.5, up: 3, g: 0.1, life: 60, size: 6, colors: FX_GOLD_COLORS });
+    this.burst(x, y, { kind: "spark", n: 16, speed: 6.5, up: 2, g: 0.04, life: 30, color: "#FFE9AE" });
   },
   sparkle(x, y) {
     this.burst(x - 6, y - 4, { kind: "spark", n: 3, speed: 1.4, life: 20, color: "#ffffff" });

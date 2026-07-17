@@ -63,7 +63,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v85';
+const APP_VERSION = 'v86';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -215,9 +215,19 @@ function fillsFromAnswers(sectors, answers) {
   return out;
 }
 
+// ─── perfect-total detection (60/60 golden moment) ─────────────────────────
+// A camp's grand total is 0-60 (6 sectors x 10 questions each). Exactly 60
+// means every question in every sector was answered Yes — the one-time
+// golden celebration in green-radius.jsx and the golden card treatment in
+// src/share-card.jsx both gate on this.
+const PERFECT_TOTAL = 60;
+function isPerfectTotal(total) {
+  return total === PERFECT_TOTAL;
+}
+
 // Isomorphic export, same guarded pattern as game-data.js/result-state.js: a
 // no-op in the browser (module is undefined there), lets bun test exercise
 // the pure save-migration logic directly.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { migrateSaved, isCurrentShape, validQidSet, STORAGE_VERSION };
+  module.exports = { migrateSaved, isCurrentShape, validQidSet, STORAGE_VERSION, PERFECT_TOTAL, isPerfectTotal };
 }

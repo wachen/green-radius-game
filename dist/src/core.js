@@ -45,7 +45,7 @@ const COMMUNITY_LINK_URL = "https://www.greenthemecampcommunity.org/";
 const BOARD_GAME_PDF_URL = "/downloads/" + encodeURIComponent("2026.05.19 Green Radius Game -- Download for Players -- How-to-Play - Board Game - Matrix - Detail -- v 26 FINAL .pdf");
 const RESOURCE_GUIDE_URL = "https://www.greenthemecampcommunity.org/resource-guide";
 const REPORT_EMAIL = "greenthemecamps@burningman.org";
-const APP_VERSION = "v85";
+const APP_VERSION = "v86";
 function validQidSet(sectors) {
   const set = new Set;
   sectors.forEach((s) => {
@@ -155,6 +155,10 @@ function fillsFromAnswers(sectors, answers) {
   });
   return out;
 }
+const PERFECT_TOTAL = 60;
+function isPerfectTotal(total) {
+  return total === PERFECT_TOTAL;
+}
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { migrateSaved, isCurrentShape, validQidSet, STORAGE_VERSION };
+  module.exports = { migrateSaved, isCurrentShape, validQidSet, STORAGE_VERSION, PERFECT_TOTAL, isPerfectTotal };
 }
