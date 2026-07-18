@@ -55,6 +55,8 @@ function AdminApp({ sectors }) {
     <div style={{ maxWidth: tab === 'camps' ? 1240 : 900, margin: '0 auto', padding: 14 }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', rowGap: 6, paddingBottom: 10, borderBottom: '1px solid #26382e' }}>
         <b style={{ fontWeight: 800 }}>Green<span style={{ color: '#45c483' }}>Radius</span> · Admin</b>
+        <a href="/" title="Back to the site" aria-label="Exit admin, back to the site"
+          style={{ ...selStyle, textDecoration: 'none', fontWeight: 700, lineHeight: 1.4 }}>Exit</a>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 8 }}><Tab id="city" label="City" /><Tab id="camps" label="Camps" /></div>
       </header>
@@ -79,6 +81,7 @@ function AdminApp({ sectors }) {
 
       <hr style={{ border: 'none', borderTop: '1px solid #26382e', margin: '24px 0 12px' }}/>
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingBottom: 16 }}>
+        <span style={{ marginRight: 'auto', color: '#93a89b', fontSize: 12 }}>Let's go build a failed utopia.</span>
         <select value={year} onChange={e => setYear(+e.target.value)} title="Filter by year" style={selStyle}>
           {years.length ? years.map(y => <option key={y} value={y}>{y}</option>) : <option value={2026}>2026</option>}
         </select>
@@ -272,7 +275,7 @@ function CommunityTally({ sectors, rows }) {
     ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{LeftCol}{RightCol}</div>
     : <div style={{ paddingTop: 12 }}>{LeftCol}{RightCol}</div>;
 }
-const SecHead = ({ children, style }) => <div style={{ fontSize: 10.5, letterSpacing: '.16em', color: '#93a89b', fontWeight: 800, margin: '16px 0 6px', ...style }}>{String(children).toUpperCase()}</div>;
+const SecHead = ({ children, style }) => <div style={{ fontSize: 13, letterSpacing: '.16em', color: '#93a89b', fontWeight: 800, margin: '16px 0 6px', ...style }}>{String(children).toUpperCase()}</div>;
 const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px dashed #21332a', fontSize: 13 };
 
 // ── Camps: full-width scannable rows ─────────────────────────────────────────

@@ -56,7 +56,12 @@ function AdminApp({ sectors }) {
     style: { fontWeight: 800 }
   }, "Green", React.createElement("span", {
     style: { color: "#45c483" }
-  }, "Radius"), " · Admin"), React.createElement("div", {
+  }, "Radius"), " · Admin"), React.createElement("a", {
+    href: "/",
+    title: "Back to the site",
+    "aria-label": "Exit admin, back to the site",
+    style: { ...selStyle, textDecoration: "none", fontWeight: 700, lineHeight: 1.4 }
+  }, "Exit"), React.createElement("div", {
     style: { flex: 1 }
   }), React.createElement("div", {
     style: { display: "flex", gap: 8 }
@@ -86,7 +91,9 @@ function AdminApp({ sectors }) {
     style: { border: "none", borderTop: "1px solid #26382e", margin: "24px 0 12px" }
   }), React.createElement("div", {
     style: { display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, flexWrap: "wrap", paddingBottom: 16 }
-  }, React.createElement("select", {
+  }, React.createElement("span", {
+    style: { marginRight: "auto", color: "#93a89b", fontSize: 12 }
+  }, "Let's go build a failed utopia."), React.createElement("select", {
     value: year,
     onChange: (e) => setYear(+e.target.value),
     title: "Filter by year",
@@ -357,7 +364,7 @@ function CommunityTally({ sectors, rows }) {
   }, LeftCol, RightCol);
 }
 const SecHead = ({ children, style }) => React.createElement("div", {
-  style: { fontSize: 10.5, letterSpacing: ".16em", color: "#93a89b", fontWeight: 800, margin: "16px 0 6px", ...style }
+  style: { fontSize: 13, letterSpacing: ".16em", color: "#93a89b", fontWeight: 800, margin: "16px 0 6px", ...style }
 }, String(children).toUpperCase());
 const rowStyle = { display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: "1px dashed #21332a", fontSize: 13 };
 function fmtWhen(ts) {
