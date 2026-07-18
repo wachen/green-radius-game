@@ -236,7 +236,16 @@ function CommunityTally({ sectors, rows }) {
   }, React.createElement("div", {
     style: { fontSize: 10, letterSpacing: ".1em", color: "#7fc46a", fontWeight: 800 }
   }, detail.label.toUpperCase()), React.createElement("div", {
-    style: { fontSize: 12.5, margin: "2px 0 4px" }
+    style: {
+      fontSize: 12.5,
+      lineHeight: 1.35,
+      margin: "2px 0 4px",
+      height: "5.4em",
+      display: "-webkit-box",
+      WebkitLineClamp: 4,
+      WebkitBoxOrient: "vertical",
+      overflow: "hidden"
+    }
   }, detail.text), React.createElement("div", {
     style: { color: "rgba(255,255,255,0.65)", fontSize: 12 }
   }, React.createElement("b", {
@@ -249,11 +258,11 @@ function CommunityTally({ sectors, rows }) {
     value: agg.count,
     label: "Total camps"
   }), React.createElement(StatTile, {
-    value: agg.totalYes,
-    label: "green points"
-  }), React.createElement(StatTile, {
     value: `+${agg.momentum.thisWeek}`,
     label: "this week"
+  }), React.createElement(StatTile, {
+    value: agg.totalYes,
+    label: "Total points"
   }));
   const Superlatives = sup.strongest || sup.hardest || sup.topL4 || sup.bestBalance || sup.fullSweep ? React.createElement("div", {
     "data-superlatives": true,

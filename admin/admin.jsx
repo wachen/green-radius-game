@@ -196,7 +196,9 @@ function CommunityTally({ sectors, rows }) {
           <div data-segment-detail style={{ background: 'rgba(0,0,0,0.28)', border: '1px solid rgba(255,255,255,0.12)', borderLeft: '3px solid #7fc46a',
             borderRadius: 10, padding: '9px 11px', margin: '10px auto 0', maxWidth: 320, textAlign: 'left' }}>
             <div style={{ fontSize: 10, letterSpacing: '.1em', color: '#7fc46a', fontWeight: 800 }}>{detail.label.toUpperCase()}</div>
-            <div style={{ fontSize: 12.5, margin: '2px 0 4px' }}>{detail.text}</div>
+            {/* Fixed 4-line well so the box height never shifts between hovers. */}
+            <div style={{ fontSize: 12.5, lineHeight: 1.35, margin: '2px 0 4px', height: '5.4em',
+              display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{detail.text}</div>
             <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}><b style={{ color: '#fff', fontSize: 15 }}>{Math.round(detail.rate * 100)}%</b> of {detail.n} camps</div>
           </div>
         )}
@@ -207,8 +209,8 @@ function CommunityTally({ sectors, rows }) {
   const Pulse = (
     <div data-pulse style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 }}>
       <StatTile value={agg.count} label="Total camps" />
-      <StatTile value={agg.totalYes} label="green points" />
       <StatTile value={`+${agg.momentum.thisWeek}`} label="this week" />
+      <StatTile value={agg.totalYes} label="Total points" />
     </div>
   );
 
