@@ -27,6 +27,9 @@ function useResponses() {
 function AdminApp({ sectors }) {
   const { status, rows, error, reload } = useResponses();
   const [tab, setTab] = React.useState('city');
+  // Set when a Top Camps row is clicked on the City tab: switches to Camps and
+  // scroll-highlights that camp's row there.
+  const [highlightCamp, setHighlightCamp] = React.useState(null);
   const [year, setYear] = React.useState(2026);
   const [source, setSource] = React.useState('all');
   const years = React.useMemo(() => Array.from(new Set(rows.map(r => r.year))).sort((a, b) => b - a), [rows]);
@@ -36,11 +39,11 @@ function AdminApp({ sectors }) {
   // Big colorful tabs (replaces the old plain nav links) — each tab gets its
   // own hue so City/Camps read as distinct destinations, not just a toggle.
   // Colors keep white-on-saturated text for WCAG-AA contrast when active.
-  const Tab = ({ id, label }) => {
+  const Tab = ({ id, label, name }) => {
     const m = TAB_META[id];
     const active = tab === id;
     return (
-      <button data-tab={id} onClick={() => setTab(id)} title={`Switch to the ${label} tab`}
+      <button data-tab={id} onClick={() => setTab(id)} title={`Switch to the ${name} tab`}
         style={{ fontWeight: 800, fontSize: 14, padding: '9px 22px', borderRadius: 12, cursor: 'pointer',
           border: `2px solid ${active ? m.border : '#26382e'}`,
           background: active ? m.activeBg : 'transparent',
@@ -56,9 +59,9 @@ function AdminApp({ sectors }) {
       <header style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', rowGap: 6, paddingBottom: 10, borderBottom: '1px solid #26382e' }}>
         <b style={{ fontWeight: 800 }}>Green<span style={{ color: '#45c483' }}>Radius</span> · Admin</b>
         <a href="/" title="Back to the site" aria-label="Exit admin, back to the site"
-          style={{ ...selStyle, textDecoration: 'none', fontWeight: 700, lineHeight: 1.4 }}>Exit</a>
+          style={{ ...selStyle, textDecoration: 'none', fontWeight: 700, lineHeight: 1.4 }}>EXIT ↗</a>
         <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', gap: 8 }}><Tab id="city" label="City" /><Tab id="camps" label="Camps" /></div>
+        <div style={{ display: 'flex', gap: 8 }}><Tab id="city" label="🌄 City" name="City" /><Tab id="camps" label="🎪 Camps" name="Camps" /></div>
       </header>
 
       {status === 'loading' && rows.length === 0 && <Centered>Loading the community tally…</Centered>}
@@ -73,8 +76,8 @@ function AdminApp({ sectors }) {
           {filtered.length === 0 && <Centered>No camps yet for {year}.</Centered>}
           {filtered.length > 0 && (
             tab === 'city'
-              ? <CommunityTally sectors={sectors} rows={filtered} />
-              : <CampsView sectors={sectors} rows={filtered} />
+              ? <CommunityTally sectors={sectors} rows={filtered} onCampClick={name => { setHighlightCamp(name); setTab('camps'); }} />
+              : <CampsView sectors={sectors} rows={filtered} highlight={highlightCamp} />
           )}
         </div>
       )}
@@ -141,7 +144,7 @@ function Superlative({ label, value, detail }) {
   );
 }
 
-function CommunityTally({ sectors, rows }) {
+function CommunityTally({ sectors, rows, onCampClick }) {
   const agg = React.useMemo(() => A.computeAggregates(rows, sectors, Date.now()), [rows, sectors]);
   const sup = React.useMemo(() => A.superlatives(agg, sectors), [agg, sectors]);
   const wide = useMQ('(min-width: 760px)');
@@ -161,7 +164,7 @@ function CommunityTally({ sectors, rows }) {
   })();
 
   const Hero = (
-    <div style={{ background: CITY_CARD_BG, borderRadius: 24, color: '#fff', padding: '22px 16px',
+    <div style={{ background: CITY_CARD_BG, borderRadius: 24, color: '#fff', padding: '14px 16px',
       boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
       position: 'relative', overflow: 'hidden', textAlign: 'center' }}>
       {/* dust glow, mirroring the /city/ card */}
@@ -171,7 +174,7 @@ function CommunityTally({ sectors, rows }) {
           GREEN RADIUS · BLAST {new Date().getFullYear()}
         </div>
         <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.12 }}>Black Rock City</div>
-        <div style={{ margin: '6px 0 10px' }}>
+        <div style={{ margin: '4px 0 8px' }}>
           <span style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{agg.hasAnswers ? `${pct}%` : agg.totalYes}</span>
           {agg.hasAnswers && <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> achieved</span>}
         </div>
@@ -181,12 +184,14 @@ function CommunityTally({ sectors, rows }) {
             already reads above, so the badge just shows its hub dot. Hover a
             wedge to preview its question; click/tap still works (mobile). */}
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <RadialBadge sectors={sectors} fills={{}} size={wide ? 264 : 256} dark
+          {/* +20px badge, offset by the tighter hero padding/margins above so
+              the card's overall height stays put. */}
+          <RadialBadge sectors={sectors} fills={{}} size={wide ? 284 : 276} dark
             intensities={agg.intensities}
             selected={sel}
             onSelectSegment={agg.hasAnswers ? (sector, level, qi) => setSel({ sector, level, qi }) : null} />
         </div>
-        <div style={{ fontSize: 13, color: '#d8cbb6', marginTop: 8 }}>
+        <div style={{ fontSize: 13, color: '#d8cbb6', marginTop: 6 }}>
           <b style={{ color: '#fff' }}>{agg.totalYes}</b> of {agg.totalPossible} green choices
         </div>
         {agg.legacyCount > 0 && (
@@ -213,7 +218,7 @@ function CommunityTally({ sectors, rows }) {
     <div data-pulse style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: wide ? 0 : 12 }}>
       <StatTile value={agg.count} label="Total camps" />
       <StatTile value={`+${agg.momentum.thisWeek}`} label="this week" />
-      <StatTile value={agg.totalYes} label="Total points" />
+      <StatTile value={agg.count ? (agg.totalYes / agg.count).toFixed(1) : 0} label="Avg score" />
     </div>
   );
 
@@ -233,7 +238,10 @@ function CommunityTally({ sectors, rows }) {
     <div data-leaderboard style={{ ...panelStyle, marginTop: 12 }}>
       <SecHead style={{ marginTop: 0 }}>Top Camps</SecHead>
       {agg.leaderboard.map((c, i) => (
-        <div key={i} data-rank={i + 1} style={{ ...rowStyle, gap: 10 }}>
+        <div key={i} data-rank={i + 1} role="button" tabIndex={0} title="Open this camp on the Camps tab"
+          onClick={() => onCampClick && onCampClick(c.campName)}
+          onKeyDown={e => { if (e.key === 'Enter' && onCampClick) onCampClick(c.campName); }}
+          style={{ ...rowStyle, gap: 10, cursor: 'pointer' }}>
           <span style={{ width: 18, color: '#93a89b', fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
           <span aria-hidden="true" title="Camp's green radius shape" style={{ flexShrink: 0, display: 'inline-flex' }}>
             <RadialBadge sectors={sectors} fills={miniFills(sectors, c)} size={30} dark showLabels={false} showCenter={false}/>
@@ -275,7 +283,7 @@ function CommunityTally({ sectors, rows }) {
     ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{LeftCol}{RightCol}</div>
     : <div style={{ paddingTop: 12 }}>{LeftCol}{RightCol}</div>;
 }
-const SecHead = ({ children, style }) => <div style={{ fontSize: 13, letterSpacing: '.16em', color: '#93a89b', fontWeight: 800, margin: '16px 0 6px', ...style }}>{String(children).toUpperCase()}</div>;
+const SecHead = ({ children, style }) => <div style={{ fontSize: 14, letterSpacing: '.16em', color: '#93a89b', fontWeight: 800, margin: '16px 0 6px', ...style }}>{String(children).toUpperCase()}</div>;
 const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px dashed #21332a', fontSize: 13 };
 
 // ── Camps: full-width scannable rows ─────────────────────────────────────────
@@ -479,10 +487,15 @@ function exportCsv(list, sectors) {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
-function CampsView({ sectors, rows }) {
+function CampsView({ sectors, rows, highlight }) {
   const wide = useMQ('(min-width: 900px)');
   const [q, setQ] = React.useState('');
   const [sort, setSort] = React.useState('date');
+  // City-tab clickthrough target: scroll the highlighted camp into view once.
+  const hlRef = React.useRef(null);
+  React.useEffect(() => {
+    if (highlight && hlRef.current) hlRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlight]);
   const list = React.useMemo(() => {
     const ql = q.trim().toLowerCase();
     let xs = rows.filter(r => {
@@ -534,7 +547,15 @@ function CampsView({ sectors, rows }) {
           {headBtn('score', 'Total', 'right')}
         </div>
       )}
-      {list.map(r => <CampRow key={`${r.campName}|${r.timestamp}`} sectors={sectors} camp={r} wide={wide} />)}
+      {list.map(r => {
+        const hl = highlight && r.campName === highlight;
+        return (
+          <div key={`${r.campName}|${r.timestamp}`} ref={hl ? hlRef : null}
+            style={hl ? { outline: '2px solid #45c483', outlineOffset: 2, borderRadius: 12 } : undefined}>
+            <CampRow sectors={sectors} camp={r} wide={wide} />
+          </div>
+        );
+      })}
     </div>
   );
 }
