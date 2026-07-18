@@ -112,47 +112,29 @@
     })).sort((a, b) => b.total - a.total).slice(0, n || 10);
   }
 
-  // Camp with the smallest spread between its highest and lowest sector score
-  // (a low spread means effort is spread evenly across all six sectors rather
-  // than piled into one or two). Ties favor the higher total.
-  function bestBalance(campRows, sectors) {
-    var best = null;
-    (campRows || []).forEach(function (r) {
-      var vals = sectors.map(function (s) { return (r.greens && r.greens[s.id]) || 0; });
-      var spread = Math.max.apply(null, vals) - Math.min.apply(null, vals);
-      if (!best || spread < best.spread || (spread === best.spread && r.total > best.total))
-        best = { campName: r.campName, spread: spread, total: r.total };
-    });
-    return best;
-  }
-
-  // Camp with the most sectors maxed at 10/10 ("swept"). Ties favor the higher
-  // total. A camp with zero swept sectors never wins (nothing to celebrate).
-  function fullSweep(campRows, sectors) {
-    var best = null;
-    (campRows || []).forEach(function (r) {
-      var count = sectors.filter(function (s) { return ((r.greens && r.greens[s.id]) || 0) === 10; }).length;
-      if (!count) return;
-      if (!best || count > best.count || (count === best.count && r.total > best.total))
-        best = { campName: r.campName, count: count, total: r.total };
-    });
-    return best;
-  }
-
   // City-tab extremes. minAsked (default 3) keeps a question answered by one
-  // or two camps from winning "hardest". Write-in X-camp topics are excluded
-  // from topL4 (their shared title says nothing about what camps actually do).
+  // or two camps from winning "hardest"/"easiest". Write-in X-camp topics are
+  // excluded from topL4 (their shared title says nothing about what camps
+  // actually do).
   function superlatives(agg, sectors, minAsked) {
     var min = minAsked == null ? 3 : minAsked;
     // Standings list every sector even with zero camps; no camps -> no extremes.
     var st = agg.count ? (agg.sectorStandings || []) : [];
-    var hardest = null, topL4 = null;
+    var hardest = null, easiest = null, topL4 = null, topL3 = null;
     sectors.forEach(function (sector) {
       [].concat.apply([], sector.levels.slice(0, 3)).forEach(function (q) {
         var pq = agg.perQuestion[q.id];
         if (!pq || pq.asked < min) return;
         if (!hardest || pq.rate < hardest.rate)
           hardest = { id: q.id, sector: sector.name, title: q.prompt || q.title, rate: pq.rate, asked: pq.asked };
+        if (!easiest || pq.rate > easiest.rate)
+          easiest = { id: q.id, sector: sector.name, title: q.prompt || q.title, rate: pq.rate, asked: pq.asked };
+      });
+      (sector.levels[2] || []).forEach(function (q) {
+        var pq = agg.perQuestion[q.id];
+        if (!pq || !pq.yes) return;
+        if (!topL3 || pq.yes > topL3.yes)
+          topL3 = { id: q.id, sector: sector.name, title: q.prompt || q.title, yes: pq.yes, asked: pq.asked };
       });
       (sector.tier4Topics || []).forEach(function (t) {
         if (/-camp(-\d+)?$/.test(t.id)) return;
@@ -165,9 +147,7 @@
     return {
       strongest: st[0] || null,
       weakest: st.length ? st[st.length - 1] : null,
-      hardest: hardest, topL4: topL4,
-      bestBalance: agg.campRows ? bestBalance(agg.campRows, sectors) : null,
-      fullSweep: agg.campRows ? fullSweep(agg.campRows, sectors) : null,
+      hardest: hardest, easiest: easiest, topL4: topL4, topL3: topL3,
     };
   }
 
@@ -201,9 +181,6 @@
       tallyPct: totalPossible ? totalYes / totalPossible : 0,
       sectorStandings: sectorStandings(rows, sectors),
       leaderboard: leaderboard(rows, sectors, 10),
-      // Lightweight per-camp scores for superlatives that scan every camp, not
-      // just the top-10 leaderboard (bestBalance, fullSweep).
-      campRows: rows.map(r => ({ campName: r.campName, greens: r.greens || {}, total: r.total || 0 })),
       perQuestion: pq,
       intensities: intensities(rows, sectors, pq),
       hasAnswers: rowsWithAnswers(rows).length > 0,
@@ -211,7 +188,7 @@
     };
   }
 
-  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, identityKey, bestBalance, fullSweep };
+  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, identityKey };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.AdminAggregate = api;
 })(typeof window !== 'undefined' ? window : this);

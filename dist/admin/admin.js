@@ -253,7 +253,7 @@ function CommunityTally({ sectors, rows }) {
   }, Math.round(detail.rate * 100), "%"), " of ", detail.n, " camps"))));
   const Pulse = React.createElement("div", {
     "data-pulse": true,
-    style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 12 }
+    style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: wide ? 0 : 12 }
   }, React.createElement(StatTile, {
     value: agg.count,
     label: "Total camps"
@@ -264,7 +264,7 @@ function CommunityTally({ sectors, rows }) {
     value: agg.totalYes,
     label: "Total points"
   }));
-  const Superlatives = sup.strongest || sup.hardest || sup.topL4 || sup.bestBalance || sup.fullSweep ? React.createElement("div", {
+  const Superlatives = sup.strongest || sup.hardest || sup.easiest || sup.topL4 || sup.topL3 ? React.createElement("div", {
     "data-superlatives": true,
     style: { ...panelStyle, marginTop: 12 }
   }, React.createElement(SecHead, {
@@ -281,22 +281,22 @@ function CommunityTally({ sectors, rows }) {
     label: "Hardest question",
     value: `${sup.hardest.title} (${sup.hardest.sector})`,
     detail: `${Math.round(sup.hardest.rate * 100)}% of ${sup.hardest.asked}`
+  }), sup.easiest && React.createElement(Superlative, {
+    label: "Easiest question",
+    value: `${sup.easiest.title} (${sup.easiest.sector})`,
+    detail: `${Math.round(sup.easiest.rate * 100)}% of ${sup.easiest.asked}`
   }), sup.topL4 && React.createElement(Superlative, {
     label: "Top level 4",
     value: `${sup.topL4.title} (${sup.topL4.sector})`,
     detail: `${sup.topL4.yes} ${sup.topL4.yes === 1 ? "camp" : "camps"}`
-  }), sup.bestBalance && React.createElement(Superlative, {
-    label: "Best balance",
-    value: sup.bestBalance.campName,
-    detail: sup.bestBalance.spread === 0 ? "even across all sectors" : `${sup.bestBalance.spread} pt spread`
-  }), sup.fullSweep && React.createElement(Superlative, {
-    label: "Full sweep",
-    value: sup.fullSweep.campName,
-    detail: `${sup.fullSweep.count} sector${sup.fullSweep.count === 1 ? "" : "s"} at 10/10`
+  }), sup.topL3 && React.createElement(Superlative, {
+    label: "Top level 3",
+    value: `${sup.topL3.title} (${sup.topL3.sector})`,
+    detail: `${sup.topL3.yes} ${sup.topL3.yes === 1 ? "camp" : "camps"}`
   })) : null;
   const Leaderboard = React.createElement("div", {
     "data-leaderboard": true,
-    style: { ...panelStyle, marginTop: wide ? 0 : 12 }
+    style: { ...panelStyle, marginTop: 12 }
   }, React.createElement(SecHead, {
     style: { marginTop: 0 }
   }, "Top Camps"), agg.leaderboard.map((c, i) => React.createElement("div", {
@@ -349,7 +349,7 @@ function CommunityTally({ sectors, rows }) {
     style: { fontVariantNumeric: "tabular-nums" }
   }, s.avg.toFixed(1))))));
   const LeftCol = React.createElement("div", null, Hero, Standings);
-  const RightCol = React.createElement("div", null, Leaderboard, Pulse, Superlatives);
+  const RightCol = React.createElement("div", null, Pulse, Leaderboard, Superlatives);
   return wide ? React.createElement("div", {
     style: { display: "grid", gridTemplateColumns: "minmax(280px, 320px) 1fr", gap: 20, paddingTop: 16, alignItems: "start" }
   }, LeftCol, RightCol) : React.createElement("div", {

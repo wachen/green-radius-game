@@ -207,27 +207,27 @@ function CommunityTally({ sectors, rows }) {
   );
 
   const Pulse = (
-    <div data-pulse style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 }}>
+    <div data-pulse style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: wide ? 0 : 12 }}>
       <StatTile value={agg.count} label="Total camps" />
       <StatTile value={`+${agg.momentum.thisWeek}`} label="this week" />
       <StatTile value={agg.totalYes} label="Total points" />
     </div>
   );
 
-  const Superlatives = (sup.strongest || sup.hardest || sup.topL4 || sup.bestBalance || sup.fullSweep) ? (
+  const Superlatives = (sup.strongest || sup.hardest || sup.easiest || sup.topL4 || sup.topL3) ? (
     <div data-superlatives style={{ ...panelStyle, marginTop: 12 }}>
       <SecHead style={{ marginTop: 0 }}>Superlatives</SecHead>
       {sup.strongest && <Superlative label="Strongest sector" value={sup.strongest.name} detail={`${sup.strongest.avg.toFixed(1)}/10 avg`} />}
       {sup.weakest && <Superlative label="Weakest sector" value={sup.weakest.name} detail={`${sup.weakest.avg.toFixed(1)}/10 avg`} />}
       {sup.hardest && <Superlative label="Hardest question" value={`${sup.hardest.title} (${sup.hardest.sector})`} detail={`${Math.round(sup.hardest.rate * 100)}% of ${sup.hardest.asked}`} />}
+      {sup.easiest && <Superlative label="Easiest question" value={`${sup.easiest.title} (${sup.easiest.sector})`} detail={`${Math.round(sup.easiest.rate * 100)}% of ${sup.easiest.asked}`} />}
       {sup.topL4 && <Superlative label="Top level 4" value={`${sup.topL4.title} (${sup.topL4.sector})`} detail={`${sup.topL4.yes} ${sup.topL4.yes === 1 ? 'camp' : 'camps'}`} />}
-      {sup.bestBalance && <Superlative label="Best balance" value={sup.bestBalance.campName} detail={sup.bestBalance.spread === 0 ? 'even across all sectors' : `${sup.bestBalance.spread} pt spread`} />}
-      {sup.fullSweep && <Superlative label="Full sweep" value={sup.fullSweep.campName} detail={`${sup.fullSweep.count} sector${sup.fullSweep.count === 1 ? '' : 's'} at 10/10`} />}
+      {sup.topL3 && <Superlative label="Top level 3" value={`${sup.topL3.title} (${sup.topL3.sector})`} detail={`${sup.topL3.yes} ${sup.topL3.yes === 1 ? 'camp' : 'camps'}`} />}
     </div>
   ) : null;
 
   const Leaderboard = (
-    <div data-leaderboard style={{ ...panelStyle, marginTop: wide ? 0 : 12 }}>
+    <div data-leaderboard style={{ ...panelStyle, marginTop: 12 }}>
       <SecHead style={{ marginTop: 0 }}>Top Camps</SecHead>
       {agg.leaderboard.map((c, i) => (
         <div key={i} data-rank={i + 1} style={{ ...rowStyle, gap: 10 }}>
@@ -267,7 +267,7 @@ function CommunityTally({ sectors, rows }) {
   // leads (moved to the top of the stack), then the pulse tiles, then
   // Superlatives. Narrow screens stack both columns in the same order.
   const LeftCol = <div>{Hero}{Standings}</div>;
-  const RightCol = <div>{Leaderboard}{Pulse}{Superlatives}</div>;
+  const RightCol = <div>{Pulse}{Leaderboard}{Superlatives}</div>;
   return wide
     ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{LeftCol}{RightCol}</div>
     : <div style={{ paddingTop: 12 }}>{LeftCol}{RightCol}</div>;
