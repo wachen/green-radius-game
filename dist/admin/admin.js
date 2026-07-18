@@ -253,7 +253,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     style: { color: "#fff" }
   }, peek.campName), " · ", peek.total, "/60") : React.createElement("span", null, React.createElement("b", {
     style: { color: "#fff" }
-  }, agg.totalYes), " of ", agg.totalPossible, " green choices"), React.createElement("button", {
+  }, agg.totalYes), " of ", agg.totalPossible, " green choices"), !peek && React.createElement("button", {
     type: "button",
     onClick: copySummary,
     title: "Copy a short text summary for sharing",
@@ -387,45 +387,6 @@ function CommunityTally({ sectors, rows, onCampClick }) {
   }, "●") : null), React.createElement("b", {
     style: { fontVariantNumeric: "tabular-nums" }
   }, c.total, "/60"))));
-  const WEEKS = 10, WEEK_MS = 7 * 86400000;
-  const weekCounts = React.useMemo(() => {
-    const counts = new Array(WEEKS).fill(0);
-    A.dedupeRows(rows).forEach((r) => {
-      if (typeof r.timestamp !== "number" || !r.timestamp)
-        return;
-      const idx = Math.floor((now - r.timestamp) / WEEK_MS);
-      if (idx >= 0 && idx < WEEKS)
-        counts[WEEKS - 1 - idx]++;
-    });
-    return counts;
-  }, [rows, now]);
-  const weekMax = Math.max(1, ...weekCounts);
-  const Momentum = React.createElement("div", {
-    "data-momentum": true,
-    style: { ...panelStyle, marginTop: 12 }
-  }, React.createElement(SecHead, {
-    style: { marginTop: 0 }
-  }, "Momentum"), React.createElement("svg", {
-    width: "100%",
-    height: "40",
-    viewBox: "0 0 100 30",
-    preserveAspectRatio: "none",
-    role: "img",
-    "aria-label": "New camps per week, last 10 weeks"
-  }, weekCounts.map((n, i) => {
-    const h = n ? Math.max(2, n / weekMax * 26) : 1;
-    return React.createElement("rect", {
-      key: i,
-      x: i * 10 + 1.5,
-      y: 28 - h,
-      width: 7,
-      height: h,
-      rx: 1,
-      fill: i === WEEKS - 1 ? "#45c483" : n ? "#2f7a41" : "#26382e"
-    }, React.createElement("title", null, `${n} ${n === 1 ? "camp" : "camps"}, ${i === WEEKS - 1 ? "this week" : `${WEEKS - 1 - i} ${WEEKS - 1 - i === 1 ? "week" : "weeks"} ago`}`));
-  })), React.createElement("div", {
-    style: { fontSize: 11, color: "#93a89b", marginTop: 4 }
-  }, "New camps per week, last 10 weeks"));
   const Standings = React.createElement("div", {
     style: { ...panelStyle, marginTop: 12 }
   }, React.createElement(SecHead, {
@@ -448,7 +409,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     style: { fontVariantNumeric: "tabular-nums" }
   }, s.avg.toFixed(1))))));
   const LeftCol = React.createElement("div", null, Hero, Standings);
-  const RightCol = React.createElement("div", null, Pulse, Momentum, Leaderboard, Superlatives);
+  const RightCol = React.createElement("div", null, Pulse, Leaderboard, Superlatives);
   return wide ? React.createElement("div", {
     style: { display: "grid", gridTemplateColumns: "minmax(280px, 320px) 1fr", gap: 20, paddingTop: 16, alignItems: "start" }
   }, LeftCol, RightCol) : React.createElement("div", {

@@ -214,11 +214,12 @@ function CommunityTally({ sectors, rows, onCampClick }) {
           {peek
             ? <span>Previewing <b style={{ color: '#fff' }}>{peek.campName}</b> · {peek.total}/60</span>
             : <span><b style={{ color: '#fff' }}>{agg.totalYes}</b> of {agg.totalPossible} green choices</span>}
-          <button type="button" onClick={copySummary} title="Copy a short text summary for sharing"
+          {/* The summary is city-wide, so the pill hides while a camp preview is up. */}
+          {!peek && <button type="button" onClick={copySummary} title="Copy a short text summary for sharing"
             style={{ background: 'rgba(255,255,255,0.08)', color: '#d8e9dd', border: '1px solid rgba(255,255,255,0.15)',
               borderRadius: 99, padding: '2px 9px', fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>
             {copied ? 'Copied ✓' : '⧉ Copy'}
-          </button>
+          </button>}
         </div>
         {agg.legacyCount > 0 && (
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
@@ -283,37 +284,6 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     </div>
   );
 
-  // New camps per submission week, last 10 weeks (same dedup as the tallies).
-  const WEEKS = 10, WEEK_MS = 7 * 864e5;
-  const weekCounts = React.useMemo(() => {
-    const counts = new Array(WEEKS).fill(0);
-    A.dedupeRows(rows).forEach(r => {
-      if (typeof r.timestamp !== 'number' || !r.timestamp) return;
-      const idx = Math.floor((now - r.timestamp) / WEEK_MS);
-      if (idx >= 0 && idx < WEEKS) counts[WEEKS - 1 - idx]++;
-    });
-    return counts;
-  }, [rows, now]);
-  const weekMax = Math.max(1, ...weekCounts);
-  const Momentum = (
-    <div data-momentum style={{ ...panelStyle, marginTop: 12 }}>
-      <SecHead style={{ marginTop: 0 }}>Momentum</SecHead>
-      <svg width="100%" height="40" viewBox="0 0 100 30" preserveAspectRatio="none" role="img"
-        aria-label="New camps per week, last 10 weeks">
-        {weekCounts.map((n, i) => {
-          const h = n ? Math.max(2, (n / weekMax) * 26) : 1;
-          return (
-            <rect key={i} x={i * 10 + 1.5} y={28 - h} width={7} height={h} rx={1}
-              fill={i === WEEKS - 1 ? '#45c483' : n ? '#2f7a41' : '#26382e'}>
-              <title>{`${n} ${n === 1 ? 'camp' : 'camps'}, ${i === WEEKS - 1 ? 'this week' : `${WEEKS - 1 - i} ${WEEKS - 1 - i === 1 ? 'week' : 'weeks'} ago`}`}</title>
-            </rect>
-          );
-        })}
-      </svg>
-      <div style={{ fontSize: 11, color: '#93a89b', marginTop: 4 }}>New camps per week, last 10 weeks</div>
-    </div>
-  );
-
   const Standings = (
     <div style={{ ...panelStyle, marginTop: 12 }}>
       <SecHead style={{ marginTop: 0 }}>Sector Averages</SecHead>
@@ -336,7 +306,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
   // leads (moved to the top of the stack), then the pulse tiles, then
   // Superlatives. Narrow screens stack both columns in the same order.
   const LeftCol = <div>{Hero}{Standings}</div>;
-  const RightCol = <div>{Pulse}{Momentum}{Leaderboard}{Superlatives}</div>;
+  const RightCol = <div>{Pulse}{Leaderboard}{Superlatives}</div>;
   return wide
     ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{LeftCol}{RightCol}</div>
     : <div style={{ paddingTop: 12 }}>{LeftCol}{RightCol}</div>;
