@@ -113,19 +113,28 @@
   }
 
   // City-tab extremes. minAsked (default 3) keeps a question answered by one
-  // or two camps from winning "hardest". Write-in X-camp topics are excluded
-  // from topL4 (their shared title says nothing about what camps actually do).
+  // or two camps from winning "hardest"/"easiest". Write-in X-camp topics are
+  // excluded from topL4 (their shared title says nothing about what camps
+  // actually do).
   function superlatives(agg, sectors, minAsked) {
     var min = minAsked == null ? 3 : minAsked;
     // Standings list every sector even with zero camps; no camps -> no extremes.
     var st = agg.count ? (agg.sectorStandings || []) : [];
-    var hardest = null, topL4 = null;
+    var hardest = null, easiest = null, topL4 = null, topL3 = null;
     sectors.forEach(function (sector) {
       [].concat.apply([], sector.levels.slice(0, 3)).forEach(function (q) {
         var pq = agg.perQuestion[q.id];
         if (!pq || pq.asked < min) return;
         if (!hardest || pq.rate < hardest.rate)
           hardest = { id: q.id, sector: sector.name, title: q.prompt || q.title, rate: pq.rate, asked: pq.asked };
+        if (!easiest || pq.rate > easiest.rate)
+          easiest = { id: q.id, sector: sector.name, title: q.prompt || q.title, rate: pq.rate, asked: pq.asked };
+      });
+      (sector.levels[2] || []).forEach(function (q) {
+        var pq = agg.perQuestion[q.id];
+        if (!pq || !pq.yes) return;
+        if (!topL3 || pq.yes > topL3.yes)
+          topL3 = { id: q.id, sector: sector.name, title: q.prompt || q.title, yes: pq.yes, asked: pq.asked };
       });
       (sector.tier4Topics || []).forEach(function (t) {
         if (/-camp(-\d+)?$/.test(t.id)) return;
@@ -138,7 +147,7 @@
     return {
       strongest: st[0] || null,
       weakest: st.length ? st[st.length - 1] : null,
-      hardest: hardest, topL4: topL4,
+      hardest: hardest, easiest: easiest, topL4: topL4, topL3: topL3,
     };
   }
 

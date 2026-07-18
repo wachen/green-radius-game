@@ -5,7 +5,7 @@ import A from '../admin/aggregate.js';
 const SECTORS = [
   { id: 'food', name: 'Food', levels: [[{ id: 'F1', title: 'Bulk buy' }], [], []],
     tier4Topics: [{ id: 'F-adv', title: 'Compost' }, { id: 'F-camp', title: "Our Camp's Idea" }] },
-  { id: 'water', name: 'Water', levels: [[{ id: 'W1', title: 'Refill' }], [], []],
+  { id: 'water', name: 'Water', levels: [[{ id: 'W1', title: 'Refill' }], [], [{ id: 'W3', title: 'Evap pond' }]],
     tier4Topics: [] },
 ];
 const row = (name, greens, answers, ts) => ({
@@ -95,5 +95,21 @@ describe('superlatives', () => {
     const empty = A.superlatives(A.computeAggregates([], SECTORS, 2000), SECTORS, 3);
     expect(empty.strongest).toBe(null);
     expect(empty.hardest).toBe(null);
+    expect(empty.easiest).toBe(null);
+    expect(empty.topL3).toBe(null);
+  });
+
+  test('easiest is the highest yes rate above minAsked; topL3 counts level-3 yes camps', () => {
+    const rows = [
+      row('a', { food: 8, water: 2 }, { F1: 'yes', W1: 'no', W3: 'yes' }),
+      row('b', { food: 6, water: 1 }, { F1: 'yes', W1: 'no', W3: 'yes' }),
+      row('c', { food: 7, water: 3 }, { F1: 'yes', W1: 'yes' }),
+    ];
+    const agg = A.computeAggregates(rows, SECTORS, 2000);
+    const s = A.superlatives(agg, SECTORS, 3);
+    expect(s.easiest.id).toBe('F1');   // 3/3 yes; W3 is 2/2 but under minAsked
+    expect(s.easiest.rate).toBe(1);
+    expect(s.topL3.id).toBe('W3');     // topL3 counts camps, no minAsked gate
+    expect(s.topL3.yes).toBe(2);
   });
 });

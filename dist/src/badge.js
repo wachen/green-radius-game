@@ -198,6 +198,7 @@ function RadialBadge({
           strokeWidth: isSel ? 1.5 : 0.5,
           style: Object.keys(style).length ? style : undefined,
           onClick: onSelectSegment ? () => onSelectSegment(sector.id, li, qi) : undefined,
+          onMouseEnter: onSelectSegment ? () => onSelectSegment(sector.id, li, qi) : undefined,
           tabIndex: onSelectSegment ? 0 : undefined,
           role: onSelectSegment ? "button" : undefined,
           "aria-label": onSelectSegment ? `${sector.name}, level ${li + 1}, segment ${qi + 1}` : undefined,

@@ -728,7 +728,11 @@ function ModePicker({ onPick, palette }) {
       fontVariantNumeric: "tabular-nums",
       userSelect: "all"
     }
-  }, APP_VERSION)), faqOpen && React.createElement(FaqModal, {
+  }, React.createElement("a", {
+    href: "/admin/",
+    tabIndex: -1,
+    style: { color: "inherit", textDecoration: "none", cursor: "text" }
+  }, APP_VERSION))), faqOpen && React.createElement(FaqModal, {
     onClose: closeFaq,
     palette
   }));
