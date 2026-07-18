@@ -84,7 +84,7 @@ function AdminApp({ sectors }) {
   }, "Refresh failed (", error, ") — showing the previous data. ", React.createElement("button", {
     onClick: reload,
     style: { ...btnStyle, padding: "2px 8px", marginLeft: 6 }
-  }, "Retry")), filtered.length === 0 && React.createElement(Centered, null, "No camps yet for ", year, "."), filtered.length > 0 && (tab === "city" ? React.createElement(CommunityTally, {
+  }, "Retry")), filtered.length === 0 && React.createElement(Centered, null, "No camps yet", year ? ` for ${year}` : "", "."), filtered.length > 0 && (tab === "city" ? React.createElement(CommunityTally, {
     sectors,
     rows: filtered,
     onCampClick: (name) => {
@@ -94,7 +94,8 @@ function AdminApp({ sectors }) {
   }) : React.createElement(CampsView, {
     sectors,
     rows: filtered,
-    highlight: highlightCamp
+    highlight: highlightCamp,
+    onClearHighlight: () => setHighlightCamp(null)
   }))), React.createElement("hr", {
     style: { border: "none", borderTop: "1px solid #26382e", margin: "24px 0 12px" }
   }), React.createElement("div", {
@@ -106,7 +107,9 @@ function AdminApp({ sectors }) {
     onChange: (e) => setYear(+e.target.value),
     title: "Filter by year",
     style: selStyle
-  }, years.length ? years.map((y) => React.createElement("option", {
+  }, React.createElement("option", {
+    value: 0
+  }, "All years"), years.length ? years.map((y) => React.createElement("option", {
     key: y,
     value: y
   }, y)) : React.createElement("option", {
@@ -193,6 +196,21 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     rate = agg.intensities ? agg.intensities[sector.id].levels[3][sel.qi] : 0;
     return { label, text: `Camps reaching advanced step ${sel.qi + 1}`, rate, n: agg.count };
   })();
+  const [copied, setCopied] = React.useState(false);
+  const copySummary = () => {
+    const avg = agg.count ? (agg.totalYes / agg.count).toFixed(1) : "0";
+    const text = [
+      `Green Radius · Black Rock City ${new Date().getFullYear()}`,
+      `${agg.count} ${agg.count === 1 ? "camp" : "camps"} · ${avg} avg score` + (agg.hasAnswers ? ` · ${pct}% achieved` : ""),
+      "Top camps: " + agg.leaderboard.slice(0, 3).map((c, i) => `${i + 1}. ${c.campName} ${c.total}/60`).join(" · "),
+      "https://greenradi.us/city/"
+    ].join(`
+`);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    }, () => {});
+  };
   const Hero = React.createElement("div", {
     style: {
       background: CITY_CARD_BG,
@@ -206,7 +224,24 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     }
   }, React.createElement("div", {
     style: { position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 30%, rgba(217,136,92,0.18), transparent 60%)", pointerEvents: "none" }
-  }), React.createElement("div", {
+  }), React.createElement("button", {
+    type: "button",
+    onClick: copySummary,
+    title: "Copy a short text summary for sharing",
+    style: {
+      position: "absolute",
+      top: 10,
+      right: 12,
+      zIndex: 1,
+      background: "rgba(255,255,255,0.08)",
+      color: "#d8e9dd",
+      border: "1px solid rgba(255,255,255,0.15)",
+      borderRadius: 99,
+      padding: "3px 10px",
+      fontSize: 11,
+      cursor: "pointer"
+    }
+  }, copied ? "Copied ✓" : "⧉ Copy"), React.createElement("div", {
     style: { position: "relative" }
   }, React.createElement("div", {
     style: { fontSize: 10, letterSpacing: "0.25em", fontWeight: 700, opacity: 0.6, marginBottom: 4 }
@@ -637,7 +672,7 @@ function exportCsv(list, sectors) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
-function CampsView({ sectors, rows, highlight }) {
+function CampsView({ sectors, rows, highlight, onClearHighlight }) {
   const wide = useMQ("(min-width: 900px)");
   const [q, setQ] = React.useState("");
   const [sort, setSort] = React.useState("date");
@@ -646,6 +681,27 @@ function CampsView({ sectors, rows, highlight }) {
     if (highlight && hlRef.current)
       hlRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [highlight]);
+  const searchRef = React.useRef(null);
+  React.useEffect(() => {
+    const onKey = (e) => {
+      const t = e.target;
+      const typing = t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA");
+      if (e.key === "/" && !typing) {
+        e.preventDefault();
+        if (searchRef.current)
+          searchRef.current.focus();
+      }
+      if (e.key === "Escape") {
+        setQ("");
+        if (typing && t.blur)
+          t.blur();
+        if (onClearHighlight)
+          onClearHighlight();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClearHighlight]);
   const list = React.useMemo(() => {
     const ql = q.trim().toLowerCase();
     let xs = rows.filter((r) => {
@@ -686,13 +742,25 @@ function CampsView({ sectors, rows, highlight }) {
     onClick: () => exportCsv(list, sectors),
     title: "Download all filtered camps as a CSV file",
     style: { ...selStyle, cursor: "pointer" }
-  }, "⬇ CSV"), React.createElement("div", {
+  }, "⬇ CSV"), React.createElement("button", {
+    "data-email": true,
+    type: "button",
+    title: "Open an email draft BCC'd to every filtered camp lead",
+    onClick: () => {
+      const emails = Array.from(new Set(list.map((r) => r.email).filter(Boolean)));
+      if (emails.length)
+        window.location.href = "mailto:?bcc=" + encodeURIComponent(emails.join(","));
+    },
+    style: { ...selStyle, cursor: "pointer" }
+  }, "✉ Email"), React.createElement("div", {
     style: { flex: 1 }
   }), React.createElement("input", {
     "data-search": true,
+    ref: searchRef,
     value: q,
     onChange: (e) => setQ(e.target.value),
     placeholder: "Search camps, emails, ideas…",
+    title: "Press / to search",
     style: { flex: 1, maxWidth: 340, ...selStyle, borderRadius: 7 }
   }), React.createElement("select", {
     value: sort,
@@ -726,6 +794,8 @@ function CampsView({ sectors, rows, highlight }) {
     return React.createElement("div", {
       key: `${r.campName}|${r.timestamp}`,
       ref: hl ? hlRef : null,
+      onClick: hl ? onClearHighlight : undefined,
+      title: hl ? "Click to dismiss the highlight" : undefined,
       style: hl ? { outline: "2px solid #45c483", outlineOffset: 2, borderRadius: 12 } : undefined
     }, React.createElement(CampRow, {
       sectors,

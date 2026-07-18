@@ -73,11 +73,11 @@ function AdminApp({ sectors }) {
               Refresh failed ({error}) — showing the previous data. <button onClick={reload} style={{ ...btnStyle, padding: '2px 8px', marginLeft: 6 }}>Retry</button>
             </div>
           )}
-          {filtered.length === 0 && <Centered>No camps yet for {year}.</Centered>}
+          {filtered.length === 0 && <Centered>No camps yet{year ? ` for ${year}` : ''}.</Centered>}
           {filtered.length > 0 && (
             tab === 'city'
               ? <CommunityTally sectors={sectors} rows={filtered} onCampClick={name => { setHighlightCamp(name); setTab('camps'); }} />
-              : <CampsView sectors={sectors} rows={filtered} highlight={highlightCamp} />
+              : <CampsView sectors={sectors} rows={filtered} highlight={highlightCamp} onClearHighlight={() => setHighlightCamp(null)} />
           )}
         </div>
       )}
@@ -86,6 +86,7 @@ function AdminApp({ sectors }) {
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingBottom: 16 }}>
         <span style={{ marginRight: 'auto', color: '#93a89b', fontSize: 12 }}>Let's go build a failed utopia.</span>
         <select value={year} onChange={e => setYear(+e.target.value)} title="Filter by year" style={selStyle}>
+          <option value={0}>All years</option>
           {years.length ? years.map(y => <option key={y} value={y}>{y}</option>) : <option value={2026}>2026</option>}
         </select>
         <select value={source} onChange={e => setSource(e.target.value)} title="Filter by submission source" style={selStyle}>
@@ -163,12 +164,33 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     return { label, text: `Camps reaching advanced step ${sel.qi + 1}`, rate, n: agg.count };
   })();
 
+  // Clipboard digest of the city state (for pasting into GTCC email/chat).
+  const [copied, setCopied] = React.useState(false);
+  const copySummary = () => {
+    const avg = agg.count ? (agg.totalYes / agg.count).toFixed(1) : '0';
+    const text = [
+      `Green Radius · Black Rock City ${new Date().getFullYear()}`,
+      `${agg.count} ${agg.count === 1 ? 'camp' : 'camps'} · ${avg} avg score` + (agg.hasAnswers ? ` · ${pct}% achieved` : ''),
+      'Top camps: ' + agg.leaderboard.slice(0, 3).map((c, i) => `${i + 1}. ${c.campName} ${c.total}/60`).join(' · '),
+      'https://greenradi.us/city/',
+    ].join('\n');
+    navigator.clipboard.writeText(text).then(
+      () => { setCopied(true); setTimeout(() => setCopied(false), 1600); },
+      () => {});
+  };
+
   const Hero = (
     <div style={{ background: CITY_CARD_BG, borderRadius: 24, color: '#fff', padding: '14px 16px',
       boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
       position: 'relative', overflow: 'hidden', textAlign: 'center' }}>
       {/* dust glow, mirroring the /city/ card */}
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 30%, rgba(217,136,92,0.18), transparent 60%)', pointerEvents: 'none' }}/>
+      <button type="button" onClick={copySummary} title="Copy a short text summary for sharing"
+        style={{ position: 'absolute', top: 10, right: 12, zIndex: 1, background: 'rgba(255,255,255,0.08)',
+          color: '#d8e9dd', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 99,
+          padding: '3px 10px', fontSize: 11, cursor: 'pointer' }}>
+        {copied ? 'Copied ✓' : '⧉ Copy'}
+      </button>
       <div style={{ position: 'relative' }}>
         <div style={{ fontSize: 10, letterSpacing: '0.25em', fontWeight: 700, opacity: 0.6, marginBottom: 4 }}>
           GREEN RADIUS · BLAST {new Date().getFullYear()}
@@ -487,7 +509,7 @@ function exportCsv(list, sectors) {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
-function CampsView({ sectors, rows, highlight }) {
+function CampsView({ sectors, rows, highlight, onClearHighlight }) {
   const wide = useMQ('(min-width: 900px)');
   const [q, setQ] = React.useState('');
   const [sort, setSort] = React.useState('date');
@@ -496,6 +518,18 @@ function CampsView({ sectors, rows, highlight }) {
   React.useEffect(() => {
     if (highlight && hlRef.current) hlRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [highlight]);
+  // "/" jumps to search; Escape clears the search and any clickthrough ring.
+  const searchRef = React.useRef(null);
+  React.useEffect(() => {
+    const onKey = (e) => {
+      const t = e.target;
+      const typing = t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA');
+      if (e.key === '/' && !typing) { e.preventDefault(); if (searchRef.current) searchRef.current.focus(); }
+      if (e.key === 'Escape') { setQ(''); if (typing && t.blur) t.blur(); if (onClearHighlight) onClearHighlight(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClearHighlight]);
   const list = React.useMemo(() => {
     const ql = q.trim().toLowerCase();
     let xs = rows.filter(r => {
@@ -530,8 +564,17 @@ function CampsView({ sectors, rows, highlight }) {
           style={{ ...selStyle, cursor: 'pointer' }}>
           ⬇ CSV
         </button>
+        <button data-email type="button" title="Open an email draft BCC'd to every filtered camp lead"
+          onClick={() => {
+            const emails = Array.from(new Set(list.map(r => r.email).filter(Boolean)));
+            if (emails.length) window.location.href = 'mailto:?bcc=' + encodeURIComponent(emails.join(','));
+          }}
+          style={{ ...selStyle, cursor: 'pointer' }}>
+          ✉ Email
+        </button>
         <div style={{ flex: 1 }} />
-        <input data-search value={q} onChange={e => setQ(e.target.value)} placeholder="Search camps, emails, ideas…"
+        <input data-search ref={searchRef} value={q} onChange={e => setQ(e.target.value)}
+          placeholder="Search camps, emails, ideas…" title="Press / to search"
           style={{ flex: 1, maxWidth: 340, ...selStyle, borderRadius: 7 }} />
         <select value={sort} onChange={e => setSort(e.target.value)} title="Sort camps by" style={selStyle}>
           <option value="date">Newest</option><option value="score">Score</option><option value="name">Name</option>
@@ -551,6 +594,7 @@ function CampsView({ sectors, rows, highlight }) {
         const hl = highlight && r.campName === highlight;
         return (
           <div key={`${r.campName}|${r.timestamp}`} ref={hl ? hlRef : null}
+            onClick={hl ? onClearHighlight : undefined} title={hl ? 'Click to dismiss the highlight' : undefined}
             style={hl ? { outline: '2px solid #45c483', outlineOffset: 2, borderRadius: 12 } : undefined}>
             <CampRow sectors={sectors} camp={r} wide={wide} />
           </div>
