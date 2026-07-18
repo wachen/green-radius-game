@@ -196,6 +196,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     rate = agg.intensities ? agg.intensities[sector.id].levels[3][sel.qi] : 0;
     return { label, text: `Camps reaching advanced step ${sel.qi + 1}`, rate, n: agg.count };
   })();
+  const [peek, setPeek] = React.useState(null);
   const [copied, setCopied] = React.useState(false);
   const copySummary = () => {
     const avg = agg.count ? (agg.totalYes / agg.count).toFixed(1) : "0";
@@ -224,24 +225,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     }
   }, React.createElement("div", {
     style: { position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 30%, rgba(217,136,92,0.18), transparent 60%)", pointerEvents: "none" }
-  }), React.createElement("button", {
-    type: "button",
-    onClick: copySummary,
-    title: "Copy a short text summary for sharing",
-    style: {
-      position: "absolute",
-      top: 10,
-      right: 12,
-      zIndex: 1,
-      background: "rgba(255,255,255,0.08)",
-      color: "#d8e9dd",
-      border: "1px solid rgba(255,255,255,0.15)",
-      borderRadius: 99,
-      padding: "3px 10px",
-      fontSize: 11,
-      cursor: "pointer"
-    }
-  }, copied ? "Copied ✓" : "⧉ Copy"), React.createElement("div", {
+  }), React.createElement("div", {
     style: { position: "relative" }
   }, React.createElement("div", {
     style: { fontSize: 10, letterSpacing: "0.25em", fontWeight: 700, opacity: 0.6, marginBottom: 4 }
@@ -257,17 +241,33 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     style: { display: "flex", justifyContent: "center" }
   }, React.createElement(RadialBadge, {
     sectors,
-    fills: {},
+    fills: peek ? miniFills(sectors, peek) : {},
     size: wide ? 284 : 276,
     dark: true,
-    intensities: agg.intensities,
+    intensities: peek ? null : agg.intensities,
     selected: sel,
     onSelectSegment: agg.hasAnswers ? (sector, level, qi) => setSel({ sector, level, qi }) : null
   })), React.createElement("div", {
-    style: { fontSize: 13, color: "#d8cbb6", marginTop: 6 }
-  }, React.createElement("b", {
+    style: { display: "flex", justifyContent: "center", alignItems: "center", gap: 8, fontSize: 13, color: "#d8cbb6", marginTop: 6 }
+  }, peek ? React.createElement("span", null, "Previewing ", React.createElement("b", {
     style: { color: "#fff" }
-  }, agg.totalYes), " of ", agg.totalPossible, " green choices"), agg.legacyCount > 0 && React.createElement("div", {
+  }, peek.campName), " · ", peek.total, "/60") : React.createElement("span", null, React.createElement("b", {
+    style: { color: "#fff" }
+  }, agg.totalYes), " of ", agg.totalPossible, " green choices"), React.createElement("button", {
+    type: "button",
+    onClick: copySummary,
+    title: "Copy a short text summary for sharing",
+    style: {
+      background: "rgba(255,255,255,0.08)",
+      color: "#d8e9dd",
+      border: "1px solid rgba(255,255,255,0.15)",
+      borderRadius: 99,
+      padding: "2px 9px",
+      fontSize: 11,
+      cursor: "pointer",
+      flexShrink: 0
+    }
+  }, copied ? "Copied ✓" : "⧉ Copy")), agg.legacyCount > 0 && React.createElement("div", {
     style: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }
   }, agg.legacyCount, " older ", agg.legacyCount === 1 ? "response" : "responses", " on the old 0 to 4 scale excluded from the tally."), !agg.hasAnswers && React.createElement("div", {
     style: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }
@@ -354,12 +354,14 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     "data-rank": i + 1,
     role: "button",
     tabIndex: 0,
-    title: "Open this camp on the Camps tab",
+    title: "Hover previews on the radius; click opens the Camps tab",
     onClick: () => onCampClick && onCampClick(c.campName),
     onKeyDown: (e) => {
       if (e.key === "Enter" && onCampClick)
         onCampClick(c.campName);
     },
+    onMouseEnter: () => setPeek(c),
+    onMouseLeave: () => setPeek(null),
     style: { ...rowStyle, gap: 10, cursor: "pointer" }
   }, React.createElement("span", {
     style: { width: 18, color: "#93a89b", fontVariantNumeric: "tabular-nums" }
@@ -385,6 +387,45 @@ function CommunityTally({ sectors, rows, onCampClick }) {
   }, "●") : null), React.createElement("b", {
     style: { fontVariantNumeric: "tabular-nums" }
   }, c.total, "/60"))));
+  const WEEKS = 10, WEEK_MS = 7 * 86400000;
+  const weekCounts = React.useMemo(() => {
+    const counts = new Array(WEEKS).fill(0);
+    A.dedupeRows(rows).forEach((r) => {
+      if (typeof r.timestamp !== "number" || !r.timestamp)
+        return;
+      const idx = Math.floor((now - r.timestamp) / WEEK_MS);
+      if (idx >= 0 && idx < WEEKS)
+        counts[WEEKS - 1 - idx]++;
+    });
+    return counts;
+  }, [rows, now]);
+  const weekMax = Math.max(1, ...weekCounts);
+  const Momentum = React.createElement("div", {
+    "data-momentum": true,
+    style: { ...panelStyle, marginTop: 12 }
+  }, React.createElement(SecHead, {
+    style: { marginTop: 0 }
+  }, "Momentum"), React.createElement("svg", {
+    width: "100%",
+    height: "40",
+    viewBox: "0 0 100 30",
+    preserveAspectRatio: "none",
+    role: "img",
+    "aria-label": "New camps per week, last 10 weeks"
+  }, weekCounts.map((n, i) => {
+    const h = n ? Math.max(2, n / weekMax * 26) : 1;
+    return React.createElement("rect", {
+      key: i,
+      x: i * 10 + 1.5,
+      y: 28 - h,
+      width: 7,
+      height: h,
+      rx: 1,
+      fill: i === WEEKS - 1 ? "#45c483" : n ? "#2f7a41" : "#26382e"
+    }, React.createElement("title", null, `${n} ${n === 1 ? "camp" : "camps"}, ${i === WEEKS - 1 ? "this week" : `${WEEKS - 1 - i} ${WEEKS - 1 - i === 1 ? "week" : "weeks"} ago`}`));
+  })), React.createElement("div", {
+    style: { fontSize: 11, color: "#93a89b", marginTop: 4 }
+  }, "New camps per week, last 10 weeks"));
   const Standings = React.createElement("div", {
     style: { ...panelStyle, marginTop: 12 }
   }, React.createElement(SecHead, {
@@ -407,7 +448,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     style: { fontVariantNumeric: "tabular-nums" }
   }, s.avg.toFixed(1))))));
   const LeftCol = React.createElement("div", null, Hero, Standings);
-  const RightCol = React.createElement("div", null, Pulse, Leaderboard, Superlatives);
+  const RightCol = React.createElement("div", null, Pulse, Momentum, Leaderboard, Superlatives);
   return wide ? React.createElement("div", {
     style: { display: "grid", gridTemplateColumns: "minmax(280px, 320px) 1fr", gap: 20, paddingTop: 16, alignItems: "start" }
   }, LeftCol, RightCol) : React.createElement("div", {
