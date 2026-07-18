@@ -27,20 +27,27 @@ function AdminApp({ sectors }) {
   const [source, setSource] = React.useState("all");
   const years = React.useMemo(() => Array.from(new Set(rows.map((r) => r.year))).sort((a, b) => b - a), [rows]);
   const filtered = React.useMemo(() => rows.filter((r) => (!year || r.year === year) && (source === "all" || r.source === source)), [rows, year, source]);
-  const Tab = ({ id, label }) => React.createElement("button", {
-    "data-tab": id,
-    onClick: () => setTab(id),
-    style: {
-      fontWeight: 700,
-      fontSize: 13,
-      padding: "6px 13px",
-      borderRadius: 8,
-      border: "none",
-      cursor: "pointer",
-      background: tab === id ? "#1d2c24" : "transparent",
-      color: tab === id ? "#eaf2ec" : "#93a89b"
-    }
-  }, label);
+  const Tab = ({ id, label }) => {
+    const m = TAB_META[id];
+    const active = tab === id;
+    return React.createElement("button", {
+      "data-tab": id,
+      onClick: () => setTab(id),
+      title: `Switch to the ${label} tab`,
+      style: {
+        fontWeight: 800,
+        fontSize: 14,
+        padding: "9px 22px",
+        borderRadius: 12,
+        cursor: "pointer",
+        border: `2px solid ${active ? m.border : "#26382e"}`,
+        background: active ? m.activeBg : "transparent",
+        color: active ? m.text : m.mutedText,
+        boxShadow: active ? "0 6px 16px rgba(0,0,0,0.35)" : "none",
+        transition: "background .15s, border-color .15s"
+      }
+    }, label);
+  };
   return React.createElement("div", {
     style: { maxWidth: tab === "camps" ? 1240 : 900, margin: "0 auto", padding: 14 }
   }, React.createElement("header", {
@@ -52,40 +59,14 @@ function AdminApp({ sectors }) {
   }, "Radius"), " · Admin"), React.createElement("div", {
     style: { flex: 1 }
   }), React.createElement("div", {
-    style: { display: "flex", gap: 4 }
+    style: { display: "flex", gap: 8 }
   }, React.createElement(Tab, {
     id: "city",
     label: "City"
   }), React.createElement(Tab, {
     id: "camps",
     label: "Camps"
-  })), React.createElement("select", {
-    value: year,
-    onChange: (e) => setYear(+e.target.value),
-    style: selStyle
-  }, years.length ? years.map((y) => React.createElement("option", {
-    key: y,
-    value: y
-  }, y)) : React.createElement("option", {
-    value: 2026
-  }, "2026")), React.createElement("select", {
-    value: source,
-    onChange: (e) => setSource(e.target.value),
-    style: selStyle
-  }, React.createElement("option", {
-    value: "all"
-  }, "All"), React.createElement("option", {
-    value: "board"
-  }, "Board"), React.createElement("option", {
-    value: "form"
-  }, "Form")), React.createElement("button", {
-    "data-refresh": true,
-    type: "button",
-    onClick: reload,
-    disabled: status === "loading",
-    "aria-label": "Refresh responses",
-    style: { ...selStyle, cursor: status === "loading" ? "wait" : "pointer", fontWeight: 700 }
-  }, status === "loading" ? "Loading…" : "Refresh")), status === "loading" && rows.length === 0 && React.createElement(Centered, null, "Loading the community tally…"), status === "error" && rows.length === 0 && React.createElement(Centered, null, "Couldn't load responses (", error, "). ", React.createElement("button", {
+  }))), status === "loading" && rows.length === 0 && React.createElement(Centered, null, "Loading the community tally…"), status === "error" && rows.length === 0 && React.createElement(Centered, null, "Couldn't load responses (", error, "). ", React.createElement("button", {
     onClick: reload,
     style: btnStyle
   }, "Retry")), rows.length > 0 && React.createElement("div", {
@@ -101,8 +82,45 @@ function AdminApp({ sectors }) {
   }) : React.createElement(CampsView, {
     sectors,
     rows: filtered
-  }))));
+  }))), React.createElement("hr", {
+    style: { border: "none", borderTop: "1px solid #26382e", margin: "24px 0 12px" }
+  }), React.createElement("div", {
+    style: { display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, flexWrap: "wrap", paddingBottom: 16 }
+  }, React.createElement("select", {
+    value: year,
+    onChange: (e) => setYear(+e.target.value),
+    title: "Filter by year",
+    style: selStyle
+  }, years.length ? years.map((y) => React.createElement("option", {
+    key: y,
+    value: y
+  }, y)) : React.createElement("option", {
+    value: 2026
+  }, "2026")), React.createElement("select", {
+    value: source,
+    onChange: (e) => setSource(e.target.value),
+    title: "Filter by submission source",
+    style: selStyle
+  }, React.createElement("option", {
+    value: "all"
+  }, "All"), React.createElement("option", {
+    value: "board"
+  }, "Board"), React.createElement("option", {
+    value: "form"
+  }, "Form")), React.createElement("button", {
+    "data-refresh": true,
+    type: "button",
+    onClick: reload,
+    disabled: status === "loading",
+    "aria-label": "Refresh responses",
+    title: "Reload responses",
+    style: { ...selStyle, cursor: status === "loading" ? "wait" : "pointer", fontWeight: 700 }
+  }, status === "loading" ? "Loading…" : "Refresh")));
 }
+const TAB_META = {
+  city: { activeBg: "linear-gradient(135deg,#155163,#1c6b82)", border: "#2a7d94", text: "#eaf7fb", mutedText: "#7fb8c9" },
+  camps: { activeBg: "linear-gradient(135deg,#1f5c32,#2f7a41)", border: "#3f9153", text: "#eafbea", mutedText: "#8fce9e" }
+};
 const selStyle = { background: "#101b15", color: "#93a89b", border: "1px solid #26382e", borderRadius: 99, padding: "4px 8px", fontSize: 12 };
 const btnStyle = { background: "#45c483", color: "#06140c", border: "none", borderRadius: 8, padding: "5px 10px", fontWeight: 700, cursor: "pointer" };
 const Centered = ({ children }) => React.createElement("div", {
@@ -165,7 +183,7 @@ function CommunityTally({ sectors, rows }) {
       background: CITY_CARD_BG,
       borderRadius: 24,
       color: "#fff",
-      padding: "24px 22px",
+      padding: "22px 16px",
       boxShadow: "0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)",
       position: "relative",
       overflow: "hidden",
@@ -185,16 +203,17 @@ function CommunityTally({ sectors, rows }) {
     style: { fontSize: 34, fontWeight: 900, color: "#7fc46a", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }
   }, agg.hasAnswers ? `${pct}%` : agg.totalYes), agg.hasAnswers && React.createElement("span", {
     style: { fontSize: 14, fontWeight: 700, opacity: 0.65 }
-  }, " achieved")), React.createElement(RadialBadge, {
+  }, " achieved")), React.createElement("div", {
+    style: { display: "flex", justifyContent: "center" }
+  }, React.createElement(RadialBadge, {
     sectors,
     fills: {},
-    size: wide ? 300 : 256,
+    size: wide ? 264 : 256,
     dark: true,
     intensities: agg.intensities,
-    centerLabel: agg.hasAnswers ? `${pct}%` : `${agg.totalYes}`,
     selected: sel,
     onSelectSegment: agg.hasAnswers ? (sector, level, qi) => setSel({ sector, level, qi }) : null
-  }), React.createElement("div", {
+  })), React.createElement("div", {
     style: { fontSize: 13, color: "#d8cbb6", marginTop: 8 }
   }, React.createElement("b", {
     style: { color: "#fff" }
@@ -225,10 +244,10 @@ function CommunityTally({ sectors, rows }) {
   }, Math.round(detail.rate * 100), "%"), " of ", detail.n, " camps"))));
   const Pulse = React.createElement("div", {
     "data-pulse": true,
-    style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: wide ? 0 : 12 }
+    style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 12 }
   }, React.createElement(StatTile, {
     value: agg.count,
-    label: agg.count === 1 ? "camp" : "camps"
+    label: "Total camps"
   }), React.createElement(StatTile, {
     value: agg.totalYes,
     label: "green points"
@@ -236,7 +255,7 @@ function CommunityTally({ sectors, rows }) {
     value: `+${agg.momentum.thisWeek}`,
     label: "this week"
   }));
-  const Superlatives = sup.strongest || sup.hardest || sup.topL4 ? React.createElement("div", {
+  const Superlatives = sup.strongest || sup.hardest || sup.topL4 || sup.bestBalance || sup.fullSweep ? React.createElement("div", {
     "data-superlatives": true,
     style: { ...panelStyle, marginTop: 12 }
   }, React.createElement(SecHead, {
@@ -257,13 +276,21 @@ function CommunityTally({ sectors, rows }) {
     label: "Top level 4",
     value: `${sup.topL4.title} (${sup.topL4.sector})`,
     detail: `${sup.topL4.yes} ${sup.topL4.yes === 1 ? "camp" : "camps"}`
+  }), sup.bestBalance && React.createElement(Superlative, {
+    label: "Best balance",
+    value: sup.bestBalance.campName,
+    detail: sup.bestBalance.spread === 0 ? "even across all sectors" : `${sup.bestBalance.spread} pt spread`
+  }), sup.fullSweep && React.createElement(Superlative, {
+    label: "Full sweep",
+    value: sup.fullSweep.campName,
+    detail: `${sup.fullSweep.count} sector${sup.fullSweep.count === 1 ? "" : "s"} at 10/10`
   })) : null;
   const Leaderboard = React.createElement("div", {
     "data-leaderboard": true,
-    style: { ...panelStyle, marginTop: 12 }
+    style: { ...panelStyle, marginTop: wide ? 0 : 12 }
   }, React.createElement(SecHead, {
     style: { marginTop: 0 }
-  }, "Reaching Furthest"), agg.leaderboard.map((c, i) => React.createElement("div", {
+  }, "Top Camps"), agg.leaderboard.map((c, i) => React.createElement("div", {
     key: i,
     "data-rank": i + 1,
     style: { ...rowStyle, gap: 10 }
@@ -271,6 +298,7 @@ function CommunityTally({ sectors, rows }) {
     style: { width: 18, color: "#93a89b", fontVariantNumeric: "tabular-nums" }
   }, i + 1), React.createElement("span", {
     "aria-hidden": "true",
+    title: "Camp's green radius shape",
     style: { flexShrink: 0, display: "inline-flex" }
   }, React.createElement(RadialBadge, {
     sectors,
@@ -282,9 +310,10 @@ function CommunityTally({ sectors, rows }) {
   })), React.createElement("span", {
     style: { flex: 1, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
   }, c.campName, " ", i === 0 && React.createElement("span", {
+    title: "Highest score right now",
     style: { color: "#e8c15a" }
   }, "★"), c.timestamp && now - c.timestamp <= 7 * 86400000 ? React.createElement("span", {
-    title: "new this week",
+    title: "New this week",
     style: { color: "#7fc46a", marginLeft: 4 }
   }, "●") : null), React.createElement("b", {
     style: { fontVariantNumeric: "tabular-nums" }
@@ -293,26 +322,30 @@ function CommunityTally({ sectors, rows }) {
     style: { ...panelStyle, marginTop: 12 }
   }, React.createElement(SecHead, {
     style: { marginTop: 0 }
-  }, "Sector Standings"), React.createElement("div", {
+  }, "Sector Averages"), React.createElement("div", {
     style: { display: "grid", gridTemplateColumns: wide ? "1fr 1fr" : "1fr", gap: "0 18px" }
   }, agg.sectorStandings.map((s) => React.createElement("div", {
     key: s.id,
     style: rowStyle
+  }, React.createElement("span", {
+    title: s.name,
+    style: { display: "inline-flex" }
   }, React.createElement(SectorIcon, {
     kind: (sectors.find((x) => x.id === s.id) || {}).icon,
     size: 13,
     color: "#7f988a"
-  }), React.createElement("span", {
+  })), React.createElement("span", {
     style: { flex: 1, color: "#cdebd8" }
   }, s.name), React.createElement("b", {
     style: { fontVariantNumeric: "tabular-nums" }
   }, s.avg.toFixed(1))))));
-  const Stats = React.createElement("div", null, Pulse, Superlatives, Leaderboard, Standings);
+  const LeftCol = React.createElement("div", null, Hero, Standings);
+  const RightCol = React.createElement("div", null, Leaderboard, Pulse, Superlatives);
   return wide ? React.createElement("div", {
-    style: { display: "grid", gridTemplateColumns: "minmax(340px, 400px) 1fr", gap: 20, paddingTop: 16, alignItems: "start" }
-  }, Hero, Stats) : React.createElement("div", {
+    style: { display: "grid", gridTemplateColumns: "minmax(280px, 320px) 1fr", gap: 20, paddingTop: 16, alignItems: "start" }
+  }, LeftCol, RightCol) : React.createElement("div", {
     style: { paddingTop: 12 }
-  }, Hero, Stats);
+  }, LeftCol, RightCol);
 }
 const SecHead = ({ children, style }) => React.createElement("div", {
   style: { fontSize: 10.5, letterSpacing: ".16em", color: "#93a89b", fontWeight: 800, margin: "16px 0 6px", ...style }
@@ -382,7 +415,8 @@ function CampRow({ sectors, camp, wide }) {
   const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers) : legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens);
   const denom = legacy ? 4 : 10;
   const l4 = campL4(sectors, camp);
-  const badge = (text) => React.createElement("span", {
+  const badge = (text, title) => React.createElement("span", {
+    title,
     style: {
       fontSize: 9,
       color: "#93a89b",
@@ -398,6 +432,7 @@ function CampRow({ sectors, camp, wide }) {
   }, React.createElement("div", {
     "data-mini-badge": true,
     "aria-hidden": "true",
+    title: "Camp's green radius shape",
     style: { flexShrink: 0 }
   }, React.createElement(RadialBadge, {
     sectors,
@@ -410,7 +445,7 @@ function CampRow({ sectors, camp, wide }) {
     style: { minWidth: 0 }
   }, React.createElement("div", {
     style: { fontSize: 14.5, fontWeight: 800, lineHeight: 1.25, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }
-  }, React.createElement("span", null, camp.campName), badge(camp.source), legacy && badge("old scale"), hidden && badge("hidden")), React.createElement("div", {
+  }, React.createElement("span", null, camp.campName), badge(camp.source, camp.source === "board" ? "Answered on the in-person board kiosk" : "Answered via the public web form"), legacy && badge("old scale", "Submitted on the legacy 0-4 scale, shown here as an approximation"), hidden && badge("hidden", "Owner-flagged as junk or test data; excluded from every aggregate")), React.createElement("div", {
     style: { fontSize: 11.5, color: "#93a89b", marginTop: 2, overflowWrap: "anywhere" }
   }, camp.leadName, " · ", React.createElement("a", {
     "data-email": true,
@@ -465,6 +500,7 @@ function CampRow({ sectors, camp, wide }) {
     href: camp.resultUrl,
     target: "_blank",
     rel: "noreferrer",
+    title: "Open this camp's shareable result page",
     style: { fontSize: 11, color: "#8fd4ae", textDecoration: "none" }
   }, "result ↗"));
   const ideas = l4.filter((x) => x.note);
@@ -605,7 +641,17 @@ function CampsView({ sectors, rows }) {
   }, label.toUpperCase(), sort === id ? " ▾" : "");
   return React.createElement("div", null, React.createElement("div", {
     style: { display: "flex", gap: 6, padding: "10px 0", alignItems: "center" }
-  }, React.createElement("input", {
+  }, React.createElement("span", {
+    style: { color: "#93a89b", fontSize: 11 }
+  }, list.length, " of ", rows.length, " camps"), React.createElement("button", {
+    "data-export": true,
+    type: "button",
+    onClick: () => exportCsv(list, sectors),
+    title: "Download all filtered camps as a CSV file",
+    style: { ...selStyle, cursor: "pointer" }
+  }, "⬇ CSV"), React.createElement("div", {
+    style: { flex: 1 }
+  }), React.createElement("input", {
     "data-search": true,
     value: q,
     onChange: (e) => setQ(e.target.value),
@@ -614,6 +660,7 @@ function CampsView({ sectors, rows }) {
   }), React.createElement("select", {
     value: sort,
     onChange: (e) => setSort(e.target.value),
+    title: "Sort camps by",
     style: selStyle
   }, React.createElement("option", {
     value: "date"
@@ -624,16 +671,7 @@ function CampsView({ sectors, rows }) {
   }, "Name"), sectors.map((s) => React.createElement("option", {
     key: s.id,
     value: s.id
-  }, s.name))), React.createElement("div", {
-    style: { flex: 1 }
-  }), React.createElement("span", {
-    style: { color: "#93a89b", fontSize: 11 }
-  }, list.length, " of ", rows.length, " camps"), React.createElement("button", {
-    "data-export": true,
-    type: "button",
-    onClick: () => exportCsv(list, sectors),
-    style: { ...selStyle, cursor: "pointer" }
-  }, "⬇ CSV")), wide && React.createElement("div", {
+  }, s.name)))), wide && React.createElement("div", {
     style: {
       display: "grid",
       columnGap: 10,
@@ -651,9 +689,7 @@ function CampsView({ sectors, rows }) {
     sectors,
     camp: r,
     wide
-  })), React.createElement("div", {
-    style: { padding: "8px 0", color: "#93a89b", fontSize: 10 }
-  }, list.length, " camps"));
+  })));
 }
 function legacyFills(sectors, greens) {
   const out = {};

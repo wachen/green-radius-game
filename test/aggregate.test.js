@@ -95,5 +95,26 @@ describe('superlatives', () => {
     const empty = A.superlatives(A.computeAggregates([], SECTORS, 2000), SECTORS, 3);
     expect(empty.strongest).toBe(null);
     expect(empty.hardest).toBe(null);
+    expect(empty.bestBalance).toBe(null);
+    expect(empty.fullSweep).toBe(null);
+  });
+
+  test('bestBalance picks the smallest spread across sectors; fullSweep needs a 10/10 sector', () => {
+    const rows = [
+      row('lopsided', { food: 10, water: 0 }, { F1: 'yes' }),
+      row('balanced', { food: 5, water: 4 }, { F1: 'yes' }),
+      row('swept', { food: 10, water: 3 }, { F1: 'yes' }),
+    ];
+    const agg = A.computeAggregates(rows, SECTORS, 2000);
+    const s = A.superlatives(agg, SECTORS, 1);
+    expect(s.bestBalance.campName).toBe('balanced');
+    expect(s.bestBalance.spread).toBe(1);
+    expect(s.fullSweep.campName).toBe('swept');
+    expect(s.fullSweep.count).toBe(1);
+  });
+
+  test('bestBalance/fullSweep helpers are null-safe on empty campRows', () => {
+    expect(A.bestBalance([], SECTORS)).toBe(null);
+    expect(A.fullSweep([], SECTORS)).toBe(null);
   });
 });

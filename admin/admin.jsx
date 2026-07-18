@@ -33,28 +33,30 @@ function AdminApp({ sectors }) {
   const filtered = React.useMemo(() => rows.filter(r =>
     (!year || r.year === year) && (source === 'all' || r.source === source)), [rows, year, source]);
 
-  const Tab = ({ id, label }) => (
-    <button data-tab={id} onClick={() => setTab(id)}
-      style={{ fontWeight: 700, fontSize: 13, padding: '6px 13px', borderRadius: 8, border: 'none', cursor: 'pointer',
-        background: tab === id ? '#1d2c24' : 'transparent', color: tab === id ? '#eaf2ec' : '#93a89b' }}>{label}</button>
-  );
+  // Big colorful tabs (replaces the old plain nav links) — each tab gets its
+  // own hue so City/Camps read as distinct destinations, not just a toggle.
+  // Colors keep white-on-saturated text for WCAG-AA contrast when active.
+  const Tab = ({ id, label }) => {
+    const m = TAB_META[id];
+    const active = tab === id;
+    return (
+      <button data-tab={id} onClick={() => setTab(id)} title={`Switch to the ${label} tab`}
+        style={{ fontWeight: 800, fontSize: 14, padding: '9px 22px', borderRadius: 12, cursor: 'pointer',
+          border: `2px solid ${active ? m.border : '#26382e'}`,
+          background: active ? m.activeBg : 'transparent',
+          color: active ? m.text : m.mutedText,
+          boxShadow: active ? '0 6px 16px rgba(0,0,0,0.35)' : 'none', transition: 'background .15s, border-color .15s' }}>
+        {label}
+      </button>
+    );
+  };
 
   return (
     <div style={{ maxWidth: tab === 'camps' ? 1240 : 900, margin: '0 auto', padding: 14 }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', rowGap: 6, paddingBottom: 10, borderBottom: '1px solid #26382e' }}>
         <b style={{ fontWeight: 800 }}>Green<span style={{ color: '#45c483' }}>Radius</span> · Admin</b>
         <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', gap: 4 }}><Tab id="city" label="City" /><Tab id="camps" label="Camps" /></div>
-        <select value={year} onChange={e => setYear(+e.target.value)} style={selStyle}>
-          {years.length ? years.map(y => <option key={y} value={y}>{y}</option>) : <option value={2026}>2026</option>}
-        </select>
-        <select value={source} onChange={e => setSource(e.target.value)} style={selStyle}>
-          <option value="all">All</option><option value="board">Board</option><option value="form">Form</option>
-        </select>
-        <button data-refresh type="button" onClick={reload} disabled={status === 'loading'} aria-label="Refresh responses"
-          style={{ ...selStyle, cursor: status === 'loading' ? 'wait' : 'pointer', fontWeight: 700 }}>
-          {status === 'loading' ? 'Loading…' : 'Refresh'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}><Tab id="city" label="City" /><Tab id="camps" label="Camps" /></div>
       </header>
 
       {status === 'loading' && rows.length === 0 && <Centered>Loading the community tally…</Centered>}
@@ -74,9 +76,31 @@ function AdminApp({ sectors }) {
           )}
         </div>
       )}
+
+      <hr style={{ border: 'none', borderTop: '1px solid #26382e', margin: '24px 0 12px' }}/>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingBottom: 16 }}>
+        <select value={year} onChange={e => setYear(+e.target.value)} title="Filter by year" style={selStyle}>
+          {years.length ? years.map(y => <option key={y} value={y}>{y}</option>) : <option value={2026}>2026</option>}
+        </select>
+        <select value={source} onChange={e => setSource(e.target.value)} title="Filter by submission source" style={selStyle}>
+          <option value="all">All</option><option value="board">Board</option><option value="form">Form</option>
+        </select>
+        <button data-refresh type="button" onClick={reload} disabled={status === 'loading'} aria-label="Refresh responses"
+          title="Reload responses" style={{ ...selStyle, cursor: status === 'loading' ? 'wait' : 'pointer', fontWeight: 700 }}>
+          {status === 'loading' ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
     </div>
   );
 }
+
+// Per-tab hues for the big colorful tab buttons: City stays teal (matches the
+// /city/ hero), Camps gets the brand green. Muted text keeps ≥4.5:1 contrast
+// on the page's near-black background when the tab is inactive.
+const TAB_META = {
+  city: { activeBg: 'linear-gradient(135deg,#155163,#1c6b82)', border: '#2a7d94', text: '#eaf7fb', mutedText: '#7fb8c9' },
+  camps: { activeBg: 'linear-gradient(135deg,#1f5c32,#2f7a41)', border: '#3f9153', text: '#eafbea', mutedText: '#8fce9e' },
+};
 
 const selStyle = { background: '#101b15', color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '4px 8px', fontSize: 12 };
 const btnStyle = { background: '#45c483', color: '#06140c', border: 'none', borderRadius: 8, padding: '5px 10px', fontWeight: 700, cursor: 'pointer' };
@@ -134,7 +158,7 @@ function CommunityTally({ sectors, rows }) {
   })();
 
   const Hero = (
-    <div style={{ background: CITY_CARD_BG, borderRadius: 24, color: '#fff', padding: '24px 22px',
+    <div style={{ background: CITY_CARD_BG, borderRadius: 24, color: '#fff', padding: '22px 16px',
       boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
       position: 'relative', overflow: 'hidden', textAlign: 'center' }}>
       {/* dust glow, mirroring the /city/ card */}
@@ -148,10 +172,17 @@ function CommunityTally({ sectors, rows }) {
           <span style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{agg.hasAnswers ? `${pct}%` : agg.totalYes}</span>
           {agg.hasAnswers && <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> achieved</span>}
         </div>
-        <RadialBadge sectors={sectors} fills={{}} size={wide ? 300 : 256} dark
-          intensities={agg.intensities} centerLabel={agg.hasAnswers ? `${pct}%` : `${agg.totalYes}`}
-          selected={sel}
-          onSelectSegment={agg.hasAnswers ? (sector, level, qi) => setSel({ sector, level, qi }) : null} />
+        {/* Centering wrapper: the badge's <svg> renders display:block, so it
+            needs an explicit flex center — text-align:center alone doesn't
+            center a block-level child. No center numeral here: the percent
+            already reads above, so the badge just shows its hub dot. Hover a
+            wedge to preview its question; click/tap still works (mobile). */}
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <RadialBadge sectors={sectors} fills={{}} size={wide ? 264 : 256} dark
+            intensities={agg.intensities}
+            selected={sel}
+            onSelectSegment={agg.hasAnswers ? (sector, level, qi) => setSel({ sector, level, qi }) : null} />
+        </div>
         <div style={{ fontSize: 13, color: '#d8cbb6', marginTop: 8 }}>
           <b style={{ color: '#fff' }}>{agg.totalYes}</b> of {agg.totalPossible} green choices
         </div>
@@ -174,35 +205,37 @@ function CommunityTally({ sectors, rows }) {
   );
 
   const Pulse = (
-    <div data-pulse style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: wide ? 0 : 12 }}>
-      <StatTile value={agg.count} label={agg.count === 1 ? 'camp' : 'camps'} />
+    <div data-pulse style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 }}>
+      <StatTile value={agg.count} label="Total camps" />
       <StatTile value={agg.totalYes} label="green points" />
       <StatTile value={`+${agg.momentum.thisWeek}`} label="this week" />
     </div>
   );
 
-  const Superlatives = (sup.strongest || sup.hardest || sup.topL4) ? (
+  const Superlatives = (sup.strongest || sup.hardest || sup.topL4 || sup.bestBalance || sup.fullSweep) ? (
     <div data-superlatives style={{ ...panelStyle, marginTop: 12 }}>
       <SecHead style={{ marginTop: 0 }}>Superlatives</SecHead>
       {sup.strongest && <Superlative label="Strongest sector" value={sup.strongest.name} detail={`${sup.strongest.avg.toFixed(1)}/10 avg`} />}
       {sup.weakest && <Superlative label="Weakest sector" value={sup.weakest.name} detail={`${sup.weakest.avg.toFixed(1)}/10 avg`} />}
       {sup.hardest && <Superlative label="Hardest question" value={`${sup.hardest.title} (${sup.hardest.sector})`} detail={`${Math.round(sup.hardest.rate * 100)}% of ${sup.hardest.asked}`} />}
       {sup.topL4 && <Superlative label="Top level 4" value={`${sup.topL4.title} (${sup.topL4.sector})`} detail={`${sup.topL4.yes} ${sup.topL4.yes === 1 ? 'camp' : 'camps'}`} />}
+      {sup.bestBalance && <Superlative label="Best balance" value={sup.bestBalance.campName} detail={sup.bestBalance.spread === 0 ? 'even across all sectors' : `${sup.bestBalance.spread} pt spread`} />}
+      {sup.fullSweep && <Superlative label="Full sweep" value={sup.fullSweep.campName} detail={`${sup.fullSweep.count} sector${sup.fullSweep.count === 1 ? '' : 's'} at 10/10`} />}
     </div>
   ) : null;
 
   const Leaderboard = (
-    <div data-leaderboard style={{ ...panelStyle, marginTop: 12 }}>
-      <SecHead style={{ marginTop: 0 }}>Reaching Furthest</SecHead>
+    <div data-leaderboard style={{ ...panelStyle, marginTop: wide ? 0 : 12 }}>
+      <SecHead style={{ marginTop: 0 }}>Top Camps</SecHead>
       {agg.leaderboard.map((c, i) => (
         <div key={i} data-rank={i + 1} style={{ ...rowStyle, gap: 10 }}>
           <span style={{ width: 18, color: '#93a89b', fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
-          <span aria-hidden="true" style={{ flexShrink: 0, display: 'inline-flex' }}>
+          <span aria-hidden="true" title="Camp's green radius shape" style={{ flexShrink: 0, display: 'inline-flex' }}>
             <RadialBadge sectors={sectors} fills={miniFills(sectors, c)} size={30} dark showLabels={false} showCenter={false}/>
           </span>
           <span style={{ flex: 1, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {c.campName} {i === 0 && <span style={{ color: '#e8c15a' }}>★</span>}
-            {c.timestamp && now - c.timestamp <= 7 * 864e5 ? <span title="new this week" style={{ color: '#7fc46a', marginLeft: 4 }}>●</span> : null}
+            {c.campName} {i === 0 && <span title="Highest score right now" style={{ color: '#e8c15a' }}>★</span>}
+            {c.timestamp && now - c.timestamp <= 7 * 864e5 ? <span title="New this week" style={{ color: '#7fc46a', marginLeft: 4 }}>●</span> : null}
           </span>
           <b style={{ fontVariantNumeric: 'tabular-nums' }}>{c.total}/60</b>
         </div>
@@ -212,11 +245,13 @@ function CommunityTally({ sectors, rows }) {
 
   const Standings = (
     <div style={{ ...panelStyle, marginTop: 12 }}>
-      <SecHead style={{ marginTop: 0 }}>Sector Standings</SecHead>
+      <SecHead style={{ marginTop: 0 }}>Sector Averages</SecHead>
       <div style={{ display: 'grid', gridTemplateColumns: wide ? '1fr 1fr' : '1fr', gap: '0 18px' }}>
         {agg.sectorStandings.map(s => (
           <div key={s.id} style={rowStyle}>
-            <SectorIcon kind={(sectors.find(x => x.id === s.id) || {}).icon} size={13} color="#7f988a"/>
+            <span title={s.name} style={{ display: 'inline-flex' }}>
+              <SectorIcon kind={(sectors.find(x => x.id === s.id) || {}).icon} size={13} color="#7f988a"/>
+            </span>
             <span style={{ flex: 1, color: '#cdebd8' }}>{s.name}</span>
             <b style={{ fontVariantNumeric: 'tabular-nums' }}>{s.avg.toFixed(1)}</b>
           </div>
@@ -225,10 +260,15 @@ function CommunityTally({ sectors, rows }) {
     </div>
   );
 
-  const Stats = <div>{Pulse}{Superlatives}{Leaderboard}{Standings}</div>;
+  // Left column: the BRC radius box with Sector Averages sitting directly
+  // under it (same color scheme, just relocated). Right column: Top Camps
+  // leads (moved to the top of the stack), then the pulse tiles, then
+  // Superlatives. Narrow screens stack both columns in the same order.
+  const LeftCol = <div>{Hero}{Standings}</div>;
+  const RightCol = <div>{Leaderboard}{Pulse}{Superlatives}</div>;
   return wide
-    ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 400px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{Hero}{Stats}</div>
-    : <div style={{ paddingTop: 12 }}>{Hero}{Stats}</div>;
+    ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{LeftCol}{RightCol}</div>
+    : <div style={{ paddingTop: 12 }}>{LeftCol}{RightCol}</div>;
 }
 const SecHead = ({ children, style }) => <div style={{ fontSize: 10.5, letterSpacing: '.16em', color: '#93a89b', fontWeight: 800, margin: '16px 0 6px', ...style }}>{String(children).toUpperCase()}</div>;
 const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px dashed #21332a', fontSize: 13 };
@@ -312,20 +352,22 @@ function CampRow({ sectors, camp, wide }) {
   const denom = legacy ? 4 : 10;
   const l4 = campL4(sectors, camp);
 
-  const badge = (text) => (
-    <span style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99,
+  const badge = (text, title) => (
+    <span title={title} style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99,
       padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
   );
   const Identity = (
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
       {/* 44px radius thumbnail: round vs lopsided camps read at a glance */}
-      <div data-mini-badge aria-hidden="true" style={{ flexShrink: 0 }}>
+      <div data-mini-badge aria-hidden="true" title="Camp's green radius shape" style={{ flexShrink: 0 }}>
         <RadialBadge sectors={sectors} fills={fills} size={44} dark showLabels={false} showCenter={false}/>
       </div>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 14.5, fontWeight: 800, lineHeight: 1.25, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <span>{camp.campName}</span>
-          {badge(camp.source)}{legacy && badge('old scale')}{hidden && badge('hidden')}
+          {badge(camp.source, camp.source === 'board' ? 'Answered on the in-person board kiosk' : 'Answered via the public web form')}
+          {legacy && badge('old scale', 'Submitted on the legacy 0-4 scale, shown here as an approximation')}
+          {hidden && badge('hidden', 'Owner-flagged as junk or test data; excluded from every aggregate')}
         </div>
         <div style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
           {camp.leadName} · <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}>{camp.email}</a>
@@ -358,7 +400,7 @@ function CampRow({ sectors, camp, wide }) {
         <span style={{ color: '#5d7367', fontSize: 12 }}>/{legacy ? 24 : 60}</span>
       </div>
       {camp.resultUrl && (
-        <a data-result href={camp.resultUrl} target="_blank" rel="noreferrer"
+        <a data-result href={camp.resultUrl} target="_blank" rel="noreferrer" title="Open this camp's shareable result page"
           style={{ fontSize: 11, color: '#8fd4ae', textDecoration: 'none' }}>result ↗</a>
       )}
     </div>
@@ -465,17 +507,18 @@ function CampsView({ sectors, rows }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 6, padding: '10px 0', alignItems: 'center' }}>
+        <span style={{ color: '#93a89b', fontSize: 11 }}>{list.length} of {rows.length} camps</span>
+        <button data-export type="button" onClick={() => exportCsv(list, sectors)} title="Download all filtered camps as a CSV file"
+          style={{ ...selStyle, cursor: 'pointer' }}>
+          ⬇ CSV
+        </button>
+        <div style={{ flex: 1 }} />
         <input data-search value={q} onChange={e => setQ(e.target.value)} placeholder="Search camps, emails, ideas…"
           style={{ flex: 1, maxWidth: 340, ...selStyle, borderRadius: 7 }} />
-        <select value={sort} onChange={e => setSort(e.target.value)} style={selStyle}>
+        <select value={sort} onChange={e => setSort(e.target.value)} title="Sort camps by" style={selStyle}>
           <option value="date">Newest</option><option value="score">Score</option><option value="name">Name</option>
           {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <div style={{ flex: 1 }} />
-        <span style={{ color: '#93a89b', fontSize: 11 }}>{list.length} of {rows.length} camps</span>
-        <button data-export type="button" onClick={() => exportCsv(list, sectors)} style={{ ...selStyle, cursor: 'pointer' }}>
-          ⬇ CSV
-        </button>
       </div>
       {wide && (
         <div style={{ display: 'grid', columnGap: 10, padding: '4px 12px', position: 'sticky', top: 0,
@@ -487,7 +530,6 @@ function CampsView({ sectors, rows }) {
         </div>
       )}
       {list.map(r => <CampRow key={`${r.campName}|${r.timestamp}`} sectors={sectors} camp={r} wide={wide} />)}
-      <div style={{ padding: '8px 0', color: '#93a89b', fontSize: 10 }}>{list.length} camps</div>
     </div>
   );
 }
