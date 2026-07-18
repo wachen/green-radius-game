@@ -487,7 +487,12 @@ function ModePicker({ onPick, palette }) {
           letterSpacing: '0.18em', color: palette.text + '40',
           fontVariantNumeric: 'tabular-nums', userSelect: 'all',
         }}>
-          {APP_VERSION}
+          {/* Quiet team door: the stamp doubles as the /admin/ link. Deliberately
+              tiny target and unstyled (no 44px hit-expansion) so it reads as
+              plain text; the admin page is Access-gated regardless. */}
+          <a href="/admin/" tabIndex={-1} style={{ color: 'inherit', textDecoration: 'none', cursor: 'text' }}>
+            {APP_VERSION}
+          </a>
         </div>
       </div>
 
