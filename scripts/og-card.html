@@ -1,16 +1,27 @@
 <!doctype html>
 <!-- Source for og-card.png (1200x630), the static Open Graph share image and
-     README hero. og-card.png had no source before this file; regenerate with:
+     README hero. The wheel is NOT hand-drawn: this page loads the real
+     compiled RadialBadge + game data and renders the actual 60-segment
+     radius, fully lit, so the graphic always matches the live game board
+     (geometry and the LEVEL_COLORS green ramp alike). Regenerate with:
        python3 -m http.server 8000   (repo root)
        then screenshot this page at exactly 1200x630, e.g.:
        page.setViewportSize({width:1200,height:630});
        await page.goto('http://localhost:8000/scripts/og-card.html');
+       await page.waitForFunction(() => document.querySelectorAll('#wheel svg path').length >= 60);
        await page.evaluate(() => document.fonts.ready);
        await page.screenshot({path:'og-card.png'});
      scripts/ is in .assetsignore, so this page is never served in prod. -->
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
+<script defer src="/vendor/preact-10.29.7.min.umd.js"></script>
+<script defer src="/vendor/preact-hooks-10.29.7.umd.js"></script>
+<script defer src="/vendor/preact-compat-10.29.7.umd.js"></script>
+<script defer src="/vendor/preact-compat-shim-10.29.7.js"></script>
+<script defer src="/game-data.js"></script>
+<script defer src="/dist/src/core.js"></script>
+<script defer src="/dist/src/badge.js"></script>
 <style>
   @font-face {
     font-family: 'Space Grotesk';
@@ -23,50 +34,62 @@
     width: 1200px; height: 630px; overflow: hidden; box-sizing: border-box;
     background: #D8CBB6; color: #2a2620;
     font-family: 'Space Grotesk', system-ui, sans-serif;
-    display: flex; align-items: center; gap: 72px; padding: 0 84px;
+    display: flex; align-items: center; gap: 56px; padding: 0 72px;
   }
-  .wheel { flex-shrink: 0; }
+  /* The clickety pointer sits above the badge like the board's spinner arrow. */
+  .wheel-wrap { flex-shrink: 0; position: relative; padding-top: 26px; }
+  .pointer { position: absolute; top: 0; left: 50%; transform: translateX(-50%); }
   .kicker {
     font-size: 21px; font-weight: 700; letter-spacing: 0.21em;
-    color: #6f6555; margin-bottom: 18px; white-space: nowrap;
+    color: #6f6555; margin-bottom: 16px; white-space: nowrap;
   }
   h1 {
-    margin: 0 0 22px; font-size: 99px; font-weight: 700;
-    line-height: 1.02; letter-spacing: -0.015em;
+    margin: 0 0 20px; font-size: 72px; font-weight: 700;
+    line-height: 1.04; letter-spacing: -0.015em; white-space: nowrap;
   }
   h1 .green { color: #31975B; }
   .pitch {
-    font-size: 30px; line-height: 1.4; color: #4a4238;
-    max-width: 590px; margin: 0 0 34px;
+    font-size: 27px; line-height: 1.4; color: #4a4238;
+    max-width: 520px; margin: 0 0 30px;
   }
   .pill {
     display: inline-block; background: #31975B; color: #fff;
-    border-radius: 999px; padding: 17px 42px;
-    font-size: 30px; font-weight: 700; letter-spacing: 0.02em;
+    border-radius: 999px; padding: 15px 38px;
+    font-size: 27px; font-weight: 700; letter-spacing: 0.02em;
   }
 </style>
 </head>
 <body>
-  <!-- Same six-wedge wheel as the favicon and the loading placeholder, with
-       the black "clickety" pointer at the top like a board-game spinner. -->
-  <svg class="wheel" width="430" height="430" viewBox="0 0 64 64" aria-hidden="true">
-    <g>
-      <path fill="#A3D178" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" d="M32 33 L32 10 A23 23 0 0 1 51.92 21.5 Z"/>
-      <path fill="#86C169" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" d="M32 33 L51.92 21.5 A23 23 0 0 1 51.92 44.5 Z"/>
-      <path fill="#68B05C" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" d="M32 33 L51.92 44.5 A23 23 0 0 1 32 56 Z"/>
-      <path fill="#56A85C" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" d="M32 33 L32 56 A23 23 0 0 1 12.08 44.5 Z"/>
-      <path fill="#439F5B" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" d="M32 33 L12.08 44.5 A23 23 0 0 1 12.08 21.5 Z"/>
-      <path fill="#31975B" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" d="M32 33 L12.08 21.5 A23 23 0 0 1 32 10 Z"/>
-      <circle cx="32" cy="33" r="23" fill="none" stroke="#2a2620" stroke-width="2.8"/>
-      <circle cx="32" cy="33" r="3.4" fill="#2a2620"/>
-    </g>
-    <polygon points="32,12 26.8,3 37.2,3" fill="#2a2620"/>
-  </svg>
+  <div class="wheel-wrap">
+    <div id="wheel"></div>
+    <svg class="pointer" width="52" height="30" viewBox="0 0 52 30" aria-hidden="true">
+      <polygon points="26,30 10,2 42,2" fill="#2a2620"/>
+    </svg>
+  </div>
   <div>
     <div class="kicker">GREEN THEME CAMP COMMUNITY</div>
     <h1><span class="green">Green Radius</span><br/>Game</h1>
     <p class="pitch">A self-ranking sustainability game where Burning Man theme camps spin the wheel, answer Yes/No, and build their green radius.</p>
     <span class="pill">greenradi.us&thinsp;&#8599;</span>
   </div>
+  <script>
+    // Deferred scripts finish before DOMContentLoaded, so the globals exist here.
+    window.addEventListener('DOMContentLoaded', function () {
+      var answers = {};
+      window.SECTORS.forEach(function (s) {
+        s.levels.slice(0, 3).forEach(function (lvl) {
+          (lvl || []).forEach(function (q) { answers[q.id] = 'yes'; });
+        });
+        (s.tier4Topics || []).slice(0, 4).forEach(function (t) { answers[t.id] = 'yes'; });
+      });
+      var fills = fillsFromAnswers(window.SECTORS, answers);
+      ReactDOM.createRoot(document.getElementById('wheel')).render(
+        React.createElement(RadialBadge, {
+          sectors: window.SECTORS, fills: fills, size: 470,
+          dark: false, showLabels: false, showCenter: false,
+        })
+      );
+    });
+  </script>
 </body>
 </html>
