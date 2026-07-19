@@ -86,6 +86,23 @@ function AdminApp({ sectors }) {
         <div style={{ display: 'flex', gap: 8 }}><Tab id="city" label="🌄 City" name="City" /><Tab id="camps" label="🎪 Camps" name="Camps" /></div>
       </header>
 
+      {/* Global filters live up here (they scope BOTH tabs), not in the footer —
+          controls that change what the page shows belong before the content
+          they change. The footer keeps only the sign-off quote. */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 0 0' }}>
+        <select value={year} onChange={e => setYear(+e.target.value)} title="Filter by year" style={selStyle}>
+          <option value={0}>All years</option>
+          {years.length ? years.map(y => <option key={y} value={y}>{y}</option>) : <option value={2026}>2026</option>}
+        </select>
+        <select value={source} onChange={e => setSource(e.target.value)} title="Filter by submission source" style={selStyle}>
+          <option value="all">All</option><option value="board">Board</option><option value="form">Form</option>
+        </select>
+        <button data-refresh type="button" onClick={reload} disabled={status === 'loading'} aria-label="Refresh responses"
+          title="Reload responses" style={{ ...selStyle, cursor: status === 'loading' ? 'wait' : 'pointer', fontWeight: 700 }}>
+          {status === 'loading' ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
+
       {status === 'loading' && rows.length === 0 && <Centered><LoadingWheel/><div style={{ marginTop: 10 }}>Loading the community tally…</div></Centered>}
       {status === 'error' && rows.length === 0 && <Centered>Couldn't load responses ({error}). <button onClick={reload} style={btnStyle}>Retry</button></Centered>}
       {rows.length > 0 && (
@@ -105,20 +122,7 @@ function AdminApp({ sectors }) {
       )}
 
       <hr style={{ border: 'none', borderTop: '1px solid #26382e', margin: '24px 0 12px' }}/>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingBottom: 16 }}>
-        <span style={{ marginRight: 'auto', color: '#93a89b', fontSize: 12 }}>Let's go build a failed utopia.</span>
-        <select value={year} onChange={e => setYear(+e.target.value)} title="Filter by year" style={selStyle}>
-          <option value={0}>All years</option>
-          {years.length ? years.map(y => <option key={y} value={y}>{y}</option>) : <option value={2026}>2026</option>}
-        </select>
-        <select value={source} onChange={e => setSource(e.target.value)} title="Filter by submission source" style={selStyle}>
-          <option value="all">All</option><option value="board">Board</option><option value="form">Form</option>
-        </select>
-        <button data-refresh type="button" onClick={reload} disabled={status === 'loading'} aria-label="Refresh responses"
-          title="Reload responses" style={{ ...selStyle, cursor: status === 'loading' ? 'wait' : 'pointer', fontWeight: 700 }}>
-          {status === 'loading' ? 'Loading…' : 'Refresh'}
-        </button>
-      </div>
+      <div style={{ paddingBottom: 16, color: '#93a89b', fontSize: 12 }}>Let's go build a failed utopia.</div>
     </div>
   );
 }
@@ -165,10 +169,12 @@ function miniFills(sectors, entry) {
   return A.isLegacy(entry) ? legacyFills(sectors, entry.greens) : approxFills(sectors, entry.greens);
 }
 
-function StatTile({ value, label }) {
+function StatTile({ value, suffix, label }) {
   return (
     <div style={{ ...panelStyle, textAlign: 'center', padding: '12px 8px' }}>
-      <div style={{ fontSize: 26, fontWeight: 900, color: '#7fc46a', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>{value}</div>
+      <div style={{ fontSize: 26, fontWeight: 900, color: '#7fc46a', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
+        {value}{suffix && <span style={{ fontSize: 14, fontWeight: 700, color: '#93a89b' }}>{suffix}</span>}
+      </div>
       <div style={{ fontSize: 9.5, letterSpacing: '.14em', color: '#93a89b', fontWeight: 800, marginTop: 2 }}>{label.toUpperCase()}</div>
     </div>
   );
@@ -211,7 +217,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     const avg = agg.count ? (agg.totalYes / agg.count).toFixed(1) : '0';
     const text = [
       `Green Radius · Black Rock City ${new Date().getFullYear()}`,
-      `${agg.count} ${agg.count === 1 ? 'camp' : 'camps'} · ${avg} avg score` + (agg.hasAnswers ? ` · ${pct}% achieved` : ''),
+      `${agg.count} ${agg.count === 1 ? 'camp' : 'camps'} · ${avg}/60 avg score` + (agg.hasAnswers ? ` · ${pct}% achieved` : ''),
       'Top camps: ' + agg.leaderboard.slice(0, 3).map((c, i) => `${i + 1}. ${c.campName} ${c.total}/60`).join(' · '),
       'https://greenradi.us/city/',
     ].join('\n');
@@ -278,7 +284,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     <div data-pulse style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: wide ? 0 : 12 }}>
       <StatTile value={agg.count} label="Total camps" />
       <StatTile value={`+${agg.momentum.thisWeek}`} label="this week" />
-      <StatTile value={agg.count ? (agg.totalYes / agg.count).toFixed(1) : 0} label="Avg score" />
+      <StatTile value={agg.count ? (agg.totalYes / agg.count).toFixed(1) : 0} suffix="/60" label="Avg score" />
     </div>
   );
 
@@ -560,7 +566,16 @@ function exportCsv(list, sectors) {
 function CampsView({ sectors, rows, highlight, onClearHighlight }) {
   const wide = useMQ('(min-width: 900px)');
   const [q, setQ] = React.useState('');
+  // Default view: time of receipt, newest first. Every column sorts both ways:
+  // first click applies its natural direction (text ascends, numbers/dates
+  // descend), clicking the same column again reverses it.
   const [sort, setSort] = React.useState('date');
+  const [dir, setDir] = React.useState('desc');
+  const defaultDir = (id) => (id === 'name' ? 'asc' : 'desc');
+  const pickSort = (id) => {
+    if (id === sort) setDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSort(id); setDir(defaultDir(id)); }
+  };
   // City-tab clickthrough target: scroll the highlighted camp into view once.
   const hlRef = React.useRef(null);
   React.useEffect(() => {
@@ -586,28 +601,50 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
         .filter(k => k.endsWith('-note')).map(k => r.answers[k]).join(' ');
       return (r.campName + ' ' + r.leadName + ' ' + r.email + ' ' + notes).toLowerCase().includes(ql);
     });
+    // Primary key ascending; `dir` flips only the primary so the name-A→Z
+    // tiebreak stays stable in either direction.
     const bySector = sectors.some(s => s.id === sort);
-    xs = xs.slice().sort(
+    const key =
       sort === 'name' ? (a, b) => a.campName.localeCompare(b.campName)
-        : sort === 'score' ? (a, b) => (b.total - a.total) || a.campName.localeCompare(b.campName)
-        : bySector ? (a, b) => (((b.greens && b.greens[sort]) || 0) - ((a.greens && a.greens[sort]) || 0)) || (b.total - a.total)
-        : (a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        : sort === 'score' ? (a, b) => a.total - b.total
+        : bySector ? (a, b) => (((a.greens && a.greens[sort]) || 0) - ((b.greens && b.greens[sort]) || 0)) || (a.total - b.total)
+        : (a, b) => (a.timestamp || 0) - (b.timestamp || 0);
+    const flip = dir === 'asc' ? key : (a, b) => key(b, a);
+    xs = xs.slice().sort((a, b) => flip(a, b) || a.campName.localeCompare(b.campName));
     return xs;
-  }, [rows, q, sort, sectors]);
+  }, [rows, q, sort, dir, sectors]);
 
   const headBtn = (id, label, align) => (
-    <button key={id} type="button" onClick={() => setSort(id)} title={`Sort by ${label}`}
+    <button key={id} type="button" onClick={() => pickSort(id)}
+      title={sort === id ? `Sorted by ${label}; click to reverse` : `Sort by ${label}`}
       style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', padding: '2px 0',
         fontSize: 10, fontWeight: 800, letterSpacing: '.1em',
         textAlign: align || 'center', color: sort === id ? '#45c483' : '#93a89b' }}>
-      {label.toUpperCase()}{sort === id ? ' ▾' : ''}
+      {label.toUpperCase()}{sort === id ? (dir === 'asc' ? ' ▴' : ' ▾') : ''}
     </button>
   );
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 6, padding: '10px 0', alignItems: 'center' }}>
+      {/* Toolbar order follows reading order: search (the primary filter) leads,
+          the live count sits beside it as filter feedback, then view controls
+          (sort + direction) and bulk actions (CSV, Email) group on the right. */}
+      <div style={{ display: 'flex', gap: 6, padding: '10px 0', alignItems: 'center', flexWrap: 'wrap' }}>
+        <input data-search ref={searchRef} value={q} onChange={e => setQ(e.target.value)}
+          placeholder="Search camps, emails, ideas…" title="Press / to search"
+          style={{ flex: 1, minWidth: 170, maxWidth: 340, ...selStyle, borderRadius: 7 }} />
         <span style={{ color: '#93a89b', fontSize: 11 }}>{list.length} of {rows.length} camps</span>
+        <div style={{ flex: 1 }} />
+        <select value={sort} onChange={e => { setSort(e.target.value); setDir(defaultDir(e.target.value)); }}
+          title="Sort camps by" style={selStyle}>
+          <option value="date">Date</option><option value="score">Score</option><option value="name">Name</option>
+          {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <button data-sort-dir type="button" onClick={() => setDir(d => (d === 'asc' ? 'desc' : 'asc'))}
+          title={dir === 'asc' ? 'Ascending; click for descending' : 'Descending; click for ascending'}
+          aria-label="Reverse sort order" style={{ ...selStyle, cursor: 'pointer' }}>
+          {dir === 'asc' ? '↑' : '↓'}
+        </button>
         <button data-export type="button" onClick={() => exportCsv(list, sectors)} title="Download all filtered camps as a CSV file"
           style={{ ...selStyle, cursor: 'pointer' }}>
           ⬇ CSV
@@ -620,14 +657,6 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
           style={{ ...selStyle, cursor: 'pointer' }}>
           ✉ Email
         </button>
-        <div style={{ flex: 1 }} />
-        <input data-search ref={searchRef} value={q} onChange={e => setQ(e.target.value)}
-          placeholder="Search camps, emails, ideas…" title="Press / to search"
-          style={{ flex: 1, maxWidth: 340, ...selStyle, borderRadius: 7 }} />
-        <select value={sort} onChange={e => setSort(e.target.value)} title="Sort camps by" style={selStyle}>
-          <option value="date">Newest</option><option value="score">Score</option><option value="name">Name</option>
-          {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
       </div>
       {wide && (
         <div style={{ display: 'grid', columnGap: 10, padding: '4px 12px', position: 'sticky', top: 0,
