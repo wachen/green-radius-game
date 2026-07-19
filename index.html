@@ -174,8 +174,13 @@
   }
 </style>
 
-<script defer src="/vendor/react-18.3.1.production.min.js"></script>
-<script defer src="/vendor/react-dom-18.3.1.production.min.js"></script>
+<!-- Preact + compat stands in for React/ReactDOM (~10KB gz vs ~47KB): core,
+     hooks, compat (each a pinned UMD), then the first-party shim that exposes
+     preactCompat as window.React/ReactDOM. Order matters; see vendor/README.md. -->
+<script defer src="/vendor/preact-10.29.7.min.umd.js"></script>
+<script defer src="/vendor/preact-hooks-10.29.7.umd.js"></script>
+<script defer src="/vendor/preact-compat-10.29.7.umd.js"></script>
+<script defer src="/vendor/preact-compat-shim-10.29.7.js"></script>
 
 <script defer src="game-data.js"></script>
 <script defer src="result-state.js"></script>

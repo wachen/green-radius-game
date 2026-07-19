@@ -39,8 +39,8 @@ No bundler, no npm, no `package.json` — but a tiny compile step: `bun run scri
 | `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses` + `GET /api/health` + `GET /api/city` (public aggregate tally) + `GET /result/?r=` (per-camp OG unfurl); all else served as static assets |
 | `wrangler.jsonc`   | Worker + static-assets config                                         |
 | `_headers`         | Static-asset response headers (HSTS, framing, permissions)            |
-| `vendor/`          | Pinned React/ReactDOM runtime, served same-origin (see its README) |
-| `og-card.png`      | Static Open Graph share-card image                                    |
+| `vendor/`          | Pinned Preact runtime (+ React-names shim), served same-origin (see its README) |
+| `og-card.png`      | Static Open Graph share-card image (source: `scripts/og-card.html`)   |
 | `downloads/`       | Printable board-game + how-to-play PDFs                               |
 
 ### One JSX gotcha worth knowing

@@ -1,0 +1,107 @@
+<!doctype html>
+<!-- Source for og-card.png (1200x630), the static Open Graph share image and
+     README hero. The wheel is NOT hand-drawn: this page loads the real
+     compiled RadialBadge + game data and renders the actual 60-segment
+     radius, fully lit, so the graphic always matches the live game board
+     (geometry and the LEVEL_COLORS green ramp alike). Regenerate with:
+       python3 -m http.server 8000   (repo root)
+       then screenshot this page at exactly 1200x630, e.g.:
+       page.setViewportSize({width:1200,height:630});
+       await page.goto('http://localhost:8000/scripts/og-card.html');
+       await page.waitForFunction(() => document.querySelectorAll('#wheel svg path').length >= 60);
+       await page.evaluate(() => document.fonts.ready);
+       await page.screenshot({path:'og-card.png'});
+     scripts/ is in .assetsignore, so this page is never served in prod. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<script defer src="/vendor/preact-10.29.7.min.umd.js"></script>
+<script defer src="/vendor/preact-hooks-10.29.7.umd.js"></script>
+<script defer src="/vendor/preact-compat-10.29.7.umd.js"></script>
+<script defer src="/vendor/preact-compat-shim-10.29.7.js"></script>
+<script defer src="/game-data.js"></script>
+<script defer src="/dist/src/core.js"></script>
+<script defer src="/dist/src/badge.js"></script>
+<style>
+  @font-face {
+    font-family: 'Space Grotesk';
+    font-style: normal;
+    font-weight: 300 700;
+    src: url('/vendor/fonts/space-grotesk-v22-latin.woff2') format('woff2');
+  }
+  html, body { margin: 0; padding: 0; }
+  body {
+    width: 1200px; height: 630px; overflow: hidden; box-sizing: border-box;
+    background: #D8CBB6; color: #2a2620;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    display: flex; align-items: center; gap: 56px; padding: 0 72px;
+  }
+  /* The clickety pointer overlaps the rim like the board's spinner arrow.
+     The badge svg insets its outer ring to 0.84 * size/2, so with size 470
+     the ring's top edge sits ~38px into the svg; top:15px puts the 30px-tall
+     tip ~7px into the rim instead of floating in that blank inset. */
+  .wheel-wrap { flex-shrink: 0; position: relative; }
+  .pointer { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); }
+  .kicker {
+    font-size: 21px; font-weight: 700; letter-spacing: 0.21em;
+    color: #6f6555; margin-bottom: 16px; white-space: nowrap;
+  }
+  h1 {
+    margin: 0 0 20px; font-size: 72px; font-weight: 700;
+    line-height: 1.04; letter-spacing: -0.015em; white-space: nowrap;
+  }
+  h1 .green { color: #31975B; }
+  .pitch {
+    font-size: 27px; line-height: 1.4; color: #4a4238;
+    max-width: 520px; margin: 0 0 30px;
+  }
+  .pill {
+    display: inline-block; background: #31975B; color: #fff;
+    border-radius: 999px; padding: 15px 38px;
+    font-size: 27px; font-weight: 700; letter-spacing: 0.02em;
+  }
+</style>
+</head>
+<body>
+  <div class="wheel-wrap">
+    <div id="wheel"></div>
+    <svg class="pointer" width="52" height="30" viewBox="0 0 52 30" aria-hidden="true">
+      <polygon points="26,30 10,2 42,2" fill="#2a2620"/>
+    </svg>
+  </div>
+  <div>
+    <div class="kicker">GREEN THEME CAMP COMMUNITY</div>
+    <h1><span class="green">Green Radius</span><br/>Game</h1>
+    <p class="pitch">A self-ranking sustainability game where Burning Man theme camps spin the wheel, answer Yes/No, and build their green radius.</p>
+    <span class="pill">greenradi.us&thinsp;&#8599;</span>
+  </div>
+  <script>
+    // Deferred scripts finish before DOMContentLoaded, so the globals exist here.
+    window.addEventListener('DOMContentLoaded', function () {
+      // Showcase 34/60 fill (per-slice, clockwise sectors from 12 o'clock,
+      // rings innermost-first): all of L1 + L2 lit, L3/L4 scattered so the
+      // radius reads balanced but still like a real camp, per Wes 2026-07-19.
+      var PATTERN = [
+        [[1], [1, 1], [1, 0, 1], [0, 1, 0, 0]],
+        [[1], [1, 1], [0, 1, 0], [0, 0, 0, 0]],
+        [[1], [1, 1], [1, 1, 1], [1, 0, 0, 1]],
+        [[1], [1, 1], [0, 1, 1], [0, 0, 0, 0]],
+        [[1], [1, 1], [1, 0, 0], [0, 0, 1, 0]],
+        [[1], [1, 1], [0, 1, 1], [0, 1, 0, 0]],
+      ];
+      var fills = {};
+      window.SECTORS.forEach(function (s, si) {
+        var levels = PATTERN[si].map(function (lvl) { return lvl.map(Boolean); });
+        var totalYes = PATTERN[si].flat().reduce(function (a, v) { return a + v; }, 0);
+        fills[s.id] = { levels: levels, totalYes: totalYes, played: totalYes > 0 };
+      });
+      ReactDOM.createRoot(document.getElementById('wheel')).render(
+        React.createElement(RadialBadge, {
+          sectors: window.SECTORS, fills: fills, size: 470,
+          dark: false, showLabels: false, showCenter: false,
+        })
+      );
+    });
+  </script>
+</body>
+</html>

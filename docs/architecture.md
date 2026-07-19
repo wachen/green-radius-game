@@ -13,7 +13,9 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
 
 ## At a glance
 
-- **No-bundler static app.** `index.html` loads React 18 + ReactDOM from the
+- **No-bundler static app.** `index.html` loads **Preact + preact/compat**
+  (standing in for React 18 / ReactDOM since #91 — a shim exposes the compat
+  namespace as `window.React`/`window.ReactDOM`) from the
   committed **`vendor/`** directory (same-origin, no CDN at runtime) plus the
   precompiled **`dist/*.js`** game scripts — classic-runtime JS built from the
   `.jsx` sources by `scripts/build.js` (`bun run scripts/build.js`, using
@@ -55,7 +57,7 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
    show the count of advanced Yeses (capped at 4). `sectorFill(sector, answers)`
    derives the per-sector fill + `totalYes` (0–10); the `fills` memo is the single
    source for every renderer (board + form). Six spins complete the game. State
-   lives in React + `localStorage` (`STORAGE_KEY = green-radius-game/v1`); bump
+   lives in component state + `localStorage` (`STORAGE_KEY = green-radius-game/v1`); bump
    `STORAGE_VERSION` when the saved shape changes (now stores `answers`, not levelStates).
 2. **Done screen.** Required, validated email. `greens[sectorId] =
    sectorFill(...).totalYes` (0–10). Every individual answer lives in the shared
@@ -247,11 +249,16 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   actual runtime load path now. Runtime-fetched paths stay served (`vendor/`,
   `game-data.js`, `result-state.js`, `og-card.png`, `downloads/`). After any
   deploy, sanity-check `curl -sI https://greenradi.us/.git/config` returns 404.
-- **The runtime is vendored, not CDN-loaded.** React/ReactDOM are committed under
+- **The runtime is vendored, not CDN-loaded.** The UI runtime is committed under
   `vendor/` (versioned filenames) and loaded same-origin with `defer` in all four
   HTML entry points, so a CDN outage or compromise can't blank or hijack the page
-  and the playa-offline story improves. To upgrade, see `vendor/README.md`
-  (download the pinned URL, verify the bytes, update all four entry points).
+  and the playa-offline story improves. Since #91 that runtime is **Preact
+  10.29.7** (core + hooks + compat UMDs + a first-party shim exposing
+  `preactCompat` as `window.React`/`window.ReactDOM`, incl. `createRoot`) —
+  ~10KB gz where React 18 + ReactDOM was ~47KB, the single biggest slice of
+  cold-load payload. The game scripts are unchanged: they still call
+  `React.createElement`/hooks by those names. To upgrade, see `vendor/README.md`
+  (download the pinned URLs, verify the bytes, update all four entry points).
   `vendor/babel-standalone-*.min.js` was deleted in #70 — no entry point had
   loaded it since #63, when the game scripts moved to the precompiled `dist/*.js`
   (built from the `.jsx` sources by `scripts/build.js`). Because the filenames are

@@ -142,6 +142,10 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 
 ## Recently done
 
+- Load-time round: SWR cache headers + minified dist (#90), Preact runtime
+  swap replacing React 18 (~37KB gz saved), and the og-card redesign with a
+  committed source, scripts/og-card.html (#91) - 2026-07-18/19
+
 - Admin loading overhaul (Wes's direct ask): early fetch kickoff + localStorage
   stale-while-revalidate, spinning-wheel loading state, Copy Summary moved to
   the Top Camps corner, docs catch-up (#89) — 2026-07-18
