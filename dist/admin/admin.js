@@ -11,14 +11,33 @@ const useMQ = (q) => {
   }, [q]);
   return m;
 };
+const RESPONSES_CACHE_KEY = "grg-admin-responses/v1";
+function readCachedRows() {
+  try {
+    const c = JSON.parse(localStorage.getItem(RESPONSES_CACHE_KEY));
+    return Array.isArray(c && c.rows) ? c.rows : [];
+  } catch {
+    return [];
+  }
+}
 function useResponses() {
-  const [state, setState] = React.useState({ status: "loading", rows: [] });
-  const load = React.useCallback(() => {
+  const [state, setState] = React.useState(() => ({ status: "loading", rows: readCachedRows() }));
+  const load = React.useCallback((early) => {
     setState((s) => ({ ...s, status: "loading" }));
-    fetch("/api/admin/responses", { headers: { Accept: "application/json" } }).then((r) => r.ok ? r.json() : Promise.reject(new Error("http " + r.status))).then((d) => setState({ status: "ready", rows: d.rows || [] })).catch((e) => setState((s) => ({ status: "error", rows: s.rows, error: String(e) })));
+    Promise.resolve(early || fetch("/api/admin/responses", { headers: { Accept: "application/json" } })).then((r) => r && r.ok ? r.json() : Promise.reject(new Error("http " + (r ? r.status : "failed")))).then((d) => {
+      const rows = d.rows || [];
+      try {
+        localStorage.setItem(RESPONSES_CACHE_KEY, JSON.stringify({ rows }));
+      } catch {}
+      setState({ status: "ready", rows });
+    }).catch((e) => setState((s) => ({ status: "error", rows: s.rows, error: String(e) })));
   }, []);
-  React.useEffect(load, [load]);
-  return { ...state, reload: load };
+  React.useEffect(() => {
+    load(window.__earlyResponses);
+    window.__earlyResponses = null;
+  }, [load]);
+  const reload = React.useCallback(() => load(), [load]);
+  return { ...state, reload };
 }
 function AdminApp({ sectors }) {
   const { status, rows, error, reload } = useResponses();
@@ -74,7 +93,9 @@ function AdminApp({ sectors }) {
     id: "camps",
     label: "\uD83C\uDFAA Camps",
     name: "Camps"
-  }))), status === "loading" && rows.length === 0 && React.createElement(Centered, null, "Loading the community tally…"), status === "error" && rows.length === 0 && React.createElement(Centered, null, "Couldn't load responses (", error, "). ", React.createElement("button", {
+  }))), status === "loading" && rows.length === 0 && React.createElement(Centered, null, React.createElement(LoadingWheel, null), React.createElement("div", {
+    style: { marginTop: 10 }
+  }, "Loading the community tally…")), status === "error" && rows.length === 0 && React.createElement(Centered, null, "Couldn't load responses (", error, "). ", React.createElement("button", {
     onClick: reload,
     style: btnStyle
   }, "Retry")), rows.length > 0 && React.createElement("div", {
@@ -144,6 +165,39 @@ const btnStyle = { background: "#45c483", color: "#06140c", border: "none", bord
 const Centered = ({ children }) => React.createElement("div", {
   style: { textAlign: "center", padding: "60px 0", color: "#93a89b" }
 }, children);
+const LoadingWheel = ({ size = 44 }) => React.createElement("svg", {
+  className: "grg-spin",
+  width: size,
+  height: size,
+  viewBox: "0 0 32 32",
+  "aria-hidden": "true"
+}, React.createElement("g", {
+  stroke: "#0e1712",
+  strokeWidth: "1"
+}, React.createElement("path", {
+  d: "M16 16 L16 2 A14 14 0 0 1 28.12 9 Z",
+  fill: "#A3D178"
+}), React.createElement("path", {
+  d: "M16 16 L28.12 9 A14 14 0 0 1 28.12 23 Z",
+  fill: "#86C169"
+}), React.createElement("path", {
+  d: "M16 16 L28.12 23 A14 14 0 0 1 16 30 Z",
+  fill: "#68B05C"
+}), React.createElement("path", {
+  d: "M16 16 L16 30 A14 14 0 0 1 3.88 23 Z",
+  fill: "#56A85C"
+}), React.createElement("path", {
+  d: "M16 16 L3.88 23 A14 14 0 0 1 3.88 9 Z",
+  fill: "#439F5B"
+}), React.createElement("path", {
+  d: "M16 16 L3.88 9 A14 14 0 0 1 16 2 Z",
+  fill: "#31975B"
+})), React.createElement("circle", {
+  cx: "16",
+  cy: "16",
+  r: "2.2",
+  fill: "#0e1712"
+}));
 const CITY_CARD_BG = "linear-gradient(160deg, #0e2733 0%, #14323f 100%)";
 const panelStyle = { background: "#111d16", border: "1px solid #26382e", borderRadius: 16, padding: "14px 16px" };
 function miniFills(sectors, entry) {
@@ -253,21 +307,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     style: { color: "#fff" }
   }, peek.campName), " · ", peek.total, "/60") : React.createElement("span", null, React.createElement("b", {
     style: { color: "#fff" }
-  }, agg.totalYes), " of ", agg.totalPossible, " green choices"), !peek && React.createElement("button", {
-    type: "button",
-    onClick: copySummary,
-    title: "Copy a short text summary for sharing",
-    style: {
-      background: "rgba(255,255,255,0.08)",
-      color: "#d8e9dd",
-      border: "1px solid rgba(255,255,255,0.15)",
-      borderRadius: 99,
-      padding: "2px 9px",
-      fontSize: 11,
-      cursor: "pointer",
-      flexShrink: 0
-    }
-  }, copied ? "Copied ✓" : "⧉ Copy")), agg.legacyCount > 0 && React.createElement("div", {
+  }, agg.totalYes), " of ", agg.totalPossible, " green choices")), agg.legacyCount > 0 && React.createElement("div", {
     style: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }
   }, agg.legacyCount, " older ", agg.legacyCount === 1 ? "response" : "responses", " on the old 0 to 4 scale excluded from the tally."), !agg.hasAnswers && React.createElement("div", {
     style: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }
@@ -347,9 +387,26 @@ function CommunityTally({ sectors, rows, onCampClick }) {
   const Leaderboard = React.createElement("div", {
     "data-leaderboard": true,
     style: { ...panelStyle, marginTop: 12 }
+  }, React.createElement("div", {
+    style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }
   }, React.createElement(SecHead, {
     style: { marginTop: 0 }
-  }, "Top Camps"), agg.leaderboard.map((c, i) => React.createElement("div", {
+  }, "Top Camps"), React.createElement("button", {
+    "data-copy-summary": true,
+    type: "button",
+    onClick: copySummary,
+    title: "Copy a short text summary for sharing",
+    style: {
+      background: "transparent",
+      color: "#8fd4ae",
+      border: "1px solid #2e5b43",
+      borderRadius: 99,
+      padding: "2px 10px",
+      fontSize: 11,
+      cursor: "pointer",
+      flexShrink: 0
+    }
+  }, copied ? "Copied ✓" : "⧉ Copy Summary")), agg.leaderboard.map((c, i) => React.createElement("div", {
     key: i,
     "data-rank": i + 1,
     role: "button",

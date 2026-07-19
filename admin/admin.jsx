@@ -9,19 +9,41 @@ const useMQ = (q) => {
   return m;
 };
 
+// Last good payload, cached for instant paint on the next visit (the page is
+// Cloudflare-Access-gated and this is the admin's own browser, so holding the
+// rows in localStorage is fine). Bump the key if the row shape changes.
+const RESPONSES_CACHE_KEY = 'grg-admin-responses/v1';
+function readCachedRows() {
+  try {
+    const c = JSON.parse(localStorage.getItem(RESPONSES_CACHE_KEY));
+    return Array.isArray(c && c.rows) ? c.rows : [];
+  } catch { return []; }
+}
+
 function useResponses() {
+  // Two-part speedup, neither touching the Worker's always-fresh contract:
+  // 1. The first request starts in index.html's inline kickoff, in parallel
+  //    with the script downloads — this hook consumes that promise on mount.
+  // 2. Stale-while-revalidate: the last good rows paint immediately (dimmed,
+  //    via the existing refresh treatment) while the fresh fetch runs.
   // Refreshes keep the last rows on screen (dimmed) instead of blanking to a
   // spinner — the admin skims during launch-day monitoring; don't yank the page.
-  const [state, setState] = React.useState({ status: 'loading', rows: [] });
-  const load = React.useCallback(() => {
+  const [state, setState] = React.useState(() => ({ status: 'loading', rows: readCachedRows() }));
+  const load = React.useCallback((early) => {
     setState(s => ({ ...s, status: 'loading' }));
-    fetch('/api/admin/responses', { headers: { 'Accept': 'application/json' } })
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('http ' + r.status)))
-      .then(d => setState({ status: 'ready', rows: d.rows || [] }))
+    Promise.resolve(early || fetch('/api/admin/responses', { headers: { 'Accept': 'application/json' } }))
+      .then(r => r && r.ok ? r.json() : Promise.reject(new Error('http ' + (r ? r.status : 'failed'))))
+      .then(d => {
+        const rows = d.rows || [];
+        try { localStorage.setItem(RESPONSES_CACHE_KEY, JSON.stringify({ rows })); } catch {}
+        setState({ status: 'ready', rows });
+      })
       .catch(e => setState(s => ({ status: 'error', rows: s.rows, error: String(e) })));
   }, []);
-  React.useEffect(load, [load]);
-  return { ...state, reload: load };
+  // The early response body is single-use; null it so a retry does a real fetch.
+  React.useEffect(() => { load(window.__earlyResponses); window.__earlyResponses = null; }, [load]);
+  const reload = React.useCallback(() => load(), [load]);
+  return { ...state, reload };
 }
 
 function AdminApp({ sectors }) {
@@ -64,7 +86,7 @@ function AdminApp({ sectors }) {
         <div style={{ display: 'flex', gap: 8 }}><Tab id="city" label="🌄 City" name="City" /><Tab id="camps" label="🎪 Camps" name="Camps" /></div>
       </header>
 
-      {status === 'loading' && rows.length === 0 && <Centered>Loading the community tally…</Centered>}
+      {status === 'loading' && rows.length === 0 && <Centered><LoadingWheel/><div style={{ marginTop: 10 }}>Loading the community tally…</div></Centered>}
       {status === 'error' && rows.length === 0 && <Centered>Couldn't load responses ({error}). <button onClick={reload} style={btnStyle}>Retry</button></Centered>}
       {rows.length > 0 && (
         <div style={{ opacity: status === 'loading' ? 0.55 : 1, transition: 'opacity .15s' }}>
@@ -112,6 +134,23 @@ const TAB_META = {
 const selStyle = { background: '#101b15', color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '4px 8px', fontSize: 12 };
 const btnStyle = { background: '#45c483', color: '#06140c', border: 'none', borderRadius: 8, padding: '5px 10px', fontWeight: 700, cursor: 'pointer' };
 const Centered = ({ children }) => <div style={{ textAlign: 'center', padding: '60px 0', color: '#93a89b' }}>{children}</div>;
+
+// Spinning six-wedge wheel for cold loads — same art as the favicon and the
+// static placeholder in index.html (which also owns the .grg-spin keyframes).
+// The shade ramp around the circle is what makes the rotation visible.
+const LoadingWheel = ({ size = 44 }) => (
+  <svg className="grg-spin" width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+    <g stroke="#0e1712" strokeWidth="1">
+      <path d="M16 16 L16 2 A14 14 0 0 1 28.12 9 Z" fill="#A3D178"/>
+      <path d="M16 16 L28.12 9 A14 14 0 0 1 28.12 23 Z" fill="#86C169"/>
+      <path d="M16 16 L28.12 23 A14 14 0 0 1 16 30 Z" fill="#68B05C"/>
+      <path d="M16 16 L16 30 A14 14 0 0 1 3.88 23 Z" fill="#56A85C"/>
+      <path d="M16 16 L3.88 23 A14 14 0 0 1 3.88 9 Z" fill="#439F5B"/>
+      <path d="M16 16 L3.88 9 A14 14 0 0 1 16 2 Z" fill="#31975B"/>
+    </g>
+    <circle cx="16" cy="16" r="2.2" fill="#0e1712"/>
+  </svg>
+);
 
 // City tab: /city/'s teal "playa dusk" card language (see src/boot-city.jsx),
 // admin-only data density stacked beside/beneath it.
@@ -214,12 +253,6 @@ function CommunityTally({ sectors, rows, onCampClick }) {
           {peek
             ? <span>Previewing <b style={{ color: '#fff' }}>{peek.campName}</b> · {peek.total}/60</span>
             : <span><b style={{ color: '#fff' }}>{agg.totalYes}</b> of {agg.totalPossible} green choices</span>}
-          {/* The summary is city-wide, so the pill hides while a camp preview is up. */}
-          {!peek && <button type="button" onClick={copySummary} title="Copy a short text summary for sharing"
-            style={{ background: 'rgba(255,255,255,0.08)', color: '#d8e9dd', border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: 99, padding: '2px 9px', fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>
-            {copied ? 'Copied ✓' : '⧉ Copy'}
-          </button>}
         </div>
         {agg.legacyCount > 0 && (
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
@@ -263,7 +296,16 @@ function CommunityTally({ sectors, rows, onCampClick }) {
 
   const Leaderboard = (
     <div data-leaderboard style={{ ...panelStyle, marginTop: 12 }}>
-      <SecHead style={{ marginTop: 0 }}>Top Camps</SecHead>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <SecHead style={{ marginTop: 0 }}>Top Camps</SecHead>
+        {/* City digest for pasting into GTCC email/chat — lives up here because
+            the top camps are most of what it copies. */}
+        <button data-copy-summary type="button" onClick={copySummary} title="Copy a short text summary for sharing"
+          style={{ background: 'transparent', color: '#8fd4ae', border: '1px solid #2e5b43',
+            borderRadius: 99, padding: '2px 10px', fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>
+          {copied ? 'Copied ✓' : '⧉ Copy Summary'}
+        </button>
+      </div>
       {agg.leaderboard.map((c, i) => (
         <div key={i} data-rank={i + 1} role="button" tabIndex={0} title="Hover previews on the radius; click opens the Camps tab"
           onClick={() => onCampClick && onCampClick(c.campName)}

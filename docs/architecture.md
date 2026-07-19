@@ -74,7 +74,12 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      as an **additive optional `u` field inside the same v2 envelope** — the format tag
      stays `v:2`, so every existing decoder (old browsers, the Worker OG path) ignores
      the extra key, and links minted before this change decode with `campId: null`.
-     `decode` always returns `campId` (`null` for legacy v1/v2 links). The payload rides
+     `decode` always returns `campId` (`null` for legacy v1/v2 links). A
+     **`CONTENT_VERSION`** stamp (`"2026"`) rides the same way as an additive
+     optional **`cv`** field (#82, both encode call sites since #87) — it marks
+     which year's question set a link answered, for a future year-over-year
+     overlay; `decode` returns it as `contentVersion` (`null` on older links).
+     The payload rides
      in the `?r=` **query** (so the Worker can read it for the per-camp OG unfurl — see below);
      `/result/` reads `?r=` first and falls back to the legacy `#<hash>` for older
      links. Pure client render; works with the Worker down. The done-screen
@@ -263,7 +268,13 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   team JWKS, `aud === CF_ACCESS_AUD`). It proxies the Apps Script `doGet` (same
   `/exec`, shared secret) and returns sheet rows as JSON; the `/admin/` page
   (`admin/index.html` + `admin/admin.jsx`, reusing `RadialBadge` + `fillsFromAnswers`
-  + `window.AdminAggregate`) shapes everything client-side. Read-only; the
+  + `window.AdminAggregate`) shapes everything client-side. The endpoint is
+  `no-store` (the admin always sees fresh sheet data), so the page hides the
+  Apps Script latency client-side instead (#89): an inline script in
+  `admin/index.html` starts the fetch before React loads (`window.__earlyResponses`,
+  consumed once by `useResponses`), and the last good rows are cached in
+  `localStorage` (`grg-admin-responses/v1`) for an instant, dimmed
+  stale-while-revalidate paint on repeat visits. Read-only; the
   `CF_ACCESS_AUD`/`CF_ACCESS_TEAM_DOMAIN` vars live in `wrangler.jsonc`. See
   `docs/admin-setup.md`.
 - **Public city tally.** `GET /api/city` (Worker) is the one **public** read
