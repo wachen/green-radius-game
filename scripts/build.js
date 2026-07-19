@@ -33,6 +33,11 @@ const sources = [
 
 const transpiler = new Bun.Transpiler({
   loader: "jsx",
+  // Whitespace/comment stripping only — identifiers are NOT renamed, which the
+  // shared-global-scope architecture requires (components reference each other
+  // by bare top-level name across separate <script> files). ~25% smaller raw,
+  // ~10% smaller gzipped.
+  minifyWhitespace: true,
   tsconfig: {
     compilerOptions: {
       jsx: "react", // classic: React.createElement / React.Fragment, no imports
