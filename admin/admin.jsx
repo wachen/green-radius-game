@@ -76,6 +76,29 @@ function AdminApp({ sectors }) {
     );
   };
 
+  // Year/source filters + Refresh scope BOTH tabs. On the Camps tab they embed
+  // into the search toolbar (one row, no wasted vertical space); everywhere
+  // else (City, loading/error, or an empty filter result — which must keep the
+  // year select reachable to un-trap itself) they render as their own row.
+  const filterSelects = (
+    <React.Fragment>
+      <select value={year} onChange={e => setYear(+e.target.value)} title="Filter by year" style={selStyle}>
+        <option value={0}>All years</option>
+        {years.length ? years.map(y => <option key={y} value={y}>{y}</option>) : <option value={2026}>2026</option>}
+      </select>
+      <select value={source} onChange={e => setSource(e.target.value)} title="Filter by submission source" style={selStyle}>
+        <option value="all">All</option><option value="board">Board</option><option value="form">Form</option>
+      </select>
+    </React.Fragment>
+  );
+  const refreshBtn = (
+    <button data-refresh type="button" onClick={reload} disabled={status === 'loading'} aria-label="Refresh responses"
+      title="Reload responses" style={{ ...selStyle, cursor: status === 'loading' ? 'wait' : 'pointer', fontWeight: 700 }}>
+      {status === 'loading' ? 'Loading…' : 'Refresh'}
+    </button>
+  );
+  const campsToolbarOwnsFilters = tab === 'camps' && filtered.length > 0;
+
   return (
     <div style={{ maxWidth: tab === 'camps' ? 1240 : 900, margin: '0 auto', padding: 14 }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', rowGap: 6, paddingBottom: 10, borderBottom: '1px solid #26382e' }}>
@@ -86,22 +109,11 @@ function AdminApp({ sectors }) {
         <div style={{ display: 'flex', gap: 8 }}><Tab id="city" label="🌄 City" name="City" /><Tab id="camps" label="🎪 Camps" name="Camps" /></div>
       </header>
 
-      {/* Global filters live up here (they scope BOTH tabs), not in the footer —
-          controls that change what the page shows belong before the content
-          they change. The footer keeps only the sign-off quote. */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 0 0' }}>
-        <select value={year} onChange={e => setYear(+e.target.value)} title="Filter by year" style={selStyle}>
-          <option value={0}>All years</option>
-          {years.length ? years.map(y => <option key={y} value={y}>{y}</option>) : <option value={2026}>2026</option>}
-        </select>
-        <select value={source} onChange={e => setSource(e.target.value)} title="Filter by submission source" style={selStyle}>
-          <option value="all">All</option><option value="board">Board</option><option value="form">Form</option>
-        </select>
-        <button data-refresh type="button" onClick={reload} disabled={status === 'loading'} aria-label="Refresh responses"
-          title="Reload responses" style={{ ...selStyle, cursor: status === 'loading' ? 'wait' : 'pointer', fontWeight: 700 }}>
-          {status === 'loading' ? 'Loading…' : 'Refresh'}
-        </button>
-      </div>
+      {!campsToolbarOwnsFilters && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 0 0' }}>
+          {filterSelects}{refreshBtn}
+        </div>
+      )}
 
       {status === 'loading' && rows.length === 0 && <Centered><LoadingWheel/><div style={{ marginTop: 10 }}>Loading the community tally…</div></Centered>}
       {status === 'error' && rows.length === 0 && <Centered>Couldn't load responses ({error}). <button onClick={reload} style={btnStyle}>Retry</button></Centered>}
@@ -116,7 +128,8 @@ function AdminApp({ sectors }) {
           {filtered.length > 0 && (
             tab === 'city'
               ? <CommunityTally sectors={sectors} rows={filtered} onCampClick={name => { setHighlightCamp(name); setTab('camps'); }} />
-              : <CampsView sectors={sectors} rows={filtered} highlight={highlightCamp} onClearHighlight={() => setHighlightCamp(null)} />
+              : <CampsView sectors={sectors} rows={filtered} filters={filterSelects} refreshBtn={refreshBtn}
+                  highlight={highlightCamp} onClearHighlight={() => setHighlightCamp(null)} />
           )}
         </div>
       )}
@@ -136,6 +149,26 @@ const TAB_META = {
 };
 
 const selStyle = { background: '#101b15', color: '#93a89b', border: '1px solid #26382e', borderRadius: 99, padding: '4px 8px', fontSize: 12 };
+
+// Monotone line icons for the toolbar buttons (lucide file-down / mail), same
+// stroke idiom as SectorIcon; currentColor follows the button's text color.
+const iconProps = { width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+  strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+  style: { verticalAlign: '-2px', marginRight: 4 } };
+const CsvIcon = () => (
+  <svg {...iconProps}>
+    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/>
+    <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+    <path d="M12 18v-6"/>
+    <path d="m9 15 3 3 3-3"/>
+  </svg>
+);
+const MailIcon = () => (
+  <svg {...iconProps}>
+    <rect width="20" height="16" x="2" y="4" rx="2"/>
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+  </svg>
+);
 const btnStyle = { background: '#45c483', color: '#06140c', border: 'none', borderRadius: 8, padding: '5px 10px', fontWeight: 700, cursor: 'pointer' };
 const Centered = ({ children }) => <div style={{ textAlign: 'center', padding: '60px 0', color: '#93a89b' }}>{children}</div>;
 
@@ -630,14 +663,18 @@ function CampDetail({ sectors, camp, onClose }) {
   return (
     <div data-camp-detail onClick={onClose}
       style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(4,10,7,0.6)', backdropFilter: 'blur(5px)',
-        display: 'flex', padding: 16, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        display: 'flex', padding: 16 }}>
+      {/* Non-scrolling positioning wrapper: it carries the dialog role and the
+          focus trap so the corner-pinned ✕ stays inside both, and the card
+          scrolls INSIDE it — an absolute ✕ on the scroller itself would ride
+          the content out of view on small screens. */}
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={`${camp.campName} details`}
         onClick={e => e.stopPropagation()}
-        style={{ background: '#111d16', border: '1px solid #26382e', color: '#eaf2ec', borderRadius: 20,
-          padding: '14px 16px', maxWidth: 880, width: '100%', margin: 'auto',
-          maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+        style={{ position: 'relative', margin: 'auto', maxWidth: 880, width: '100%' }}>
+        <div style={{ background: '#111d16', border: '1px solid #26382e', color: '#eaf2ec', borderRadius: 20,
+          padding: '14px 16px', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
           boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)' }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', paddingRight: 30 }}>
           <RadialBadge sectors={sectors} fills={fills} size={112} dark />
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2 }}>{camp.campName}</div>
@@ -657,8 +694,6 @@ function CampDetail({ sectors, camp, onClose }) {
               )}
             </div>
           </div>
-          <button ref={closeRef} type="button" onClick={onClose} aria-label="Close details"
-            style={{ ...selStyle, cursor: 'pointer', alignSelf: 'flex-start', fontWeight: 700 }}>✕</button>
         </div>
         {!hasAnswers && (
           <div style={{ fontSize: 12, color: '#93a89b', marginTop: 12 }}>
@@ -711,12 +746,16 @@ function CampDetail({ sectors, camp, onClose }) {
             })}
           </div>
         )}
+        </div>
+        <button ref={closeRef} type="button" onClick={onClose} aria-label="Close details"
+          style={{ ...selStyle, cursor: 'pointer', fontWeight: 700, lineHeight: 1.4,
+            position: 'absolute', top: 8, right: 8 }}>✕</button>
       </div>
     </div>
   );
 }
 
-function CampsView({ sectors, rows, highlight, onClearHighlight }) {
+function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighlight }) {
   const wide = useMQ('(min-width: 900px)');
   const [q, setQ] = React.useState('');
   // The input echoes q instantly; filtering runs on the 120ms-trailing dq so
@@ -798,9 +837,10 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
 
   return (
     <div>
-      {/* Toolbar order follows reading order: search (the primary filter) leads,
-          the live count sits beside it as filter feedback, then view controls
-          (sort + direction) and bulk actions (CSV, Email) group on the right. */}
+      {/* One toolbar row (wraps on narrow screens): search (the primary filter)
+          leads with the live count as feedback, then the right cluster groups
+          the global year/source filters, view controls (sort + direction),
+          Refresh, and bulk actions (CSV, Email). */}
       <div style={{ display: 'flex', gap: 6, padding: '10px 0', alignItems: 'center', flexWrap: 'wrap' }}>
         <input data-search ref={searchRef} value={q} onChange={e => setQ(e.target.value)}
           placeholder="Search camps, emails, ideas…" title="Press / to search"
@@ -814,6 +854,7 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
           </button>
         )}
         <div style={{ flex: 1 }} />
+        {filters}
         <select value={sort} onChange={e => { setSort(e.target.value); setDir(defaultDir(e.target.value)); }}
           title="Sort camps by" style={selStyle}>
           <option value="date">Date</option><option value="score">Score</option><option value="name">Name</option>
@@ -824,9 +865,10 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
           aria-label="Reverse sort order" style={{ ...selStyle, cursor: 'pointer' }}>
           {dir === 'asc' ? '↑' : '↓'}
         </button>
+        {refreshBtn}
         <button data-export type="button" onClick={() => exportCsv(list, sectors)} title="Download all filtered camps as a CSV file"
           style={{ ...selStyle, cursor: 'pointer' }}>
-          ⬇ CSV
+          <CsvIcon/>CSV
         </button>
         <button data-email type="button"
           title="Open an email draft BCC'd to every filtered camp lead (long lists copy the addresses instead)"
@@ -842,7 +884,7 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
               () => {});
           }}
           style={{ ...selStyle, cursor: 'pointer' }}>
-          {bccCopied ? `Copied ${bccCopied} emails` : '✉ Email'}
+          {bccCopied ? `Copied ${bccCopied} emails` : <React.Fragment><MailIcon/>Email</React.Fragment>}
         </button>
       </div>
       {wide && (
