@@ -72,11 +72,13 @@ async function pollForDeploy(expected) {
       const res = await fetch(`${BASE_URL}/dist/src/core.js?cb=${Date.now()}`, { cache: "no-store" });
       if (res.ok) {
         const body = await res.text();
-        if (body.includes(`APP_VERSION = "${expected}"`) || body.includes(`APP_VERSION = '${expected}'`)) {
+        // Whitespace-tolerant: since #90 the dist artifacts are minified, so
+        // the served stamp reads APP_VERSION="vNN" (no spaces around =).
+        if (new RegExp(`APP_VERSION\\s*=\\s*["']${expected}["']`).test(body)) {
           console.log(`OK: live dist/src/core.js reports ${expected}`);
           return true;
         }
-        const found = body.match(/APP_VERSION = ["']([^"']+)["']/);
+        const found = body.match(/APP_VERSION\s*=\s*["']([^"']+)["']/);
         lastErr = `served core.js has APP_VERSION ${found ? found[1] : "(not found)"}, want ${expected}`;
       } else {
         lastErr = `dist/src/core.js returned ${res.status}`;
