@@ -142,6 +142,15 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 
 ## Recently done
 
+- Admin QoL round (Wes's direct ask): /60 scale on Avg Score, two-way column
+  sorting everywhere incl. a Submitted header, filters merged into a single
+  Camps toolbar (two tidy rows on mobile, CSV/Email desktop-only), search-term
+  highlighting, hide-flagged toggle, camp detail modal (all 60 answers + all
+  write-in idea slots, corner-pinned close), 100+ camp perf pass (memoized
+  rows, debounced search; ~100ms interaction blocks at ~370 rows -> zero),
+  BCC clipboard fallback past mailto limits, monotone SVG toolbar icons, and
+  the og-card gaining the City-tab sector icons + hub dot (#92) - 2026-07-19
+
 - Load-time round: SWR cache headers + minified dist (#90), Preact runtime
   swap replacing React 18 (~37KB gz saved), and the og-card redesign with a
   committed source, scripts/og-card.html (#91) - 2026-07-18/19

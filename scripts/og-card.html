@@ -97,8 +97,10 @@
       });
       ReactDOM.createRoot(document.getElementById('wheel')).render(
         React.createElement(RadialBadge, {
+          // showLabels/showCenter on: sector icons seated in the L1 ring and
+          // the black hub dot, matching how the radius reads on the City tab.
           sectors: window.SECTORS, fills: fills, size: 470,
-          dark: false, showLabels: false, showCenter: false,
+          dark: false, showLabels: true, showCenter: true,
         })
       );
     });
