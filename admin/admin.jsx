@@ -368,6 +368,28 @@ const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 
 // no click-to-reveal. Desktop-first: sectors align as columns across rows so
 // the eye can scan one sector down the whole list.
 
+// Wrap case-insensitive matches of the search query in a highlight mark so
+// the eye lands on WHY a row matched (name, lead, email, or an idea note).
+function Hi({ text, q }) {
+  const t = String(text == null ? '' : text);
+  if (!q || !t) return t;
+  const lt = t.toLowerCase(), lq = q.toLowerCase();
+  const parts = [];
+  let i = 0, j;
+  while ((j = lt.indexOf(lq, i)) !== -1) {
+    if (j > i) parts.push(t.slice(i, j));
+    parts.push(
+      <mark key={j} style={{ background: '#e8c15a', color: '#06140c', borderRadius: 3, padding: '0 1px' }}>
+        {t.slice(j, j + q.length)}
+      </mark>
+    );
+    i = j + q.length;
+  }
+  if (!parts.length) return t;
+  parts.push(t.slice(i));
+  return parts;
+}
+
 function fmtWhen(ts) {
   if (!ts) return 'date unknown';
   return new Date(ts).toLocaleString('en-US', {
@@ -438,7 +460,7 @@ function SectorDigits({ sector, fill, answers, hasAnswers, legacy }) {
   );
 }
 
-function CampRow({ sectors, camp, wide }) {
+function CampRow({ sectors, camp, wide, hi }) {
   const hasAnswers = rowHasAnswers(camp);
   const hidden = !!camp.hidden;
   const legacy = A.isLegacy(camp);
@@ -459,7 +481,7 @@ function CampRow({ sectors, camp, wide }) {
       </div>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 14.5, fontWeight: 800, lineHeight: 1.25, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span>{camp.campName}</span>
+          <span><Hi text={camp.campName} q={hi}/></span>
           {camp.timestamp && Date.now() - camp.timestamp <= 7 * 864e5 ?
             <span title="New this week" style={{ color: '#7fc46a' }}>●</span> : null}
           {badge(camp.source, camp.source === 'board' ? 'Answered on the in-person board kiosk' : 'Answered via the public web form')}
@@ -467,7 +489,7 @@ function CampRow({ sectors, camp, wide }) {
           {hidden && badge('hidden', 'Owner-flagged as junk or test data; excluded from every aggregate')}
         </div>
         <div style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
-          {camp.leadName} · <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}>{camp.email}</a>
+          <Hi text={camp.leadName} q={hi}/> · <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}><Hi text={camp.email} q={hi}/></a>
         </div>
         <div data-submitted style={{ fontSize: 11, color: '#7f988a', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
           {fmtWhen(camp.timestamp)}
@@ -514,7 +536,7 @@ function CampRow({ sectors, camp, wide }) {
           border: '1px solid ' + (i.yes ? '#2e5b43' : '#26382e'),
           background: i.yes ? '#15291e' : 'transparent',
           color: i.yes ? '#8fd4ae' : '#93a89b' }}>
-          {i.yes ? '✓' : '✕'} {i.name} · “{i.note}”
+          {i.yes ? '✓' : '✕'} {i.name} · “<Hi text={i.note} q={hi}/>”
         </span>
       ))}
     </div>
@@ -612,11 +634,11 @@ function CampDetail({ sectors, camp, onClose }) {
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={`${camp.campName} details`}
         onClick={e => e.stopPropagation()}
         style={{ background: '#111d16', border: '1px solid #26382e', color: '#eaf2ec', borderRadius: 20,
-          padding: '18px 20px', maxWidth: 700, width: '100%', margin: 'auto',
+          padding: '14px 16px', maxWidth: 880, width: '100%', margin: 'auto',
           maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
           boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)' }}>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-          <RadialBadge sectors={sectors} fills={fills} size={132} dark />
+          <RadialBadge sectors={sectors} fills={fills} size={112} dark />
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2 }}>{camp.campName}</div>
             <div style={{ fontSize: 12.5, color: '#93a89b', marginTop: 3, overflowWrap: 'anywhere' }}>
@@ -645,12 +667,12 @@ function CampDetail({ sectors, camp, onClose }) {
           </div>
         )}
         {hasAnswers && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(236px, 1fr))', gap: 10, marginTop: 12 }}>
             {sectors.map(s => {
               const sl4 = l4.find(x => x.id === s.id);
               const noted = new Set(sl4 ? sl4.ideas.map(i => i.id) : []);
               return (
-                <div key={s.id} style={{ ...panelStyle, padding: '10px 12px' }}>
+                <div key={s.id} style={{ ...panelStyle, padding: '8px 10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
                     <SectorIcon kind={s.icon} size={14} color="#7f988a"/>
                     <b style={{ fontSize: 13 }}>{s.name}</b>
@@ -659,22 +681,26 @@ function CampDetail({ sectors, camp, onClose }) {
                       <span style={{ color: '#5d7367' }}>/{denom}</span>
                     </span>
                   </div>
+                  {/* Short titles keep each question to one line; the full
+                      prompt rides on hover. Ellipsis handles the long ones. */}
                   {[0, 1, 2].map(li => (s.levels[li] || []).map(q => (
-                    <div key={q.id} style={{ display: 'flex', gap: 6, fontSize: 11.5, lineHeight: 1.35, padding: '2px 0', color: '#cdebd8' }}>
+                    <div key={q.id} title={q.prompt || q.title}
+                      style={{ display: 'flex', gap: 6, fontSize: 11.5, lineHeight: 1.4, padding: '1px 0', color: '#cdebd8' }}>
                       {mark(camp.answers[q.id] === 'yes', li)}
-                      <span>{q.prompt || q.title}</span>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.title || q.prompt}</span>
                     </div>
                   )))}
                   {(s.tier4Topics || [])
                     .filter(t => (camp.answers[t.id] === 'yes' || camp.answers[t.id] === 'no') && !noted.has(t.id))
                     .map(t => (
-                      <div key={t.id} style={{ display: 'flex', gap: 6, fontSize: 11.5, lineHeight: 1.35, padding: '2px 0', color: '#b9d3c2' }}>
+                      <div key={t.id} title={`Level 4 · ${t.title}`}
+                        style={{ display: 'flex', gap: 6, fontSize: 11.5, lineHeight: 1.4, padding: '1px 0', color: '#b9d3c2' }}>
                         {mark(camp.answers[t.id] === 'yes', 3)}
-                        <span>L4 · {t.title}</span>
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>L4 · {t.title}</span>
                       </div>
                     ))}
                   {sl4 && sl4.ideas.map(i => (
-                    <div key={i.id} style={{ fontSize: 11, fontStyle: 'italic', marginTop: 4, padding: '3px 8px', borderRadius: 6,
+                    <div key={i.id} style={{ fontSize: 11, fontStyle: 'italic', marginTop: 3, padding: '2px 8px', borderRadius: 6,
                       border: '1px solid ' + (i.yes ? '#2e5b43' : '#26382e'), background: i.yes ? '#15291e' : 'transparent',
                       color: i.yes ? '#8fd4ae' : '#93a89b' }}>
                       {i.yes ? '✓' : '✕'} “{i.note}”
@@ -845,7 +871,7 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
             }}
             onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) setDetail(r); }}
             style={{ cursor: 'pointer', ...(hl ? { outline: '2px solid #45c483', outlineOffset: 2, borderRadius: 12 } : {}) }}>
-            <MemoCampRow sectors={sectors} camp={r} wide={wide} />
+            <MemoCampRow sectors={sectors} camp={r} wide={wide} hi={dq.trim()} />
           </div>
         );
       })}
