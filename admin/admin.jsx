@@ -48,6 +48,9 @@ function useResponses() {
 
 function AdminApp({ sectors }) {
   const { status, rows, error, reload } = useResponses();
+  // Same breakpoint as CampsView's toolbar: below it the Refresh button goes
+  // icon-only so the mobile control row fits on one line.
+  const wide = useMQ('(min-width: 900px)');
   const [tab, setTab] = React.useState('city');
   // Set when a Top Camps row is clicked on the City tab: switches to Camps and
   // scroll-highlights that camp's row there.
@@ -94,7 +97,7 @@ function AdminApp({ sectors }) {
   const refreshBtn = (
     <button data-refresh type="button" onClick={reload} disabled={status === 'loading'} aria-label="Refresh responses"
       title="Reload responses" style={{ ...selStyle, cursor: status === 'loading' ? 'wait' : 'pointer', fontWeight: 700 }}>
-      {status === 'loading' ? 'Loading…' : 'Refresh'}
+      {status === 'loading' ? 'Loading…' : wide ? <React.Fragment><RefreshIcon/>Refresh</React.Fragment> : <RefreshIcon/>}
     </button>
   );
   const campsToolbarOwnsFilters = tab === 'camps' && filtered.length > 0;
@@ -167,6 +170,14 @@ const MailIcon = () => (
   <svg {...iconProps}>
     <rect width="20" height="16" x="2" y="4" rx="2"/>
     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+  </svg>
+);
+const RefreshIcon = () => (
+  <svg {...iconProps}>
+    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+    <path d="M21 3v5h-5"/>
+    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+    <path d="M3 21v-5h5"/>
   </svg>
 );
 const btnStyle = { background: '#45c483', color: '#06140c', border: 'none', borderRadius: 8, padding: '5px 10px', fontWeight: 700, cursor: 'pointer' };
@@ -837,56 +848,80 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
 
   return (
     <div>
-      {/* One toolbar row (wraps on narrow screens): search (the primary filter)
-          leads with the live count as feedback, then the right cluster groups
-          the global year/source filters, view controls (sort + direction),
-          Refresh, and bulk actions (CSV, Email). */}
-      <div style={{ display: 'flex', gap: 6, padding: '10px 0', alignItems: 'center', flexWrap: 'wrap' }}>
-        <input data-search ref={searchRef} value={q} onChange={e => setQ(e.target.value)}
-          placeholder="Search camps, emails, ideas…" title="Press / to search"
-          style={{ flex: 1, minWidth: 170, maxWidth: 340, ...selStyle, borderRadius: 7 }} />
-        <span style={{ color: '#93a89b', fontSize: 11 }}>{list.length} of {rows.length} camps</span>
-        {flaggedCount > 0 && (
+      {/* Toolbar pieces, composed per breakpoint below: desktop gets one row
+          (search + count left, filters/sort/Refresh/actions right); narrow
+          screens get two intentional rows — full-width search + count, then
+          the pill controls — instead of accidental flex-wrap, and drop the
+          CSV/Email actions (desk work; mailto/download are clunky on phones). */}
+      {(() => {
+        const searchEl = (
+          <input data-search ref={searchRef} value={q} onChange={e => setQ(e.target.value)}
+            placeholder="Search camps, emails, ideas…" title="Press / to search"
+            style={{ flex: 1, minWidth: 170, ...(wide ? { maxWidth: 340 } : {}), ...selStyle, borderRadius: 7 }} />
+        );
+        const countEl = (
+          <span style={{ color: '#93a89b', fontSize: 11, flexShrink: 0 }}>{list.length} of {rows.length} camps</span>
+        );
+        const flaggedBtn = flaggedCount > 0 && (
           <button data-hide-flagged type="button" onClick={() => setHideFlagged(h => !h)}
             title="Owner-flagged junk/test rows stay listed for audit; this tucks them away"
             style={{ ...selStyle, cursor: 'pointer', color: hideFlagged ? '#e8c15a' : selStyle.color }}>
             {hideFlagged ? 'Show flagged' : `Hide flagged (${flaggedCount})`}
           </button>
-        )}
-        <div style={{ flex: 1 }} />
-        {filters}
-        <select value={sort} onChange={e => { setSort(e.target.value); setDir(defaultDir(e.target.value)); }}
-          title="Sort camps by" style={selStyle}>
-          <option value="date">Date</option><option value="score">Score</option><option value="name">Name</option>
-          {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <button data-sort-dir type="button" onClick={() => setDir(d => (d === 'asc' ? 'desc' : 'asc'))}
-          title={dir === 'asc' ? 'Ascending; click for descending' : 'Descending; click for ascending'}
-          aria-label="Reverse sort order" style={{ ...selStyle, cursor: 'pointer' }}>
-          {dir === 'asc' ? '↑' : '↓'}
-        </button>
-        {refreshBtn}
-        <button data-export type="button" onClick={() => exportCsv(list, sectors)} title="Download all filtered camps as a CSV file"
-          style={{ ...selStyle, cursor: 'pointer' }}>
-          <CsvIcon/>CSV
-        </button>
-        <button data-email type="button"
-          title="Open an email draft BCC'd to every filtered camp lead (long lists copy the addresses instead)"
-          onClick={() => {
-            const emails = Array.from(new Set(list.map(r => r.email).filter(Boolean)));
-            if (!emails.length) return;
-            const href = 'mailto:?bcc=' + encodeURIComponent(emails.join(','));
-            // Mail clients truncate or refuse long mailto: URLs (~2k chars is
-            // roughly 75 addresses); past that, copy the list to paste into BCC.
-            if (href.length <= 1800) { window.location.href = href; return; }
-            navigator.clipboard.writeText(emails.join(', ')).then(
-              () => { setBccCopied(emails.length); setTimeout(() => setBccCopied(0), 2000); },
-              () => {});
-          }}
-          style={{ ...selStyle, cursor: 'pointer' }}>
-          {bccCopied ? `Copied ${bccCopied} emails` : <React.Fragment><MailIcon/>Email</React.Fragment>}
-        </button>
-      </div>
+        );
+        const sortSel = (
+          <select value={sort} onChange={e => { setSort(e.target.value); setDir(defaultDir(e.target.value)); }}
+            title="Sort camps by" style={selStyle}>
+            <option value="date">Date</option><option value="score">Score</option><option value="name">Name</option>
+            {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        );
+        const dirBtn = (
+          <button data-sort-dir type="button" onClick={() => setDir(d => (d === 'asc' ? 'desc' : 'asc'))}
+            title={dir === 'asc' ? 'Ascending; click for descending' : 'Descending; click for ascending'}
+            aria-label="Reverse sort order" style={{ ...selStyle, cursor: 'pointer' }}>
+            {dir === 'asc' ? '↑' : '↓'}
+          </button>
+        );
+        const csvBtn = (
+          <button data-export type="button" onClick={() => exportCsv(list, sectors)} title="Download all filtered camps as a CSV file"
+            style={{ ...selStyle, cursor: 'pointer' }}>
+            <CsvIcon/>CSV
+          </button>
+        );
+        const emailBtn = (
+          <button data-email type="button"
+            title="Open an email draft BCC'd to every filtered camp lead (long lists copy the addresses instead)"
+            onClick={() => {
+              const emails = Array.from(new Set(list.map(r => r.email).filter(Boolean)));
+              if (!emails.length) return;
+              const href = 'mailto:?bcc=' + encodeURIComponent(emails.join(','));
+              // Mail clients truncate or refuse long mailto: URLs (~2k chars is
+              // roughly 75 addresses); past that, copy the list to paste into BCC.
+              if (href.length <= 1800) { window.location.href = href; return; }
+              navigator.clipboard.writeText(emails.join(', ')).then(
+                () => { setBccCopied(emails.length); setTimeout(() => setBccCopied(0), 2000); },
+                () => {});
+            }}
+            style={{ ...selStyle, cursor: 'pointer' }}>
+            {bccCopied ? `Copied ${bccCopied} emails` : <React.Fragment><MailIcon/>Email</React.Fragment>}
+          </button>
+        );
+        return wide ? (
+          <div style={{ display: 'flex', gap: 6, padding: '10px 0', alignItems: 'center', flexWrap: 'wrap' }}>
+            {searchEl}{countEl}{flaggedBtn}
+            <div style={{ flex: 1 }} />
+            {filters}{sortSel}{dirBtn}{refreshBtn}{csvBtn}{emailBtn}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 0' }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{searchEl}{countEl}</div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              {filters}{sortSel}{dirBtn}{refreshBtn}{flaggedBtn}
+            </div>
+          </div>
+        );
+      })()}
       {wide && (
         <div style={{ display: 'grid', columnGap: 10, padding: '4px 12px', position: 'sticky', top: 0,
           background: '#0e1712f2', backdropFilter: 'blur(2px)', zIndex: 1, borderBottom: '1px solid #26382e',
