@@ -10,7 +10,7 @@ Radius.
 Live at **https://greenradi.us**.
 
 <p align="center">
-  <img src="og-card.png" alt="Green Radius Game result card — a camp's six-sector green radius" width="600">
+  <a href="https://greenradi.us/"><img src="og-card.png" alt="Green Radius Game - a spin-the-wheel sustainability game for Burning Man theme camps" width="600"></a>
 </p>
 
 The mechanics and copy come from the Green Theme Camp Community's BLAST framework;
