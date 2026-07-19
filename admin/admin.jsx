@@ -391,14 +391,20 @@ function rowHasAnswers(camp) {
 function campL4(sectors, camp) {
   if (!rowHasAnswers(camp)) return [];
   return sectors.map(s => {
-    const campTopic = (s.tier4Topics || []).find(t => /-camp$/.test(t.id));
-    const noteVal = campTopic ? camp.answers[campTopic.id + '-note'] : '';
-    const note = (typeof noteVal === 'string' ? noteVal.trim() : '').replace(/^'(?=[=+\-@\t\r])/, '');
+    // All write-in slots, not just the base one: campIdeaIds (src/core.jsx)
+    // covers the synthetic X-camp-2/3/4 ids the form adds on demand, which
+    // live only in the answers map, never in tier4Topics.
+    const ideas = campIdeaIds(s).map(id => {
+      const noteVal = camp.answers[id + '-note'];
+      const note = (typeof noteVal === 'string' ? noteVal.trim() : '').replace(/^'(?=[=+\-@\t\r])/, '');
+      return note ? { id, note, yes: camp.answers[id] === 'yes' } : null;
+    }).filter(Boolean);
+    const noted = new Set(ideas.map(i => i.id));
     const picks = (s.tier4Topics || [])
-      .filter(t => camp.answers[t.id] === 'yes' && !(note && t === campTopic))
+      .filter(t => camp.answers[t.id] === 'yes' && !noted.has(t.id))
       .map(t => t.title);
-    return { id: s.id, name: s.name, picks, note, noteYes: !!note && camp.answers[campTopic.id] === 'yes' };
-  }).filter(x => x.picks.length || x.note);
+    return { id: s.id, name: s.name, picks, ideas };
+  }).filter(x => x.picks.length || x.ideas.length);
 }
 
 // One sector's four levels as yes-count digits in the ramp colors (dense
@@ -454,6 +460,8 @@ function CampRow({ sectors, camp, wide }) {
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 14.5, fontWeight: 800, lineHeight: 1.25, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <span>{camp.campName}</span>
+          {camp.timestamp && Date.now() - camp.timestamp <= 7 * 864e5 ?
+            <span title="New this week" style={{ color: '#7fc46a' }}>●</span> : null}
           {badge(camp.source, camp.source === 'board' ? 'Answered on the in-person board kiosk' : 'Answered via the public web form')}
           {legacy && badge('old scale', 'Submitted on the legacy 0-4 scale, shown here as an approximation')}
           {hidden && badge('hidden', 'Owner-flagged as junk or test data; excluded from every aggregate')}
@@ -496,17 +504,17 @@ function CampRow({ sectors, camp, wide }) {
   );
   // Only the write-in ideas surface on the row (the camp's own words are the
   // interesting part); chosen topic titles live in the L4 digit tooltip + CSV.
-  const ideas = l4.filter(x => x.note);
+  const ideas = l4.flatMap(x => x.ideas.map(i => ({ ...i, name: x.name })));
   const IdeasLine = ideas.length > 0 && (
     <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center',
       borderTop: '1px dashed #1d2c24', paddingTop: 5, marginTop: 2 }}>
       <span style={{ color: '#45c483', fontWeight: 800, fontSize: 9.5, letterSpacing: '.12em' }}>IDEAS</span>
-      {ideas.map(x => (
-        <span key={x.id} data-camp-note style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 6, fontStyle: 'italic',
-          border: '1px solid ' + (x.noteYes ? '#2e5b43' : '#26382e'),
-          background: x.noteYes ? '#15291e' : 'transparent',
-          color: x.noteYes ? '#8fd4ae' : '#93a89b' }}>
-          {x.noteYes ? '✓' : '✕'} {x.name} · “{x.note}”
+      {ideas.map(i => (
+        <span key={i.id} data-camp-note style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 6, fontStyle: 'italic',
+          border: '1px solid ' + (i.yes ? '#2e5b43' : '#26382e'),
+          background: i.yes ? '#15291e' : 'transparent',
+          color: i.yes ? '#8fd4ae' : '#93a89b' }}>
+          {i.yes ? '✓' : '✕'} {i.name} · “{i.note}”
         </span>
       ))}
     </div>
@@ -557,7 +565,7 @@ function exportCsv(list, sectors) {
   const lines = [head].concat(list.map(r => {
     const legacy = A.isLegacy(r);
     const l4 = campL4(sectors, r)
-      .map(x => `${x.name}: ${x.picks.concat(x.note ? [`"${x.note}" (${x.noteYes ? 'yes' : 'no'})`] : []).join('; ')}`)
+      .map(x => `${x.name}: ${x.picks.concat(x.ideas.map(i => `"${i.note}" (${i.yes ? 'yes' : 'no'})`)).join('; ')}`)
       .join(' | ');
     return [r.timestamp ? new Date(r.timestamp).toISOString() : '', r.campName, r.leadName, r.email,
       r.source, r.year, legacy ? '0-4 (old)' : '0-10',
@@ -568,6 +576,118 @@ function exportCsv(list, sectors) {
   a.download = 'green-radius-camps.csv';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+// ── Camp detail modal ────────────────────────────────────────────────────────
+// Focused view of one camp, opened by clicking its row: the full badge plus
+// every question spelled out with its ✓/✕ (the row only fits digits with
+// tooltips). Same fill precedence and modal a11y (useModalA11y, src/core.jsx)
+// as the rest of the app; legacy/approx rows explain themselves instead of
+// inventing per-question detail.
+function CampDetail({ sectors, camp, onClose }) {
+  const hasAnswers = rowHasAnswers(camp);
+  const legacy = A.isLegacy(camp);
+  const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers)
+    : (legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens));
+  const denom = legacy ? 4 : 10;
+  const l4 = campL4(sectors, camp);
+  const dialogRef = React.useRef(null);
+  const closeRef = React.useRef(null);
+  useModalA11y(dialogRef);
+  React.useEffect(() => { if (closeRef.current) closeRef.current.focus(); }, []);
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const mark = (yes, li) => (
+    <span aria-hidden="true" style={{ color: yes ? LEVEL_COLORS[li] : '#5d7367', fontWeight: 700, flexShrink: 0 }}>{yes ? '✓' : '✕'}</span>
+  );
+
+  return (
+    <div data-camp-detail onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(4,10,7,0.6)', backdropFilter: 'blur(5px)',
+        display: 'flex', padding: 16, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={`${camp.campName} details`}
+        onClick={e => e.stopPropagation()}
+        style={{ background: '#111d16', border: '1px solid #26382e', color: '#eaf2ec', borderRadius: 20,
+          padding: '18px 20px', maxWidth: 700, width: '100%', margin: 'auto',
+          maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <RadialBadge sectors={sectors} fills={fills} size={132} dark />
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2 }}>{camp.campName}</div>
+            <div style={{ fontSize: 12.5, color: '#93a89b', marginTop: 3, overflowWrap: 'anywhere' }}>
+              {camp.leadName} · <a href={`mailto:${camp.email}`} style={{ color: '#8fd4ae' }}>{camp.email}</a>
+            </div>
+            <div style={{ fontSize: 12, color: '#7f988a', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+              {fmtWhen(camp.timestamp)} · {camp.source}{camp.year ? ` · ${camp.year}` : ''}
+              {legacy ? ' · old 0-4 scale' : ''}{camp.hidden ? ' · flagged hidden' : ''}
+            </div>
+            <div style={{ marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
+              <b style={{ fontSize: 26, color: '#fff' }}>{camp.total}</b>
+              <span style={{ color: '#5d7367', fontSize: 14 }}>/{legacy ? 24 : 60}</span>
+              {camp.resultUrl && (
+                <a href={camp.resultUrl} target="_blank" rel="noreferrer"
+                  style={{ fontSize: 12, color: '#8fd4ae', textDecoration: 'none', marginLeft: 10 }}>result page ↗</a>
+              )}
+            </div>
+          </div>
+          <button ref={closeRef} type="button" onClick={onClose} aria-label="Close details"
+            style={{ ...selStyle, cursor: 'pointer', alignSelf: 'flex-start', fontWeight: 700 }}>✕</button>
+        </div>
+        {!hasAnswers && (
+          <div style={{ fontSize: 12, color: '#93a89b', marginTop: 12 }}>
+            {legacy ? 'Submitted on the legacy 0-4 scale; per-question detail is not available.'
+              : 'No per-question data for this row; the badge is an approximation from sector totals.'}
+          </div>
+        )}
+        {hasAnswers && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 14 }}>
+            {sectors.map(s => {
+              const sl4 = l4.find(x => x.id === s.id);
+              const noted = new Set(sl4 ? sl4.ideas.map(i => i.id) : []);
+              return (
+                <div key={s.id} style={{ ...panelStyle, padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
+                    <SectorIcon kind={s.icon} size={14} color="#7f988a"/>
+                    <b style={{ fontSize: 13 }}>{s.name}</b>
+                    <span style={{ marginLeft: 'auto', fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
+                      <b style={{ color: ((camp.greens && camp.greens[s.id]) || 0) === denom ? '#e8c15a' : '#eaf2ec' }}>{(camp.greens && camp.greens[s.id]) || 0}</b>
+                      <span style={{ color: '#5d7367' }}>/{denom}</span>
+                    </span>
+                  </div>
+                  {[0, 1, 2].map(li => (s.levels[li] || []).map(q => (
+                    <div key={q.id} style={{ display: 'flex', gap: 6, fontSize: 11.5, lineHeight: 1.35, padding: '2px 0', color: '#cdebd8' }}>
+                      {mark(camp.answers[q.id] === 'yes', li)}
+                      <span>{q.prompt || q.title}</span>
+                    </div>
+                  )))}
+                  {(s.tier4Topics || [])
+                    .filter(t => (camp.answers[t.id] === 'yes' || camp.answers[t.id] === 'no') && !noted.has(t.id))
+                    .map(t => (
+                      <div key={t.id} style={{ display: 'flex', gap: 6, fontSize: 11.5, lineHeight: 1.35, padding: '2px 0', color: '#b9d3c2' }}>
+                        {mark(camp.answers[t.id] === 'yes', 3)}
+                        <span>L4 · {t.title}</span>
+                      </div>
+                    ))}
+                  {sl4 && sl4.ideas.map(i => (
+                    <div key={i.id} style={{ fontSize: 11, fontStyle: 'italic', marginTop: 4, padding: '3px 8px', borderRadius: 6,
+                      border: '1px solid ' + (i.yes ? '#2e5b43' : '#26382e'), background: i.yes ? '#15291e' : 'transparent',
+                      color: i.yes ? '#8fd4ae' : '#93a89b' }}>
+                      {i.yes ? '✓' : '✕'} “{i.note}”
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function CampsView({ sectors, rows, highlight, onClearHighlight }) {
@@ -589,6 +709,11 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
   };
   // Nonzero while the Email button's clipboard fallback confirmation shows.
   const [bccCopied, setBccCopied] = React.useState(0);
+  // The camp whose detail modal is open, and whether owner-flagged junk/test
+  // rows are tucked away (they stay visible by default for audit).
+  const [detail, setDetail] = React.useState(null);
+  const [hideFlagged, setHideFlagged] = React.useState(false);
+  const flaggedCount = React.useMemo(() => rows.filter(r => r.hidden).length, [rows]);
   // City-tab clickthrough target: scroll the highlighted camp into view once.
   const hlRef = React.useRef(null);
   React.useEffect(() => {
@@ -598,6 +723,7 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
   const searchRef = React.useRef(null);
   React.useEffect(() => {
     const onKey = (e) => {
+      if (detail) return; // the detail modal owns the keyboard while open
       const t = e.target;
       const typing = t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA');
       if (e.key === '/' && !typing) { e.preventDefault(); if (searchRef.current) searchRef.current.focus(); }
@@ -605,7 +731,7 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClearHighlight]);
+  }, [onClearHighlight, detail]);
   // One lowercase haystack per row, rebuilt only when the rows change — not
   // per keystroke per row (each row's notes hide under ~64 answer keys).
   const hay = React.useMemo(() => {
@@ -620,6 +746,7 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
   const list = React.useMemo(() => {
     const ql = dq.trim().toLowerCase();
     let xs = ql ? rows.filter(r => hay.get(r).includes(ql)) : rows;
+    if (hideFlagged) xs = xs.filter(r => !r.hidden);
     // Primary key ascending; `dir` flips only the primary so the name-A→Z
     // tiebreak stays stable in either direction.
     const bySector = sectors.some(s => s.id === sort);
@@ -631,7 +758,7 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
     const flip = dir === 'asc' ? key : (a, b) => key(b, a);
     xs = xs.slice().sort((a, b) => flip(a, b) || a.campName.localeCompare(b.campName));
     return xs;
-  }, [rows, hay, dq, sort, dir, sectors]);
+  }, [rows, hay, dq, sort, dir, sectors, hideFlagged]);
 
   const headBtn = (id, label, align) => (
     <button key={id} type="button" onClick={() => pickSort(id)}
@@ -653,6 +780,13 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
           placeholder="Search camps, emails, ideas…" title="Press / to search"
           style={{ flex: 1, minWidth: 170, maxWidth: 340, ...selStyle, borderRadius: 7 }} />
         <span style={{ color: '#93a89b', fontSize: 11 }}>{list.length} of {rows.length} camps</span>
+        {flaggedCount > 0 && (
+          <button data-hide-flagged type="button" onClick={() => setHideFlagged(h => !h)}
+            title="Owner-flagged junk/test rows stay listed for audit; this tucks them away"
+            style={{ ...selStyle, cursor: 'pointer', color: hideFlagged ? '#e8c15a' : selStyle.color }}>
+            {hideFlagged ? 'Show flagged' : `Hide flagged (${flaggedCount})`}
+          </button>
+        )}
         <div style={{ flex: 1 }} />
         <select value={sort} onChange={e => { setSort(e.target.value); setDir(defaultDir(e.target.value)); }}
           title="Sort camps by" style={selStyle}>
@@ -689,7 +823,10 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
         <div style={{ display: 'grid', columnGap: 10, padding: '4px 12px', position: 'sticky', top: 0,
           background: '#0e1712f2', backdropFilter: 'blur(2px)', zIndex: 1, borderBottom: '1px solid #26382e',
           gridTemplateColumns: 'minmax(230px, 1.4fr) repeat(6, minmax(72px, 1fr)) 88px' }}>
-          {headBtn('name', 'Camp', 'left')}
+          <div style={{ display: 'flex', gap: 12 }}>
+            {headBtn('name', 'Camp', 'left')}
+            {headBtn('date', 'Submitted', 'left')}
+          </div>
           {sectors.map(s => headBtn(s.id, s.name))}
           {headBtn('score', 'Total', 'right')}
         </div>
@@ -698,12 +835,21 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
         const hl = highlight && r.campName === highlight;
         return (
           <div key={`${r.campName}|${r.timestamp}`} ref={hl ? hlRef : null}
-            onClick={hl ? onClearHighlight : undefined} title={hl ? 'Click to dismiss the highlight' : undefined}
-            style={hl ? { outline: '2px solid #45c483', outlineOffset: 2, borderRadius: 12 } : undefined}>
+            role="button" tabIndex={0} aria-label={`View full details for ${r.campName}`}
+            title="Click for full details"
+            onClick={e => {
+              // Links inside the row (email, result) keep their own behavior.
+              if (e.target.closest && e.target.closest('a')) return;
+              if (hl && onClearHighlight) onClearHighlight();
+              setDetail(r);
+            }}
+            onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) setDetail(r); }}
+            style={{ cursor: 'pointer', ...(hl ? { outline: '2px solid #45c483', outlineOffset: 2, borderRadius: 12 } : {}) }}>
             <MemoCampRow sectors={sectors} camp={r} wide={wide} />
           </div>
         );
       })}
+      {detail && <CampDetail sectors={sectors} camp={detail} onClose={() => setDetail(null)} />}
     </div>
   );
 }
