@@ -142,6 +142,11 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 
 ## Recently done
 
+- Admin loading overhaul (Wes's direct ask): early fetch kickoff + localStorage
+  stale-while-revalidate, spinning-wheel loading state, Copy Summary moved to
+  the Top Camps corner, docs catch-up (#89) — 2026-07-18
+- Admin refinement round: colorful tabs, hover-preview radius, Top Camps first,
+  all-years filter, "/" search, copy summary, email BCC (#88) — 2026-07-17
 - Reliability & delight round shipped: content-version stamp in result links,
   client error beacon, plain-text email part, admin junk flagging, and the
   60/60 golden moment (#82–#86), plus the done-screen `cv` follow-up fix

@@ -6,6 +6,10 @@
 <!-- Loads first, no defer: installs window.onerror/unhandledrejection before
      any deferred vendor/dist script runs, so a white-screen bug still phones home. -->
 <script src="/beacon.js"></script>
+<!-- Kick the data fetch off now, in parallel with the script downloads below —
+     React consumes this promise on mount (useResponses) instead of starting
+     the request only after all five scripts have loaded and parsed. -->
+<script>window.__earlyResponses = fetch('/api/admin/responses', { headers: { 'Accept': 'application/json' } }).catch(function () { return null; });</script>
 <title>Green Radius — Admin</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg stroke='%23fff' stroke-width='1'%3E%3Cpath d='M16 16 L16 2 A14 14 0 0 1 28.12 9 Z' fill='%23A3D178'/%3E%3Cpath d='M16 16 L28.12 9 A14 14 0 0 1 28.12 23 Z' fill='%2386C169'/%3E%3Cpath d='M16 16 L28.12 23 A14 14 0 0 1 16 30 Z' fill='%2368B05C'/%3E%3Cpath d='M16 16 L16 30 A14 14 0 0 1 3.88 23 Z' fill='%2356A85C'/%3E%3Cpath d='M16 16 L3.88 23 A14 14 0 0 1 3.88 9 Z' fill='%23439F5B'/%3E%3Cpath d='M16 16 L3.88 9 A14 14 0 0 1 16 2 Z' fill='%2331975B'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='%232a2620' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.2' fill='%232a2620'/%3E%3C/svg%3E"/>
 <link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
@@ -23,6 +27,11 @@
 <script defer src="../dist/src/boot-admin.js"></script>
 <style>
 path:focus-visible{outline:2px solid #e8c15a}button:focus-visible{outline:2px solid #45c483;outline-offset:2px}
+/* Spinning six-wedge loading wheel (the favicon art) — used by the static
+   placeholder below and the React loading states (LoadingWheel in admin.jsx). */
+@keyframes grg-spin{to{transform:rotate(360deg)}}
+.grg-spin{animation:grg-spin 1.1s linear infinite}
+@media (prefers-reduced-motion: reduce){.grg-spin{animation:none}}
 /* Same vendored Space Grotesk as index.html (see the comment there). */
 @font-face {
   font-family: 'Space Grotesk';
@@ -35,6 +44,9 @@ path:focus-visible{outline:2px solid #e8c15a}button:focus-visible{outline:2px so
 </style>
 </head>
 <body style="margin:0;background:#0e1712;color:#eaf2ec;font-family:'Space Grotesk',system-ui,-apple-system,sans-serif">
-<div id="root"><div style="text-align:center;padding:60px 0;color:#93a89b">Loading the admin viewer…</div></div>
+<div id="root"><div style="text-align:center;padding:60px 0;color:#93a89b">
+<svg class="grg-spin" width="44" height="44" viewBox="0 0 32 32" aria-hidden="true"><g stroke="#0e1712" stroke-width="1"><path d="M16 16 L16 2 A14 14 0 0 1 28.12 9 Z" fill="#A3D178"/><path d="M16 16 L28.12 9 A14 14 0 0 1 28.12 23 Z" fill="#86C169"/><path d="M16 16 L28.12 23 A14 14 0 0 1 16 30 Z" fill="#68B05C"/><path d="M16 16 L16 30 A14 14 0 0 1 3.88 23 Z" fill="#56A85C"/><path d="M16 16 L3.88 23 A14 14 0 0 1 3.88 9 Z" fill="#439F5B"/><path d="M16 16 L3.88 9 A14 14 0 0 1 16 2 Z" fill="#31975B"/></g><circle cx="16" cy="16" r="2.2" fill="#0e1712"/></svg>
+<div style="margin-top:10px">Loading the admin viewer…</div>
+</div></div>
 </body>
 </html>
