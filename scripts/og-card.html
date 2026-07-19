@@ -36,9 +36,12 @@
     font-family: 'Space Grotesk', system-ui, sans-serif;
     display: flex; align-items: center; gap: 56px; padding: 0 72px;
   }
-  /* The clickety pointer sits above the badge like the board's spinner arrow. */
-  .wheel-wrap { flex-shrink: 0; position: relative; padding-top: 26px; }
-  .pointer { position: absolute; top: 0; left: 50%; transform: translateX(-50%); }
+  /* The clickety pointer overlaps the rim like the board's spinner arrow.
+     The badge svg insets its outer ring to 0.84 * size/2, so with size 470
+     the ring's top edge sits ~38px into the svg; top:15px puts the 30px-tall
+     tip ~7px into the rim instead of floating in that blank inset. */
+  .wheel-wrap { flex-shrink: 0; position: relative; }
+  .pointer { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); }
   .kicker {
     font-size: 21px; font-weight: 700; letter-spacing: 0.21em;
     color: #6f6555; margin-bottom: 16px; white-space: nowrap;
@@ -75,14 +78,23 @@
   <script>
     // Deferred scripts finish before DOMContentLoaded, so the globals exist here.
     window.addEventListener('DOMContentLoaded', function () {
-      var answers = {};
-      window.SECTORS.forEach(function (s) {
-        s.levels.slice(0, 3).forEach(function (lvl) {
-          (lvl || []).forEach(function (q) { answers[q.id] = 'yes'; });
-        });
-        (s.tier4Topics || []).slice(0, 4).forEach(function (t) { answers[t.id] = 'yes'; });
+      // A real camp's 20/60 fill pattern, pixel-sampled from the original
+      // PR #37 og-card (per-slice, clockwise sectors from 12 o'clock, rings
+      // innermost-first) — not a made-up or fully-lit board.
+      var PATTERN = [
+        [[1], [0, 0], [0, 0, 0], [0, 0, 0, 0]],
+        [[1], [0, 0], [1, 0, 0], [0, 1, 0, 0]],
+        [[1], [0, 1], [0, 0, 0], [1, 0, 0, 0]],
+        [[1], [1, 1], [0, 0, 1], [0, 0, 0, 0]],
+        [[0], [1, 1], [0, 1, 1], [0, 1, 0, 0]],
+        [[1], [1, 1], [0, 0, 1], [0, 0, 0, 0]],
+      ];
+      var fills = {};
+      window.SECTORS.forEach(function (s, si) {
+        var levels = PATTERN[si].map(function (lvl) { return lvl.map(Boolean); });
+        var totalYes = PATTERN[si].flat().reduce(function (a, v) { return a + v; }, 0);
+        fills[s.id] = { levels: levels, totalYes: totalYes, played: totalYes > 0 };
       });
-      var fills = fillsFromAnswers(window.SECTORS, answers);
       ReactDOM.createRoot(document.getElementById('wheel')).render(
         React.createElement(RadialBadge, {
           sectors: window.SECTORS, fills: fills, size: 470,
