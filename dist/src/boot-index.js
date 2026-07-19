@@ -1,27 +1,3 @@
 // @generated from src/boot-index.jsx by scripts/build.js — DO NOT EDIT.
 // Edit the .jsx source, then run: bun run scripts/build.js
-const PALETTE = {
-  label: "Alkali Flat",
-  bg: "#ede9e0",
-  canvas: "#2a2620",
-  card: "#fcfaf4",
-  text: "#2a2620",
-  heading: "#2a2620",
-  hub: "#3a3128",
-  hubStroke: "#4a4036",
-  accent: "#7AB85C",
-  accentDark: "#558040",
-  accentText: "#4c7339",
-  accentDeep: "#38542b"
-};
-function App() {
-  return React.createElement("div", {
-    className: "grg-shell"
-  }, React.createElement("div", {
-    className: "grg-frame"
-  }, React.createElement(GreenRadiusGame, {
-    variant: "flat-playa",
-    palette: PALETTE
-  })), React.createElement(FxLayer, null));
-}
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App, null));
+const PALETTE={label:"Alkali Flat",bg:"#ede9e0",canvas:"#2a2620",card:"#fcfaf4",text:"#2a2620",heading:"#2a2620",hub:"#3a3128",hubStroke:"#4a4036",accent:"#7AB85C",accentDark:"#558040",accentText:"#4c7339",accentDeep:"#38542b"};function App(){return React.createElement("div",{className:"grg-shell"},React.createElement("div",{className:"grg-frame"},React.createElement(GreenRadiusGame,{variant:"flat-playa",palette:PALETTE})),React.createElement(FxLayer,null))}ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App,null));

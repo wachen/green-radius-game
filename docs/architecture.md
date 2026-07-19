@@ -257,7 +257,18 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   (built from the `.jsx` sources by `scripts/build.js`). Because the filenames are
   versioned, `_headers` serves `/vendor/*` with `Cache-Control: immutable,
   max-age=1y` (a new version is a new URL) — returning visitors skip ~7 RTTs;
-  `og-card.png` is unversioned at root and deliberately not covered. `_headers`
+  `og-card.png` is unversioned at root and deliberately not covered. The
+  unversioned first-party scripts (`/dist/*`, `game-data.js`, `result-state.js`,
+  `beacon.js`, `admin/aggregate.js`) get `max-age=300,
+  stale-while-revalidate=86400` (#90) — they used to serve `max-age=0`, so a
+  repeat visit paid 13 conditional-request RTTs before running scripts it
+  already had; now cached copies run instantly and revalidate in the
+  background. The HTML entry points stay `max-age=0` so a deploy shows up on
+  the next navigation; a returning browser's script set is self-consistent
+  (fetched together), at worst ~5 min behind. Since #90 `scripts/build.js` also
+  emits the `dist/` artifacts whitespace-minified (`minifyWhitespace` — no
+  identifier renaming, which the shared-global-scope bare-name contract
+  requires). `_headers`
   also sends `X-Frame-Options`/`frame-ancestors 'none'` and a minimal
   `Permissions-Policy`; a script CSP is still deliberately absent — the boot
   scripts are external `dist/src/boot-*.js` files now (no eval needed), but this

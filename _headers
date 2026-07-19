@@ -13,6 +13,25 @@
 /vendor/*
   Cache-Control: public, max-age=31536000, immutable
 
+# Unversioned first-party scripts (change only on deploy). Without this they
+# served max-age=0, so every repeat visit paid one conditional request per file
+# (13 RTTs gating script execution — beacon.js is even render-blocking).
+# stale-while-revalidate lets returning browsers run the cached copy instantly
+# and refresh in the background. Mixed-version risk is bounded: a visit fetches
+# all of these together, so a returning browser holds a self-consistent set,
+# ≤5 min behind at worst once the background revalidation lands. The HTML stays
+# max-age=0 (not listed) so a deploy still shows up on the next navigation.
+/dist/*
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+/game-data.js
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+/result-state.js
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+/beacon.js
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+/admin/aggregate.js
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+
 # Wrangler infers text/jsx for .jsx, which is not on Cloudflare's compressible
 # MIME list, so these files were shipping uncompressed (~144KB raw vs ~40KB).
 # The JS content-type is safe: browsers never execute type="text/babel" script
