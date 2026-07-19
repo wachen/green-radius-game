@@ -536,6 +536,13 @@ function CampRow({ sectors, camp, wide }) {
   );
 }
 
+// At 100+ camps a keystroke or sort click used to re-render every row's
+// ~80-node badge SVG (measured: ~100ms main-thread blocks at ~370 rows).
+// memo skips rows whose props didn't change — sorting then only reorders
+// keyed children and filtering only unmounts; CampRow's props are all
+// stable per row (sectors/camp identities, wide).
+const MemoCampRow = React.memo(CampRow);
+
 // CSV of the currently filtered/sorted list — everything a row shows, one line
 // per camp. Cells starting with a formula trigger get the same ' guard the
 // sheet uses (the export will be opened in Excel/Sheets).
@@ -566,6 +573,10 @@ function exportCsv(list, sectors) {
 function CampsView({ sectors, rows, highlight, onClearHighlight }) {
   const wide = useMQ('(min-width: 900px)');
   const [q, setQ] = React.useState('');
+  // The input echoes q instantly; filtering runs on the 120ms-trailing dq so
+  // fast typing coalesces into one list re-render instead of one per keystroke.
+  const [dq, setDq] = React.useState('');
+  React.useEffect(() => { const t = setTimeout(() => setDq(q), 120); return () => clearTimeout(t); }, [q]);
   // Default view: time of receipt, newest first. Every column sorts both ways:
   // first click applies its natural direction (text ascends, numbers/dates
   // descend), clicking the same column again reverses it.
@@ -576,6 +587,8 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
     if (id === sort) setDir(d => (d === 'asc' ? 'desc' : 'asc'));
     else { setSort(id); setDir(defaultDir(id)); }
   };
+  // Nonzero while the Email button's clipboard fallback confirmation shows.
+  const [bccCopied, setBccCopied] = React.useState(0);
   // City-tab clickthrough target: scroll the highlighted camp into view once.
   const hlRef = React.useRef(null);
   React.useEffect(() => {
@@ -593,14 +606,20 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClearHighlight]);
-  const list = React.useMemo(() => {
-    const ql = q.trim().toLowerCase();
-    let xs = rows.filter(r => {
-      if (!ql) return true;
+  // One lowercase haystack per row, rebuilt only when the rows change — not
+  // per keystroke per row (each row's notes hide under ~64 answer keys).
+  const hay = React.useMemo(() => {
+    const m = new Map();
+    rows.forEach(r => {
       const notes = Object.keys(r.answers || {})
         .filter(k => k.endsWith('-note')).map(k => r.answers[k]).join(' ');
-      return (r.campName + ' ' + r.leadName + ' ' + r.email + ' ' + notes).toLowerCase().includes(ql);
+      m.set(r, (r.campName + ' ' + r.leadName + ' ' + r.email + ' ' + notes).toLowerCase());
     });
+    return m;
+  }, [rows]);
+  const list = React.useMemo(() => {
+    const ql = dq.trim().toLowerCase();
+    let xs = ql ? rows.filter(r => hay.get(r).includes(ql)) : rows;
     // Primary key ascending; `dir` flips only the primary so the name-A→Z
     // tiebreak stays stable in either direction.
     const bySector = sectors.some(s => s.id === sort);
@@ -612,7 +631,7 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
     const flip = dir === 'asc' ? key : (a, b) => key(b, a);
     xs = xs.slice().sort((a, b) => flip(a, b) || a.campName.localeCompare(b.campName));
     return xs;
-  }, [rows, q, sort, dir, sectors]);
+  }, [rows, hay, dq, sort, dir, sectors]);
 
   const headBtn = (id, label, align) => (
     <button key={id} type="button" onClick={() => pickSort(id)}
@@ -649,13 +668,21 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
           style={{ ...selStyle, cursor: 'pointer' }}>
           ⬇ CSV
         </button>
-        <button data-email type="button" title="Open an email draft BCC'd to every filtered camp lead"
+        <button data-email type="button"
+          title="Open an email draft BCC'd to every filtered camp lead (long lists copy the addresses instead)"
           onClick={() => {
             const emails = Array.from(new Set(list.map(r => r.email).filter(Boolean)));
-            if (emails.length) window.location.href = 'mailto:?bcc=' + encodeURIComponent(emails.join(','));
+            if (!emails.length) return;
+            const href = 'mailto:?bcc=' + encodeURIComponent(emails.join(','));
+            // Mail clients truncate or refuse long mailto: URLs (~2k chars is
+            // roughly 75 addresses); past that, copy the list to paste into BCC.
+            if (href.length <= 1800) { window.location.href = href; return; }
+            navigator.clipboard.writeText(emails.join(', ')).then(
+              () => { setBccCopied(emails.length); setTimeout(() => setBccCopied(0), 2000); },
+              () => {});
           }}
           style={{ ...selStyle, cursor: 'pointer' }}>
-          ✉ Email
+          {bccCopied ? `Copied ${bccCopied} emails` : '✉ Email'}
         </button>
       </div>
       {wide && (
@@ -673,7 +700,7 @@ function CampsView({ sectors, rows, highlight, onClearHighlight }) {
           <div key={`${r.campName}|${r.timestamp}`} ref={hl ? hlRef : null}
             onClick={hl ? onClearHighlight : undefined} title={hl ? 'Click to dismiss the highlight' : undefined}
             style={hl ? { outline: '2px solid #45c483', outlineOffset: 2, borderRadius: 12 } : undefined}>
-            <CampRow sectors={sectors} camp={r} wide={wide} />
+            <MemoCampRow sectors={sectors} camp={r} wide={wide} />
           </div>
         );
       })}
