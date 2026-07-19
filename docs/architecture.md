@@ -57,7 +57,7 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
    show the count of advanced Yeses (capped at 4). `sectorFill(sector, answers)`
    derives the per-sector fill + `totalYes` (0–10); the `fills` memo is the single
    source for every renderer (board + form). Six spins complete the game. State
-   lives in React + `localStorage` (`STORAGE_KEY = green-radius-game/v1`); bump
+   lives in component state + `localStorage` (`STORAGE_KEY = green-radius-game/v1`); bump
    `STORAGE_VERSION` when the saved shape changes (now stores `answers`, not levelStates).
 2. **Done screen.** Required, validated email. `greens[sectorId] =
    sectorFill(...).totalYes` (0–10). Every individual answer lives in the shared
