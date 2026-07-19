@@ -78,16 +78,16 @@
   <script>
     // Deferred scripts finish before DOMContentLoaded, so the globals exist here.
     window.addEventListener('DOMContentLoaded', function () {
-      // A real camp's 20/60 fill pattern, pixel-sampled from the original
-      // PR #37 og-card (per-slice, clockwise sectors from 12 o'clock, rings
-      // innermost-first) — not a made-up or fully-lit board.
+      // Showcase 34/60 fill (per-slice, clockwise sectors from 12 o'clock,
+      // rings innermost-first): all of L1 + L2 lit, L3/L4 scattered so the
+      // radius reads balanced but still like a real camp, per Wes 2026-07-19.
       var PATTERN = [
-        [[1], [0, 0], [0, 0, 0], [0, 0, 0, 0]],
-        [[1], [0, 0], [1, 0, 0], [0, 1, 0, 0]],
-        [[1], [0, 1], [0, 0, 0], [1, 0, 0, 0]],
-        [[1], [1, 1], [0, 0, 1], [0, 0, 0, 0]],
-        [[0], [1, 1], [0, 1, 1], [0, 1, 0, 0]],
-        [[1], [1, 1], [0, 0, 1], [0, 0, 0, 0]],
+        [[1], [1, 1], [1, 0, 1], [0, 1, 0, 0]],
+        [[1], [1, 1], [0, 1, 0], [0, 0, 0, 0]],
+        [[1], [1, 1], [1, 1, 1], [1, 0, 0, 1]],
+        [[1], [1, 1], [0, 1, 1], [0, 0, 0, 0]],
+        [[1], [1, 1], [1, 0, 0], [0, 0, 1, 0]],
+        [[1], [1, 1], [0, 1, 1], [0, 1, 0, 0]],
       ];
       var fills = {};
       window.SECTORS.forEach(function (s, si) {
