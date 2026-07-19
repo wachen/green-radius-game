@@ -33,7 +33,7 @@ this implementation began from a Claude Design handoff bundle.
 
 ## Stack
 
-- Static HTML + React 18 (UMD, vendored same-origin in `vendor/`); the game's `.jsx` sources are
+- Static HTML + Preact (via preact/compat, UMD, vendored same-origin in `vendor/`, exposed under the React names by a shim); the game's `.jsx` sources are
   precompiled to classic-runtime JS by a small Bun build step (`scripts/build.js`) into committed
   `dist/` artifacts, which the browser loads directly
 - **No bundler, no npm** — the compile step is one Bun script, not a build pipeline
@@ -62,7 +62,7 @@ this implementation began from a Claude Design handoff bundle.
 | `city/`            | Public community-progress page (`/city/`), rendered from `GET /api/city` |
 | `admin/`           | Internal Cloudflare Access–gated response viewer (City + Camps), read-only |
 | `worker/`          | Cloudflare Worker (`/api/complete` + `/api/admin/responses` + `/api/city` + `/result/?r=` OG unfurl + `/api/health`) |
-| `vendor/`          | Pinned React/ReactDOM runtime, served same-origin                |
+| `vendor/`          | Pinned Preact runtime (+ React-names shim), served same-origin   |
 | `downloads/`       | Printable board-game + how-to-play PDFs                          |
 
 ## Architecture
