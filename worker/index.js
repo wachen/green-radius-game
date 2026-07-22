@@ -109,11 +109,14 @@ async function handleComplete(request, env) {
   const campName = clampField(body.campName, 80);
   const leadName = clampField(body.leadName, 80);
   const email = clampField(body.email, 254);
+  const campLocation = clampField(body.campLocation, 80);
+  const campSize = campSizeCell(body.campSize);
 
   const resultUrl = safeResultUrl(body.resultUrl);
   const row = {
     secret: env.SHEETS_SHARED_SECRET,
     campName: sheetCell(campName), leadName: sheetCell(leadName), email: sheetCell(email),
+    campLocation: sheetCell(campLocation), campSize,
     year: Math.max(2000, Math.min(2100, body.year | 0)), greens, source,
     answers, schemaVersion,
     resultUrl,
@@ -355,6 +358,15 @@ function clampField(s, n) {
   return String(s == null ? '' : s).slice(0, n);
 }
 
+// Camp size (headcount): blank when absent/invalid, else a non-negative integer
+// string capped at 99999 (a generous sheet-side ceiling — the intake form itself
+// caps at 2000, this just tolerates any pre-cap/legacy value reaching the Worker).
+function campSizeCell(v) {
+  if (v === undefined || v === null || v === '') return '';
+  const n = Math.trunc(Number(v));
+  return Number.isFinite(n) ? String(Math.max(0, Math.min(99999, n))) : '';
+}
+
 // Google Sheets treats a cell whose value starts with = + - @ (or a control char)
 // as a formula, which would execute on view/recalc (e.g. =IMPORTXML exfiltrating
 // the email column). Prefix a ' so submitted text always stays literal text.
@@ -392,6 +404,7 @@ export function shapeAdminRows(raw) {
     return {
       timestamp: Date.parse(r.timestamp) || 0,
       campName: String(r.campName || ''), leadName: String(r.leadName || ''), email: String(r.email || ''),
+      campLocation: String(r.campLocation || ''), campSize: String(r.campSize || ''),
       year: r.year | 0, greens: r.greens || {}, total: r.total | 0,
       source: r.source === 'form' ? 'form' : 'board', resultUrl: String(r.resultUrl || ''),
       answers, schemaVersion: String(r.schema_version || r.schemaVersion || ''),

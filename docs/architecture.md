@@ -88,8 +88,12 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      **Share** button delivers it via Web Share L2 — `navigator.share({ files: [pngFile] })`
      hands the pre-rasterized result-card PNG to the OS share sheet — then degrades to
      sharing the `?r=` URL (Web Share L1), then to copying the link to the clipboard.
-   - **`POST /api/complete`** — `{campName, email, year, greens, mode, answers,
-     campId, nonce, schemaVersion, resultUrl}`. `greens` is now 0–10 per sector; `answers` (the full
+   - **`POST /api/complete`** — `{campName, email, campLocation, campSize, year, greens, mode, answers,
+     campId, nonce, schemaVersion, resultUrl}`. `campLocation`/`campSize` are required on the
+     board intro, optional on the form-mode intake (same `Intro` component, gated by a
+     `locationSizeRequired` prop); the Worker clamps/coerces them server-side and tolerates
+     their absence (older saves), forwarding both to the Apps Script row and the admin API —
+     neither field is added to the email or the `/api/city` payload. `greens` is now 0–10 per sector; `answers` (the full
      map) is backend-only (→ sheet `answers_json`). **`campId`** is a stable
      client-generated UUID (`crypto.randomUUID`, persisted in the localStorage save as an
      additive key, reused across reloads/redos, re-minted on start-over/exit). The Worker
@@ -165,9 +169,11 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   path `/result/` and escapes the href — don't loosen it (anti-XSS/phishing in the
   outbound email).
 - **`sheetCell` / length caps** neutralize submitted free text before it reaches
-  the sheet: campName/leadName ≤ 80, email ≤ 254, and any value starting with
-  `= + - @` (a Google Sheets formula trigger) gets a leading `'`. Keep names
-  flowing through `sheetCell` — it's the anti-formula-injection guard.
+  the sheet: campName/leadName ≤ 80, email ≤ 254, campLocation ≤ 80, and any
+  value starting with `= + - @` (a Google Sheets formula trigger) gets a leading
+  `'`. Keep names flowing through `sheetCell` — it's the anti-formula-injection
+  guard. `campSize` is coerced server-side to an integer string 0–99999 (blank
+  when absent or not a valid number).
 - **The email body is server-built.** `sendEmail` composes the result link plus a
   Green-Up Plan rebuilt from the *sanitized* `answers` map against `game-data.js`
   (`greenUpEmailHtml`, mirroring `greenUpSteps` in `green-radius.jsx`): every "No"
@@ -190,8 +196,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 
 - **Google Apps Script** (owner-side, *container-bound* to the master
   spreadsheet). `doPost` verifies a shared secret, then `appendRow` to the
-  **`2026 Results`** tab (16 cols: Timestamp · Camp · Lead · Email · Year · 6
-  sectors · Total · Source · Result URL · **Answers JSON** · **Schema Version**).
+  **`2026 Results`** tab (18 cols: Timestamp · Camp · Lead · Email · Year · 6
+  sectors · Total · Source · Result URL · **Answers JSON** · **Schema Version** ·
+  **Location** · **Camp Size** — the last two added for camp location/headcount
+  intake; see `docs/admin-setup.md` for the column-add + `doGet`/`doPost` snippets).
   The Worker sends `answers` (the full `{qid:'yes'|'no'}` map — now up to four
   write-in ids per sector via `campIdeaIds` — plus all four per-sector `X-camp-note`
   write-in text entries that pass the Worker's note whitelist; see the `/api/complete`

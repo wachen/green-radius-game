@@ -78,26 +78,37 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
 // ─── intro / camp setup ───────────────────────────────────────────────────────
 // `initial` prefills the fields from the running game's camp info, so stepping
 // back from the board/form lets the player fix a typo'd detail and continue.
-function Intro({ onStart, onBack, palette, description, initial }) {
+function Intro({ onStart, onBack, palette, description, initial, locationSizeRequired }) {
   const [campName, setCampName] = useState((initial && initial.campName) || '');
   const [leadName, setLeadName] = useState((initial && initial.leadName) || '');
   const [email, setEmail] = useState((initial && initial.email) || '');
+  const [campLocation, setCampLocation] = useState((initial && initial.campLocation) || '');
+  const [campSize, setCampSize] = useState((initial && initial.campSize) || '');
   const [tried, setTried] = useState(false);
 
   const campOk = !!campName.trim();
   const leadOk = !!leadName.trim();
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const canStart = campOk && leadOk && emailOk;
+  const campLocationOk = !locationSizeRequired || !!campLocation.trim();
+  const campSizeTrim = campSize.trim();
+  const campSizeNum = Number(campSizeTrim);
+  const campSizeFormatOk = campSizeTrim !== '' && Number.isInteger(campSizeNum) && campSizeNum > 0 && campSizeNum <= 2000;
+  // Required: must be present and valid. Optional: blank is fine, but a typed
+  // value still has to be a real headcount (optional doesn't mean "anything goes").
+  const campSizeOk = locationSizeRequired ? campSizeFormatOk : (campSizeTrim === '' || campSizeFormatOk);
+  const canStart = campOk && leadOk && emailOk && campLocationOk && campSizeOk;
 
   function handleStart() {
     if (!canStart) { setTried(true); return; }
-    onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim() });
+    onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim(), campLocation: campLocation.trim(), campSize: campSizeTrim });
   }
 
   const missing = [];
   if (!campOk) missing.push('a camp name');
   if (!leadOk) missing.push('your name');
   if (!emailOk) missing.push('a valid email');
+  if (locationSizeRequired && !campLocationOk) missing.push('your camp location');
+  if (locationSizeRequired && !campSizeOk) missing.push('your camp size');
   const missingMsg = missing.length === 1
     ? `Please add ${missing[0]} to continue.`
     : missing.length === 2
@@ -133,6 +144,8 @@ function Intro({ onStart, onBack, palette, description, initial }) {
         <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
         <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
         <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk} type="email"/>
+        <Field label="Camp location" value={campLocation} onChange={setCampLocation} placeholder="e.g. 7:30 & E" palette={palette} required={locationSizeRequired} invalid={tried && !campLocationOk} maxLength={80}/>
+        <Field label="Camp size" value={campSize} onChange={setCampSize} placeholder="Number of campers" palette={palette} required={locationSizeRequired} invalid={tried && !campSizeOk} type="number" min={1} max={2000}/>
       </div>
 
       <button
@@ -187,8 +200,9 @@ function Intro({ onStart, onBack, palette, description, initial }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, palette, required, invalid, type }) {
+function Field({ label, value, onChange, placeholder, palette, required, invalid, type, min, max, maxLength }) {
   const isEmail = type === 'email';
+  const isNumber = type === 'number';
   return (
     <label style={{ display: 'block' }}>
       <div style={{ fontSize: 10, letterSpacing: '0.15em', fontWeight: 700, color: palette.text + '99', marginBottom: 4 }}>
@@ -201,11 +215,14 @@ function Field({ label, value, onChange, placeholder, palette, required, invalid
         placeholder={placeholder}
         required={required}
         aria-invalid={invalid || undefined}
-        inputMode={isEmail ? 'email' : undefined}
+        inputMode={isEmail ? 'email' : isNumber ? 'numeric' : undefined}
         autoCapitalize={isEmail ? 'none' : undefined}
         autoCorrect={isEmail ? 'off' : undefined}
         autoComplete={isEmail ? 'email' : undefined}
         spellCheck={isEmail ? false : undefined}
+        min={isNumber ? min : undefined}
+        max={isNumber ? max : undefined}
+        maxLength={maxLength}
         style={{
           width: '100%', padding: '12px 14px', borderRadius: 10,
           border: `1.5px solid ${invalid ? '#B4463A' : palette.text + '22'}`,
@@ -267,7 +284,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const saved = useMemo(() => loadSaved(sectors), [sectors]);
 
   const [phase, setPhase] = useState(saved?.phase || 'pick-mode'); // pick-mode | intro | playing | done | form-intro | form
-  const [camp, setCamp] = useState(saved?.camp || { campName: '', leadName: '', email: '' });
+  const [camp, setCamp] = useState(saved?.camp || { campName: '', leadName: '', email: '', campLocation: '', campSize: '' });
   // Stable per-camp id: reuse the saved one so a reload/redo keeps the same
   // identity; a fresh game (start over / exit) mints a new one (see freshProgress
   // + handleExit). Rides to the sheet inside the answers blob for read-time dedup.
@@ -430,6 +447,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             campName: camp.campName, leadName: camp.leadName, email,
+            campLocation: camp.campLocation || '', campSize: camp.campSize || '',
             year, greens,
             mode: mode === 'form' ? 'form' : 'board',
             answers: { ...answers, ...noteEntries },
@@ -648,6 +666,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         palette={palette}
         description="Answer as best you can. Progress autosaves unless you reset."
         initial={camp}
+        locationSizeRequired={false}
       />
     );
   }
@@ -679,6 +698,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         palette={palette}
         description="Spin the wheel and answer as best you can. Progress autosaves unless you reset."
         initial={camp}
+        locationSizeRequired={true}
       />
     );
   }
@@ -746,7 +766,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       setAnswers({});
       setCustomNotes({});
       setMode(null);
-      setCamp({ campName: '', leadName: '', email: '' });
+      setCamp({ campName: '', leadName: '', email: '', campLocation: '', campSize: '' });
       setCampId(genCampId()); // next game is a new camp identity
       setSubmittedAt(null);
       setSubmitNonce(null);
