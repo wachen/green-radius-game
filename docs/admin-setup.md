@@ -107,3 +107,51 @@ it directly in the sheet.
   so a flag can take up to 5 minutes to disappear from the public tally.
 - Until step 1–2 above are done, the `Hidden` column doesn't exist and every row
   reads as not-hidden — flagging is a no-op, nothing breaks.
+
+## 4. Camp location + size columns
+
+The intro screen now collects a camp's playa location (e.g. "7:30 & E") and
+headcount, required on the board-game intro and optional on the form-mode
+intake. The Worker forwards both to the Apps Script row and the admin API;
+they don't appear in the email or the public `/api/city` tally.
+
+1. Add two column headers, **`Location`** and **`Camp Size`**, at the **end** of
+   the `2026 Results` sheet.
+2. Update `doGet` to also map the new columns:
+
+```js
+  var rows = values.filter(function (r) { return r[col['Camp']]; }).map(function (r) {
+    return {
+      timestamp: r[col['Timestamp']], campName: r[col['Camp']], leadName: r[col['Lead']],
+      email: r[col['Email']], year: r[col['Year']],
+      greens: { food: r[col['Food']], water: r[col['Water']], waste: r[col['Waste']],
+                transport: r[col['Transport']], shelter: r[col['Shelter']], power: r[col['Power']] },
+      total: r[col['Total']], source: r[col['Source']], resultUrl: r[col['Result URL']],
+      answers_json: r[col['Answers JSON']] || '', schema_version: r[col['Schema Version']] || '',
+      hidden: r[col['Hidden']] || '',
+      campLocation: r[col['Location']] || '', campSize: r[col['Camp Size']] || ''
+    };
+  });
+```
+
+3. Update `doPost`'s `appendRow` to append the two new values **last**, matching
+   the column order from step 1:
+
+```js
+  sheet.appendRow([
+    new Date(),
+    data.campName, data.leadName, data.email, data.year,
+    data.greens.food, data.greens.water, data.greens.waste,
+    data.greens.transport, data.greens.shelter, data.greens.power,
+    data.source, data.resultUrl,
+    JSON.stringify(data.answers || {}),  // -> answers_json
+    data.schemaVersion || '',            // -> schema_version
+    data.campLocation || '',             // -> Location
+    data.campSize || ''                  // -> Camp Size
+  ]);
+```
+
+Re-deploy the web app (Manage deployments → edit → New version) — same `/exec`
+URL, same secret. Existing rows just read blank in the new columns, and
+submissions from before this change (an older client, or before the sheet is
+updated) are tolerated: the Worker sends `''` for both fields when absent.

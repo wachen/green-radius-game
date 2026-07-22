@@ -142,6 +142,10 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 
 ## Recently done
 
+- Camp location + headcount intake (required on the board intro, optional on
+  the form intake), two new sheet columns, excluded from `/api/city` and the
+  email (#94)
+
 - Admin QoL round (Wes's direct ask): /60 scale on Avg Score, two-way column
   sorting everywhere incl. a Submitted header, filters merged into a single
   Camps toolbar (two tidy rows on mobile, CSV/Email desktop-only), search-term

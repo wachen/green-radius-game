@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
-import { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, shapeAdminRows } from '../worker/index.js';
+import worker, { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, shapeAdminRows } from '../worker/index.js';
 import GameData from '../game-data.js';
 
 function b64url(data) {
@@ -359,5 +359,60 @@ describe('handleClientError', () => {
     expect(evt.source.length).toBe(300);
     expect(evt.path.length).toBe(200);
     expect(evt.version.length).toBe(32);
+  });
+});
+
+describe('handleComplete campLocation/campSize', () => {
+  async function submit(extra) {
+    const originalFetch = globalThis.fetch;
+    let sentRow;
+    globalThis.fetch = async (url, opts) => {
+      sentRow = JSON.parse(opts.body);
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    };
+    const env = { SHEETS_WEBAPP_URL: 'https://script.google.com/fake', SHEETS_SHARED_SECRET: 's' };
+    let res;
+    try {
+      res = await worker.fetch(new Request('https://greenradi.us/api/complete', {
+        method: 'POST',
+        headers: { Origin: 'https://greenradi.us', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campName: 'Dusty Camp', email: 'a@b.co', year: 2026, greens: {}, ...extra }),
+      }), env, {});
+    } finally { globalThis.fetch = originalFetch; }
+    return { res, sentRow };
+  }
+
+  test('a campLocation over 80 chars clamps to 80', async () => {
+    const { sentRow } = await submit({ campLocation: 'x'.repeat(100) });
+    expect(sentRow.campLocation.length).toBe(80);
+  });
+
+  test('a campLocation starting with = gets the sheetCell formula guard', async () => {
+    const { sentRow } = await submit({ campLocation: '=SUM(A1)' });
+    expect(sentRow.campLocation).toBe("'=SUM(A1)");
+  });
+
+  test('an oversize campSize clamps to the 99999 cap', async () => {
+    const { sentRow } = await submit({ campSize: '500000' });
+    expect(sentRow.campSize).toBe('99999');
+  });
+
+  test('a fractional campSize truncates to an integer', async () => {
+    const { sentRow } = await submit({ campSize: '42.9' });
+    expect(sentRow.campSize).toBe('42');
+  });
+
+  test('a non-numeric campSize becomes blank', async () => {
+    const { sentRow } = await submit({ campSize: 'lots' });
+    expect(sentRow.campSize).toBe('');
+  });
+
+  test('both fields absent still succeed, both blank in the row', async () => {
+    const { res, sentRow } = await submit({});
+    expect(res.status).toBe(200);
+    const j = await res.json();
+    expect(j.sheet).toBe('ok');
+    expect(sentRow.campLocation).toBe('');
+    expect(sentRow.campSize).toBe('');
   });
 });
