@@ -155,3 +155,21 @@ Re-deploy the web app (Manage deployments → edit → New version) — same `/e
 URL, same secret. Existing rows just read blank in the new columns, and
 submissions from before this change (an older client, or before the sheet is
 updated) are tolerated: the Worker sends `''` for both fields when absent.
+
+## 5. Duplicate detection and resolution
+
+The admin page shows badges on camps with repeated submissions within the same year.
+On the Camps tab, multi-submission camps display an **xN** badge (e.g. x2, x3) showing
+the count. Older, superseded rows are dimmed with a **"superseded"** badge. Rows that
+share an email address with another camp in the same year get a **"possible dup"** badge —
+these are flagged for your review but never auto-merged. A **"Dups"** toolbar filter shows
+only the flagged entries for investigation.
+
+Dedup merges rows within the same year when they share a `campId`, or the same normalized
+camp name (trim+lowercase). Email only merges legacy rows without a `campId`, since one
+person can legitimately run two different camps.
+
+When you flag a row as hidden via the `Hidden` column (see "Flagging junk rows" above),
+the latest submission for that camp becomes invisible to the aggregates, and the camp's
+previous (older) submission automatically becomes the counted one in `/api/city` and the
+admin City tab.

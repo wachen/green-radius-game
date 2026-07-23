@@ -142,6 +142,11 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 
 ## Recently done
 
+- Duplicate handling upgrade: year-scoped union grouping (campId OR normalized
+  name per year), admin badges (xN winner count, "superseded", "possible dup"
+  for shared email), "Dups" filter, and the Hidden column now resurrects the
+  previous submission; timestamp 32-bit wrap bug fixed (#95) - 2026-07-22
+
 - Camp location + headcount intake (required on the board intro, optional on
   the form intake), two new sheet columns, excluded from `/api/city` and the
   email (#94)

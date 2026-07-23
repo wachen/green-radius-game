@@ -29,35 +29,129 @@
     return (row.total | 0) <= 24 && Object.keys(g).every(function (k) { return (g[k] | 0) <= 4; });
   }
 
-  // Read-time, latest-wins dedup so repeat submissions (retries, redos) count
-  // once instead of permanently inflating every tally. Identity precedence:
-  //   campId (rides inside the answers blob) → normalized email → normalized
-  //   camp name → none (row kept as-is; no key means no merge).
-  // "Latest" = highest timestamp; on a tie the later array position wins (sheet
-  // rows are appended chronologically, so that is the more recent submission).
-  // NOTE: a camp's pre-campId rows key on email while its post-campId rows key
-  // on campId, so those two eras won't merge — that only affects the migration
-  // window; the common retry-storm case (same client, same campId) collapses.
-  function identityKey(row) {
-    if (!row) return '';
+  // Read-time, latest-wins dedup so repeat submissions (retries, redos, a new
+  // device that lost localStorage) count once instead of permanently inflating
+  // every tally. Rows are merged by connected components (union-find), not a
+  // single precedence key: each row contributes a set of "link keys", every
+  // key scoped by year (a 2025 and a 2026 row never merge just because they
+  // share a name/id/email), and any two rows sharing ANY key land in the same
+  // group. Link keys per row:
+  //   - campId (rides inside the answers blob) if present.
+  //   - normalized camp name (trim + lowercase + collapse whitespace) if present.
+  //   - normalized email, but ONLY when the row has no campId — a modern camp's
+  //     campId already identifies it, so email must not also merge two distinct
+  //     campId-bearing camps that happen to share an inbox; pre-campId legacy
+  //     rows have nothing else to key on, so email is still how those merge.
+  // A row with no keys at all (no campId, no name, no email) stays its own
+  // group of one — no key means no merge, same as before.
+  // Winner per group: highest numeric timestamp; on a tie the later array
+  // position wins (sheet rows are appended chronologically, so that is the
+  // more recent submission).
+  function normCampName(name) {
+    return typeof name === 'string' ? name.trim().toLowerCase().replace(/\s+/g, ' ') : '';
+  }
+  function yearScope(row) {
+    var y = row && row.year;
+    return (y === undefined || y === null || y === '') ? '' : String(y);
+  }
+  // Every link key this row contributes, each prefixed with its year scope.
+  function rowLinkKeys(row) {
+    if (!row) return [];
+    var y = yearScope(row);
+    var keys = [];
     var cid = (row.answers && row.answers.campId) || row.campId;
-    if (typeof cid === 'string' && cid.trim()) return 'id:' + cid.trim();
-    var email = typeof row.email === 'string' ? row.email.trim().toLowerCase() : '';
-    if (email) return 'em:' + email;
-    var name = typeof row.campName === 'string' ? row.campName.trim().toLowerCase() : '';
-    if (name) return 'nm:' + name;
-    return '';
+    var hasCampId = typeof cid === 'string' && !!cid.trim();
+    if (hasCampId) keys.push(y + ':id:' + cid.trim());
+    var name = normCampName(row.campName);
+    if (name) keys.push(y + ':nm:' + name);
+    if (!hasCampId) {
+      var email = typeof row.email === 'string' ? row.email.trim().toLowerCase() : '';
+      if (email) keys.push(y + ':em:' + email);
+    }
+    return keys;
+  }
+  // Union-find grouping: rows sharing any link key end up in the same group.
+  // Returns an array of groups (each an array of the original row objects),
+  // in the order each group first appears in `rows`; within a group the rows
+  // keep their original relative order (so "later array position" is stable).
+  function groupRows(rows) {
+    rows = rows || [];
+    var n = rows.length;
+    var parent = new Array(n);
+    for (var i = 0; i < n; i++) parent[i] = i;
+    function find(x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+    function union(a, b) { var ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
+    var keyToIndex = {};
+    rows.forEach(function (r, i) {
+      rowLinkKeys(r).forEach(function (k) {
+        if (Object.prototype.hasOwnProperty.call(keyToIndex, k)) union(i, keyToIndex[k]);
+        else keyToIndex[k] = i;
+      });
+    });
+    var groups = [];
+    var rootToGroup = {};
+    rows.forEach(function (r, i) {
+      var root = find(i);
+      if (!Object.prototype.hasOwnProperty.call(rootToGroup, root)) {
+        rootToGroup[root] = groups.length;
+        groups.push([]);
+      }
+      groups[rootToGroup[root]].push(r);
+    });
+    return groups;
+  }
+  // Highest numeric timestamp wins; ties go to the later array position.
+  // `+r.timestamp` (not `| 0`) preserves ms-epoch magnitude — `| 0` truncates
+  // to int32 and wraps every ~49.7 days, which silently picks the WRONG row
+  // as "latest" once two submissions are that far apart.
+  function pickWinner(group) {
+    var winner = group[0];
+    for (var i = 1; i < group.length; i++) {
+      if ((+group[i].timestamp || 0) >= (+winner.timestamp || 0)) winner = group[i];
+    }
+    return winner;
   }
   function dedupeRows(rows) {
-    var latest = new Map();
-    var anon = [];
-    (rows || []).forEach(function (r) {
-      var key = identityKey(r);
-      if (!key) { anon.push(r); return; }
-      var prev = latest.get(key);
-      if (!prev || (r.timestamp | 0) >= (prev.timestamp | 0)) latest.set(key, r);
+    return groupRows(rows).map(pickWinner);
+  }
+  // Admin-UI annotation pass: same grouping as dedupeRows, but returns a
+  // per-row Map instead of collapsing the rows, so the Camps tab can badge
+  // "duplicate of" / "superseded" without hiding anything. Hidden rows are
+  // ignored entirely (they don't compete for a group and get no annotation).
+  //   dup         — size of this row's group (1 = alone).
+  //   superseded  — true for every non-winning row in a group of 2+.
+  //   suspect     — true ONLY on a group's winner, when that winner shares a
+  //                 normalized email with a DIFFERENT group's winner in the
+  //                 same year scope. That's the case we deliberately do NOT
+  //                 auto-merge (distinct campId/name, same person) but the
+  //                 owner should still get a heads-up about.
+  function dedupeInfo(rows) {
+    var visible = (rows || []).filter(function (r) { return !isHidden(r); });
+    var groups = groupRows(visible);
+    var winners = groups.map(pickWinner);
+    var emailBuckets = {};
+    winners.forEach(function (w, gi) {
+      var email = typeof w.email === 'string' ? w.email.trim().toLowerCase() : '';
+      if (!email) return;
+      var key = yearScope(w) + ':' + email;
+      (emailBuckets[key] = emailBuckets[key] || []).push(gi);
     });
-    return Array.from(latest.values()).concat(anon);
+    var suspectGroups = {};
+    Object.keys(emailBuckets).forEach(function (key) {
+      if (emailBuckets[key].length > 1) emailBuckets[key].forEach(function (gi) { suspectGroups[gi] = true; });
+    });
+    var out = new Map();
+    groups.forEach(function (g, gi) {
+      var winner = winners[gi];
+      g.forEach(function (r) {
+        out.set(r, {
+          dup: g.length,
+          superseded: r !== winner,
+          suspect: r === winner && !!suspectGroups[gi],
+        });
+      });
+    });
+    return out;
   }
 
   function perQuestion(rows, sectors) {
@@ -188,7 +282,7 @@
     };
   }
 
-  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, identityKey };
+  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, dedupeInfo };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.AdminAggregate = api;
 })(typeof window !== 'undefined' ? window : this);

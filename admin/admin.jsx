@@ -60,6 +60,11 @@ function AdminApp({ sectors }) {
   const years = React.useMemo(() => Array.from(new Set(rows.map(r => r.year))).sort((a, b) => b - a), [rows]);
   const filtered = React.useMemo(() => rows.filter(r =>
     (!year || r.year === year) && (source === 'all' || r.source === source)), [rows, year, source]);
+  // Dedup/supersede/suspect annotations, computed once over every row (not just
+  // the year/source-filtered subset) so the year scoping inside dedupeInfo sees
+  // the whole picture. Keyed by row object reference, so it still looks up
+  // correctly once `filtered` narrows the array below. Camps-tab-only.
+  const dedupeInfo = React.useMemo(() => A.dedupeInfo(rows), [rows]);
 
   // Big colorful tabs (replaces the old plain nav links) — each tab gets its
   // own hue so City/Camps read as distinct destinations, not just a toggle.
@@ -132,7 +137,7 @@ function AdminApp({ sectors }) {
             tab === 'city'
               ? <CommunityTally sectors={sectors} rows={filtered} onCampClick={name => { setHighlightCamp(name); setTab('camps'); }} />
               : <CampsView sectors={sectors} rows={filtered} filters={filterSelects} refreshBtn={refreshBtn}
-                  highlight={highlightCamp} onClearHighlight={() => setHighlightCamp(null)} />
+                  highlight={highlightCamp} onClearHighlight={() => setHighlightCamp(null)} dedupeInfo={dedupeInfo} />
           )}
         </div>
       )}
@@ -434,6 +439,22 @@ function Hi({ text, q }) {
   return parts;
 }
 
+// Small pill badge, shared by CampRow and CampDetail (source/legacy/hidden/dedup tags).
+function MiniBadge({ text, title }) {
+  return (
+    <span title={title} style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99,
+      padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
+  );
+}
+// Amber-toned variant for the "possible dup" flag — same warm tone as the
+// existing refresh-error banner, so it reads as a heads-up, not routine info.
+function AmberBadge({ text, title }) {
+  return (
+    <span title={title} style={{ fontSize: 9, color: '#e8c15a', border: '1px solid #573a26', background: '#2a1c14',
+      borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
+  );
+}
+
 function fmtWhen(ts) {
   if (!ts) return 'date unknown';
   return new Date(ts).toLocaleString('en-US', {
@@ -504,7 +525,7 @@ function SectorDigits({ sector, fill, answers, hasAnswers, legacy }) {
   );
 }
 
-function CampRow({ sectors, camp, wide, hi }) {
+function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
   const hasAnswers = rowHasAnswers(camp);
   const hidden = !!camp.hidden;
   const legacy = A.isLegacy(camp);
@@ -513,10 +534,7 @@ function CampRow({ sectors, camp, wide, hi }) {
   const denom = legacy ? 4 : 10;
   const l4 = campL4(sectors, camp);
 
-  const badge = (text, title) => (
-    <span title={title} style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99,
-      padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
-  );
+  const badge = (text, title) => <MiniBadge text={text} title={title} />;
   const Identity = (
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
       {/* 44px radius thumbnail: round vs lopsided camps read at a glance */}
@@ -531,6 +549,9 @@ function CampRow({ sectors, camp, wide, hi }) {
           {badge(camp.source, camp.source === 'board' ? 'Answered on the in-person board kiosk' : 'Answered via the public web form')}
           {legacy && badge('old scale', 'Submitted on the legacy 0-4 scale, shown here as an approximation')}
           {hidden && badge('hidden', 'Owner-flagged as junk or test data; excluded from every aggregate')}
+          {superseded && badge('superseded', 'replaced by a newer submission from this camp')}
+          {!superseded && dupCount > 1 && badge(`x${dupCount}`, `${dupCount} submissions, stats use this latest one`)}
+          {suspect && <AmberBadge text="possible dup" title="same contact email as another camp this year" />}
         </div>
         <div style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
           <Hi text={camp.leadName} q={hi}/> · <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}><Hi text={camp.email} q={hi}/></a>
@@ -590,8 +611,10 @@ function CampRow({ sectors, camp, wide, hi }) {
   // keeps a long list smooth without windowing machinery. Hidden (owner-flagged
   // junk/test) rows stay visible here for audit but dim, same pattern as the
   // status/loading dim elsewhere in this file.
+  // Hidden rows dim the most (owner-flagged junk); superseded rows dim less
+  // (0.72 vs 0.5) so the two read as distinct states rather than the same greyed-out treatment.
   const rowBase = { borderBottom: '1px solid #1a281f', padding: '8px 12px',
-    contentVisibility: 'auto', containIntrinsicSize: 'auto 84px', opacity: hidden ? 0.5 : 1 };
+    contentVisibility: 'auto', containIntrinsicSize: 'auto 84px', opacity: hidden ? 0.5 : (superseded ? 0.72 : 1) };
   return wide ? (
     <div data-camp-row style={{ ...rowBase, display: 'grid', alignItems: 'center', columnGap: 10,
       gridTemplateColumns: 'minmax(230px, 1.4fr) repeat(6, minmax(72px, 1fr)) 88px' }}>
@@ -650,7 +673,7 @@ function exportCsv(list, sectors) {
 // tooltips). Same fill precedence and modal a11y (useModalA11y, src/core.jsx)
 // as the rest of the app; legacy/approx rows explain themselves instead of
 // inventing per-question detail.
-function CampDetail({ sectors, camp, onClose }) {
+function CampDetail({ sectors, camp, onClose, dupCount, superseded }) {
   const hasAnswers = rowHasAnswers(camp);
   const legacy = A.isLegacy(camp);
   const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers)
@@ -688,7 +711,11 @@ function CampDetail({ sectors, camp, onClose }) {
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', paddingRight: 30 }}>
           <RadialBadge sectors={sectors} fills={fills} size={112} dark />
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2 }}>{camp.campName}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span>{camp.campName}</span>
+              {superseded && <MiniBadge text="superseded" title="replaced by a newer submission from this camp" />}
+              {!superseded && dupCount > 1 && <MiniBadge text={`x${dupCount}`} title={`${dupCount} submissions, stats use this latest one`} />}
+            </div>
             <div style={{ fontSize: 12.5, color: '#93a89b', marginTop: 3, overflowWrap: 'anywhere' }}>
               {camp.leadName} · <a href={`mailto:${camp.email}`} style={{ color: '#8fd4ae' }}>{camp.email}</a>
             </div>
@@ -766,7 +793,10 @@ function CampDetail({ sectors, camp, onClose }) {
   );
 }
 
-function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighlight }) {
+const EMPTY_DEDUPE_INFO = new Map();
+
+function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighlight, dedupeInfo }) {
+  const dInfo = dedupeInfo || EMPTY_DEDUPE_INFO;
   const wide = useMQ('(min-width: 900px)');
   const [q, setQ] = React.useState('');
   // The input echoes q instantly; filtering runs on the 120ms-trailing dq so
@@ -790,6 +820,16 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
   const [detail, setDetail] = React.useState(null);
   const [hideFlagged, setHideFlagged] = React.useState(false);
   const flaggedCount = React.useMemo(() => rows.filter(r => r.hidden).length, [rows]);
+  // "Dups" toggle: only rows that are part of a duplicate group (dup > 1) or
+  // flagged suspect (superseded rows ride along automatically — they share
+  // their group's dup > 1 count, so filtering on dup > 1 alone keeps a group's
+  // winner and its superseded siblings together).
+  const [dupsOnly, setDupsOnly] = React.useState(false);
+  const dupsCount = React.useMemo(() => {
+    let n = 0;
+    rows.forEach(r => { const info = dInfo.get(r); if (info && (info.dup > 1 || info.suspect)) n++; });
+    return n;
+  }, [rows, dInfo]);
   // City-tab clickthrough target: scroll the highlighted camp into view once.
   const hlRef = React.useRef(null);
   React.useEffect(() => {
@@ -823,6 +863,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
     const ql = dq.trim().toLowerCase();
     let xs = ql ? rows.filter(r => hay.get(r).includes(ql)) : rows;
     if (hideFlagged) xs = xs.filter(r => !r.hidden);
+    if (dupsOnly) xs = xs.filter(r => { const info = dInfo.get(r); return !!(info && (info.dup > 1 || info.suspect)); });
     // Primary key ascending; `dir` flips only the primary so the name-A→Z
     // tiebreak stays stable in either direction.
     const bySector = sectors.some(s => s.id === sort);
@@ -834,7 +875,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
     const flip = dir === 'asc' ? key : (a, b) => key(b, a);
     xs = xs.slice().sort((a, b) => flip(a, b) || a.campName.localeCompare(b.campName));
     return xs;
-  }, [rows, hay, dq, sort, dir, sectors, hideFlagged]);
+  }, [rows, hay, dq, sort, dir, sectors, hideFlagged, dupsOnly, dInfo]);
 
   const headBtn = (id, label, align) => (
     <button key={id} type="button" onClick={() => pickSort(id)}
@@ -867,6 +908,13 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
             title="Owner-flagged junk/test rows stay listed for audit; this tucks them away"
             style={{ ...selStyle, cursor: 'pointer', color: hideFlagged ? '#e8c15a' : selStyle.color }}>
             {hideFlagged ? 'Show flagged' : `Hide flagged (${flaggedCount})`}
+          </button>
+        );
+        const dupsBtn = dupsCount > 0 && (
+          <button data-dups-only type="button" onClick={() => setDupsOnly(d => !d)}
+            title="Show only rows that are part of a duplicate or possible-dup group"
+            style={{ ...selStyle, cursor: 'pointer', color: dupsOnly ? '#e8c15a' : selStyle.color }}>
+            {dupsOnly ? 'All camps' : `Dups (${dupsCount})`}
           </button>
         );
         const sortSel = (
@@ -909,7 +957,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
         );
         return wide ? (
           <div style={{ display: 'flex', gap: 6, padding: '10px 0', alignItems: 'center', flexWrap: 'wrap' }}>
-            {searchEl}{countEl}{flaggedBtn}
+            {searchEl}{countEl}{flaggedBtn}{dupsBtn}
             <div style={{ flex: 1 }} />
             {filters}{sortSel}{dirBtn}{refreshBtn}{csvBtn}{emailBtn}
           </div>
@@ -917,7 +965,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 0' }}>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{searchEl}{countEl}</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              {filters}{sortSel}{dirBtn}{refreshBtn}{flaggedBtn}
+              {filters}{sortSel}{dirBtn}{refreshBtn}{flaggedBtn}{dupsBtn}
             </div>
           </div>
         );
@@ -936,6 +984,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
       )}
       {list.map(r => {
         const hl = highlight && r.campName === highlight;
+        const info = dInfo.get(r);
         return (
           <div key={`${r.campName}|${r.timestamp}`} ref={hl ? hlRef : null}
             role="button" tabIndex={0} aria-label={`View full details for ${r.campName}`}
@@ -948,11 +997,16 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
             }}
             onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) setDetail(r); }}
             style={{ cursor: 'pointer', ...(hl ? { outline: '2px solid #45c483', outlineOffset: 2, borderRadius: 12 } : {}) }}>
-            <MemoCampRow sectors={sectors} camp={r} wide={wide} hi={dq.trim()} />
+            <MemoCampRow sectors={sectors} camp={r} wide={wide} hi={dq.trim()}
+              dupCount={info ? info.dup : 1} superseded={!!(info && info.superseded)} suspect={!!(info && info.suspect)} />
           </div>
         );
       })}
-      {detail && <CampDetail sectors={sectors} camp={detail} onClose={() => setDetail(null)} />}
+      {detail && (() => {
+        const info = dInfo.get(detail);
+        return <CampDetail sectors={sectors} camp={detail} onClose={() => setDetail(null)}
+          dupCount={info ? info.dup : 1} superseded={!!(info && info.superseded)} />;
+      })()}
     </div>
   );
 }

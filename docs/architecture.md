@@ -311,30 +311,35 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   totalYes/totalPossible, tallyPct, sector averages, this-week momentum,
   per-question intensities — so camp names/emails/free text/leaderboard
   structurally cannot leak, even if `computeAggregates` grows new fields.
+  Rows are pre-filtered to the maximum year present before computing, so a future
+  2027 season will not blend with 2026 results.
   Cached in the colo cache (`caches.default`) with freshness checked in code
   (5 min via the body's `generatedAt`; the stored entry lives a day) so the
   sheet sees at most ~1 hit per colo per 5 minutes and an Apps Script outage
   serves the stale entry flagged `stale:true` (the page shows "as of <time>").
   No cache + no upstream → 503 `{error:'unavailable'}` → `/city/` shows a
   degraded panel with the play CTA.
-  **Duplicate-proof aggregates (latest-wins dedup).** `computeAggregates`
+  **Duplicate-proof aggregates (year-scoped union dedup).** `computeAggregates`
   (`admin/aggregate.js`, isomorphic — imported by both the Worker and the admin
   page) collapses repeat submissions to one row per camp *before any tally*, so
   `/api/city` and every admin aggregate (leaderboard, sector standings, momentum,
   intensities, per-question) count **camps, not rows**. It is the single shared
   choke point: both read paths reach the numbers through `computeAggregates`, and
   the raw admin response table (from `/api/admin/responses`) is left un-deduped as
-  a full audit log. Identity precedence per row: `campId` (from the answers blob)
-  → normalized email (trim+lowercase) → normalized camp name → none (a row with no
-  identity is always kept). "Latest" = highest `timestamp`; ties keep the
-  later-appended row. Legacy rows are dropped first, so only modern rows dedup.
+  a full audit log. Rows merge within the same year when they share a `campId` (from
+  the answers blob), OR the same normalized camp name (trim+lowercase, collapsed whitespace).
+  Email only merges rows without a `campId` (legacy pre-campId rows), because a
+  shared email can legitimately represent one person submitting for two different camps.
+  "Latest" = highest `timestamp` (numeric, not 32-bit wrapped); ties keep the
+  later-appended row. `AdminAggregate.dedupeInfo` powers admin badges: winners get an
+  xN count badge, older superseded rows are dimmed with a "superseded" badge, and winners
+  sharing an email with another camp in the same year get a "possible dup" badge (flagged
+  for owner review, never auto-merged). A "Dups" filter shows only these flagged rows.
   *Momentum note:* `momentum.thisWeek` counts distinct camps whose **latest**
   submission falls in the window. Dedup can never erase a camp from that window —
   latest-wins keeps each camp's most-recent timestamp, which is ≥ any earlier
   in-window one — it only stops same-week resubmissions from double-counting and
   correctly folds a returning camp (old + this-week rows) into one active camp.
-  *Known limit:* a camp's pre-`campId` rows key on email while its post-`campId`
-  rows key on `campId`, so those two eras don't merge (transition-window only).
   **Junk-row flagging.** The same `computeAggregates` choke point also strips
   owner-flagged junk/test rows before any tally: `shapeAdminRows` (Worker)
   reads a `hidden` field off each row (sourced from the sheet's owner-typed

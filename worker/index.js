@@ -473,12 +473,24 @@ function cityJson(body) {
 }
 
 // The allowlist. Aggregate numbers only; see the privacy rule above.
-async function computeCityBody(env) {
+export async function computeCityBody(env) {
   const read = await fetchSheetRows(env);
   if (!read.rows) return null;
   let agg;
   try {
-    agg = AdminAggregate.computeAggregates(shapeAdminRows(read.rows), GameData.SECTORS, Date.now());
+    let rows = shapeAdminRows(read.rows);
+    // Scope the public tally to the current season only. Once a season rolls
+    // over, camps resubmit fresh rows for the new year while last year's rows
+    // are still sitting in the sheet — without this, a handful of early 2027
+    // submissions would get averaged in with hundreds of 2026 rows and the
+    // city tally would read as a near-empty city instead of a fresh season.
+    // "Current season" = the max numeric year among real, visible rows;
+    // hidden/legacy rows are excluded from that determination (same as they're
+    // excluded from the tally itself) since they carry no useful year signal.
+    const eligible = rows.filter(r => !AdminAggregate.isHidden(r) && !AdminAggregate.isLegacy(r));
+    const maxYear = eligible.reduce((m, r) => Math.max(m, r.year | 0), 0);
+    if (maxYear) rows = rows.filter(r => (r.year | 0) === maxYear);
+    agg = AdminAggregate.computeAggregates(rows, GameData.SECTORS, Date.now());
   } catch { return null; }
   return {
     generatedAt: Date.now(),
