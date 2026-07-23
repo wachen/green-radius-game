@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
-import worker, { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, shapeAdminRows } from '../worker/index.js';
+import worker, { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, shapeAdminRows, computeCityBody } from '../worker/index.js';
 import GameData from '../game-data.js';
 
 function b64url(data) {
@@ -414,5 +414,37 @@ describe('handleComplete campLocation/campSize', () => {
     expect(j.sheet).toBe('ok');
     expect(sentRow.campLocation).toBe('');
     expect(sentRow.campSize).toBe('');
+  });
+});
+
+describe('computeCityBody season scoping', () => {
+  // Raw sheet-row shape (pre-shapeAdminRows); schemaVersion marks these as
+  // modern rows so isLegacy doesn't misread the small test greens as the old 0-4 scale.
+  function sheetRow(overrides) {
+    return { campName: 'Camp', leadName: 'Lead', email: 'a@b.co', greens: {}, total: 0,
+      source: 'board', schemaVersion: 'v2', ...overrides };
+  }
+  async function cityBody(sheetRows) {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(JSON.stringify({ rows: sheetRows }), { status: 200 });
+    const env = { SHEETS_WEBAPP_URL: 'https://script.google.com/fake', SHEETS_SHARED_SECRET: 's' };
+    try { return await computeCityBody(env); } finally { globalThis.fetch = originalFetch; }
+  }
+
+  test('a returning next season does not blend with the prior year', async () => {
+    const body = await cityBody([
+      sheetRow({ campName: 'Old Camp', year: 2026 }),
+      sheetRow({ campName: 'Another Old Camp', year: 2026 }),
+      sheetRow({ campName: 'New Camp', year: 2027 }),
+    ]);
+    expect(body.count).toBe(1);
+  });
+
+  test('a hidden row with a higher year does not pull the season forward', async () => {
+    const body = await cityBody([
+      sheetRow({ campName: 'Real Camp', year: 2026 }),
+      sheetRow({ campName: 'Junk Camp', year: 2027, hidden: 'x' }),
+    ]);
+    expect(body.count).toBe(1);
   });
 });
