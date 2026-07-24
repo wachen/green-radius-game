@@ -239,8 +239,8 @@ export async function sendEmail(env, to, campName, resultUrl, answers, greens, n
       from: 'Green Radius <hello@greenradi.us>',
       reply_to: 'greenthemecamps@burningman.org',
       to: [to],
-      subject: `Your Green Radius — ${campName}`,
-      html: `<p>Thanks for playing the Green Radius Game!</p>${headlineEmailHtml(greens)}<p><a href="${href}">View &amp; share your Green Radius →</a></p>${greenUpEmailHtml(answers)}<p style="color:#888;font-size:12px">Questions? Just reply to this email — it reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
+      subject: `Your Green Radius: ${campName}`,
+      html: `<p>Thanks for playing the Green Radius Game!</p>${headlineEmailHtml(greens)}<p><a href="${href}">View &amp; share your Green Radius →</a></p>${greenUpEmailHtml(answers)}<p style="color:#888;font-size:12px">Questions? Just reply to this email. It reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
       text: buildEmailText(resultUrl, answers, greens),
     }),
   });
@@ -279,7 +279,7 @@ export function buildEmailText(resultUrl, answers, greens) {
     headlineEmailText(greens),
     `View & share your Green Radius: ${resultUrl}`,
     plan,
-    'Questions? Just reply to this email — it reaches the Green Theme Camp Community team.\ngreenthemecampcommunity.org',
+    'Questions? Just reply to this email. It reaches the Green Theme Camp Community team.\ngreenthemecampcommunity.org',
   ].filter(Boolean).join('\n\n');
 }
 
