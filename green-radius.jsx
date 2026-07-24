@@ -78,7 +78,7 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
 // ─── intro / camp setup ───────────────────────────────────────────────────────
 // `initial` prefills the fields from the running game's camp info, so stepping
 // back from the board/form lets the player fix a typo'd detail and continue.
-function Intro({ onStart, onBack, palette, description, initial, locationSizeRequired }) {
+function Intro({ onStart, onBack, palette, description, initial }) {
   const [campName, setCampName] = useState((initial && initial.campName) || '');
   const [leadName, setLeadName] = useState((initial && initial.leadName) || '');
   const [email, setEmail] = useState((initial && initial.email) || '');
@@ -89,13 +89,10 @@ function Intro({ onStart, onBack, palette, description, initial, locationSizeReq
   const campOk = !!campName.trim();
   const leadOk = !!leadName.trim();
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const campLocationOk = !locationSizeRequired || !!campLocation.trim();
+  const campLocationOk = !!campLocation.trim();
   const campSizeTrim = campSize.trim();
   const campSizeNum = Number(campSizeTrim);
-  const campSizeFormatOk = campSizeTrim !== '' && Number.isInteger(campSizeNum) && campSizeNum > 0 && campSizeNum <= 2000;
-  // Required: must be present and valid. Optional: blank is fine, but a typed
-  // value still has to be a real headcount (optional doesn't mean "anything goes").
-  const campSizeOk = locationSizeRequired ? campSizeFormatOk : (campSizeTrim === '' || campSizeFormatOk);
+  const campSizeOk = campSizeTrim !== '' && Number.isInteger(campSizeNum) && campSizeNum > 0 && campSizeNum <= 2000;
   const canStart = campOk && leadOk && emailOk && campLocationOk && campSizeOk;
 
   function handleStart() {
@@ -107,8 +104,8 @@ function Intro({ onStart, onBack, palette, description, initial, locationSizeReq
   if (!campOk) missing.push('a camp name');
   if (!leadOk) missing.push('your name');
   if (!emailOk) missing.push('a valid email');
-  if (locationSizeRequired && !campLocationOk) missing.push('your camp location');
-  if (locationSizeRequired && !campSizeOk) missing.push('your camp size');
+  if (!campLocationOk) missing.push('your camp location');
+  if (!campSizeOk) missing.push('your camp size');
   const missingMsg = missing.length === 1
     ? `Please add ${missing[0]} to continue.`
     : missing.length === 2
@@ -144,8 +141,8 @@ function Intro({ onStart, onBack, palette, description, initial, locationSizeReq
         <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
         <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
         <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk} type="email"/>
-        <Field label="Camp location" value={campLocation} onChange={setCampLocation} placeholder="e.g. 7:30 & E" palette={palette} required={locationSizeRequired} invalid={tried && !campLocationOk} maxLength={80}/>
-        <Field label="Camp size" value={campSize} onChange={setCampSize} placeholder="Number of campers" palette={palette} required={locationSizeRequired} invalid={tried && !campSizeOk} type="number" min={1} max={2000}/>
+        <Field label="Camp location" value={campLocation} onChange={setCampLocation} placeholder="e.g. 7:30 & E" palette={palette} required invalid={tried && !campLocationOk} maxLength={80}/>
+        <Field label="Camp size" value={campSize} onChange={setCampSize} placeholder="Number of campers" palette={palette} required invalid={tried && !campSizeOk} type="number" min={1} max={2000}/>
       </div>
 
       <button
@@ -666,7 +663,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         palette={palette}
         description="Answer as best you can. Progress autosaves unless you reset."
         initial={camp}
-        locationSizeRequired={false}
       />
     );
   }
@@ -698,7 +694,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         palette={palette}
         description="Spin the wheel and answer as best you can. Progress autosaves unless you reset."
         initial={camp}
-        locationSizeRequired={true}
       />
     );
   }
