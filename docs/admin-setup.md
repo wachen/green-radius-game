@@ -89,8 +89,12 @@ it directly in the sheet.
 
 **To flag a row as junk:**
 
-1. Add a column header **`Hidden`** to the `2026 Results` sheet (any empty column;
-   position doesn't matter — the Apps Script `doGet` looks it up by header text).
+1. Add a column header **`Hidden`** to the `2026 Results` sheet, **after** the
+   `Location` and `Camp Size` columns (column S or later). `doGet` looks columns up
+   by header text, so reads don't care where it sits — but `doPost`'s `appendRow`
+   writes positionally, with Location and Camp Size landing in Q/R (see section 4).
+   A `Hidden` column at Q or R would silently receive each new submission's
+   location/size text and flag the row as hidden.
 2. Update `doGet` to the version in step 1 above (it now reads the `Hidden` column) and
    re-deploy the web app (Manage deployments → edit → New version).
 3. To flag a row, type anything truthy — `x`, `yes`, `1`, whatever's memorable — into
