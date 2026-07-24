@@ -61,7 +61,7 @@ async function handleComplete(request, env) {
   if (!body || typeof body !== 'object') return json({ error: 'bad_json' }, 400);
 
   if (body.website) return json({ sheet: 'skipped', email: 'skipped' }); // honeypot -> bot
-  if (!body.campName || !body.email) return json({ error: 'missing_fields' }, 400);
+  if (!body.campName || !body.leadName || !body.email) return json({ error: 'missing_fields' }, 400);
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email)) return json({ error: 'bad_email' }, 400);
 
   const greens = {};

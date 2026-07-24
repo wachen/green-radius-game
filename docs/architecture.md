@@ -88,7 +88,7 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      **Share** button delivers it via Web Share L2 — `navigator.share({ files: [pngFile] })`
      hands the pre-rasterized result-card PNG to the OS share sheet — then degrades to
      sharing the `?r=` URL (Web Share L1), then to copying the link to the clipboard.
-   - **`POST /api/complete`** — `{campName, email, campLocation, campSize, year, greens, mode, answers,
+   - **`POST /api/complete`** — `{campName, leadName, email, campLocation, campSize, year, greens, mode, answers,
      campId, nonce, schemaVersion, resultUrl}`. `campLocation`/`campSize` are required on the
      intro in both modes (same shared `Intro` component); the Worker clamps/coerces them
      server-side and tolerates their absence (older saves, pre-#96 form-mode submissions),
