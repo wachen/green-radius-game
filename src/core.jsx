@@ -49,7 +49,8 @@ const STORAGE_KEY = 'green-radius-game/v1';
 const STORAGE_VERSION = 7;
 
 // Caps free-text notes (write-in ideas) UI-side, everywhere a player types one.
-const NOTE_MAX_LEN = 140;
+// Matches the Worker's server-side clamp (worker/index.js clampField 160).
+const NOTE_MAX_LEN = 160;
 
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 // One player download on the home screen. The "How-to-Play" file is the
@@ -63,7 +64,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v95';
+const APP_VERSION = 'v96';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.

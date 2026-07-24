@@ -376,7 +376,7 @@ describe('handleComplete campLocation/campSize', () => {
       res = await worker.fetch(new Request('https://greenradi.us/api/complete', {
         method: 'POST',
         headers: { Origin: 'https://greenradi.us', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campName: 'Dusty Camp', email: 'a@b.co', year: 2026, greens: {}, ...extra }),
+        body: JSON.stringify({ campName: 'Dusty Camp', leadName: 'Dusty Lead', email: 'a@b.co', year: 2026, greens: {}, ...extra }),
       }), env, {});
     } finally { globalThis.fetch = originalFetch; }
     return { res, sentRow };
@@ -414,6 +414,13 @@ describe('handleComplete campLocation/campSize', () => {
     expect(j.sheet).toBe('ok');
     expect(sentRow.campLocation).toBe('');
     expect(sentRow.campSize).toBe('');
+  });
+
+  test('a missing leadName is rejected like the other required fields', async () => {
+    const { res } = await submit({ leadName: '' });
+    expect(res.status).toBe(400);
+    const j = await res.json();
+    expect(j.error).toBe('missing_fields');
   });
 });
 

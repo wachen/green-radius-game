@@ -111,8 +111,8 @@ it directly in the sheet.
 ## 4. Camp location + size columns
 
 The intro screen now collects a camp's playa location (e.g. "7:30 & E") and
-headcount, required on the board-game intro and optional on the form-mode
-intake. The Worker forwards both to the Apps Script row and the admin API;
+headcount, required in both modes. The Worker forwards both to the Apps Script
+row and the admin API;
 they don't appear in the email or the public `/api/city` tally.
 
 1. Add two column headers, **`Location`** and **`Camp Size`**, at the **end** of
