@@ -553,8 +553,14 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
           {!superseded && dupCount > 1 && badge(`x${dupCount}`, `${dupCount} submissions, stats use this latest one`)}
           {suspect && <AmberBadge text="possible dup" title="same contact email as another camp this year" />}
         </div>
+        {(camp.campLocation || camp.campSize) && (
+          <div data-loc style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
+            {[camp.campLocation, camp.campSize && `${camp.campSize} campers`].filter(Boolean).join(' · ')}
+          </div>
+        )}
         <div style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
-          <Hi text={camp.leadName} q={hi}/> · <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}><Hi text={camp.email} q={hi}/></a>
+          <Hi text={camp.leadName} q={hi}/><br/>
+          <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}><Hi text={camp.email} q={hi}/></a>
         </div>
         <div data-submitted style={{ fontSize: 11, color: '#7f988a', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
           {fmtWhen(camp.timestamp)}
