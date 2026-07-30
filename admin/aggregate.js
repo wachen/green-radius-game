@@ -255,14 +255,29 @@
     return !!(row && row.hidden);
   }
 
-  // "This week" means the current calendar week, resetting Monday 00:00 in the
-  // computing environment's timezone (browser-local on the admin page, UTC in
-  // the Worker for /api/city). It was a rolling 7-day window before, which
+  // "This week" means the current calendar week, resetting Monday 00:00
+  // PACIFIC time (America/Los_Angeles, playa time) in every environment, so
+  // the admin page (browser-local) and the Worker's /api/city (UTC isolate)
+  // flip at the same moment. It was a rolling 7-day window before, which
   // never visibly resets — last week's camps lingered in the count.
+  var WEEK_TZ = 'America/Los_Angeles';
+  function tzOffsetMs(t) {
+    var p = {};
+    new Intl.DateTimeFormat('en-US', { timeZone: WEEK_TZ, hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      .formatToParts(t).forEach(function (x) { p[x.type] = x.value; });
+    return Date.UTC(+p.year, p.month - 1, +p.day, +p.hour, +p.minute, +p.second)
+      - Math.floor(t / 1000) * 1000;
+  }
   function weekStartMs(now) {
-    var d = new Date(now);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime() - ((d.getDay() + 6) % 7) * 864e5; // back up to Monday
+    var off = tzOffsetMs(now);
+    var clock = new Date(now + off); // Pacific wall clock, read via getUTC*
+    var mondayClock = Date.UTC(clock.getUTCFullYear(), clock.getUTCMonth(), clock.getUTCDate())
+      - ((clock.getUTCDay() + 6) % 7) * 864e5;
+    // Resolve the boundary with its own offset, not `now`'s — they differ when
+    // a DST flip (always a Sunday) sits between Monday 00:00 and `now`.
+    return mondayClock - tzOffsetMs(mondayClock - off);
   }
 
   function computeAggregates(rows, sectors, now) {

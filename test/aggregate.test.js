@@ -114,17 +114,17 @@ describe('superlatives', () => {
   });
 });
 
-describe('momentum: "this week" resets Monday', () => {
-  // UTC-noon fixtures so the assertions hold in any dev/CI timezone: every
-  // timestamp sits at least 10h inside its calendar day everywhere on Earth.
+describe('momentum: "this week" resets Monday 00:00 Pacific', () => {
   const wedNoon = Date.UTC(2026, 6, 29, 12); // Wednesday Jul 29 2026
 
-  test('weekStartMs backs up to the most recent Monday 00:00 local', () => {
-    const d = new Date(A.weekStartMs(wedNoon));
-    expect(d.getDay()).toBe(1); // Monday
-    expect(d.getHours()).toBe(0);
-    expect(d.getMinutes()).toBe(0);
-    expect(d.getTime()).toBeLessThanOrEqual(wedNoon);
+  test('weekStartMs pins the boundary to Monday 00:00 Pacific in any runner timezone', () => {
+    // Mon Jul 27 2026 00:00 PDT (UTC-7) === Jul 27 07:00 UTC, exactly.
+    expect(A.weekStartMs(wedNoon)).toBe(Date.UTC(2026, 6, 27, 7));
+  });
+
+  test('weekStartMs handles standard time too (PST, UTC-8)', () => {
+    // Wed Jan 14 2026 12:00 UTC -> Mon Jan 12 2026 00:00 PST === Jan 12 08:00 UTC.
+    expect(A.weekStartMs(Date.UTC(2026, 0, 14, 12))).toBe(Date.UTC(2026, 0, 12, 8));
   });
 
   test("last week's rows are excluded even when under 7 days old", () => {
