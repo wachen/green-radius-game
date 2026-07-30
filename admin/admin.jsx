@@ -373,7 +373,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
           </span>
           <span style={{ flex: 1, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {c.campName} {i === 0 && <span title="Highest score right now" style={{ color: '#e8c15a' }}>★</span>}
-            {c.timestamp && now - c.timestamp <= 7 * 864e5 ? <span title="New this week" style={{ color: '#7fc46a', marginLeft: 4 }}>●</span> : null}
+            {c.timestamp && c.timestamp >= A.weekStartMs(now) ? <span title="New this week" style={{ color: '#7fc46a', marginLeft: 4 }}>●</span> : null}
           </span>
           <b style={{ fontVariantNumeric: 'tabular-nums' }}>{c.total}/60</b>
         </div>
@@ -544,7 +544,7 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 14.5, fontWeight: 800, lineHeight: 1.25, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <span><Hi text={camp.campName} q={hi}/></span>
-          {camp.timestamp && Date.now() - camp.timestamp <= 7 * 864e5 ?
+          {camp.timestamp && camp.timestamp >= A.weekStartMs(Date.now()) ?
             <span title="New this week" style={{ color: '#7fc46a' }}>●</span> : null}
           {badge(camp.source, camp.source === 'board' ? 'Answered on the in-person board kiosk' : 'Answered via the public web form')}
           {legacy && badge('old scale', 'Submitted on the legacy 0-4 scale, shown here as an approximation')}

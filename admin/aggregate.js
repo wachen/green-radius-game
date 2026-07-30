@@ -255,7 +255,17 @@
     return !!(row && row.hidden);
   }
 
-  function computeAggregates(rows, sectors, now, windowMs) {
+  // "This week" means the current calendar week, resetting Monday 00:00 in the
+  // computing environment's timezone (browser-local on the admin page, UTC in
+  // the Worker for /api/city). It was a rolling 7-day window before, which
+  // never visibly resets — last week's camps lingered in the count.
+  function weekStartMs(now) {
+    var d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime() - ((d.getDay() + 6) % 7) * 864e5; // back up to Monday
+  }
+
+  function computeAggregates(rows, sectors, now) {
     rows = (rows || []).filter(function (r) { return !isHidden(r); });
     const legacyCount = rows.filter(isLegacy).length;
     rows = rows.filter(r => !isLegacy(r));
@@ -267,7 +277,7 @@
     const pq = perQuestion(rows, sectors);
     const totalYes = rows.reduce((n, r) => n + (r.total || 0), 0);
     const totalPossible = rows.length * sectors.length * 10;
-    const wMs = windowMs || 7 * 864e5;
+    const weekStart = weekStartMs(now);
     return {
       count: rows.length,
       legacyCount,
@@ -278,11 +288,11 @@
       perQuestion: pq,
       intensities: intensities(rows, sectors, pq),
       hasAnswers: rowsWithAnswers(rows).length > 0,
-      momentum: { thisWeek: rows.filter(r => typeof r.timestamp === 'number' && now - r.timestamp <= wMs).length },
+      momentum: { thisWeek: rows.filter(r => typeof r.timestamp === 'number' && r.timestamp >= weekStart).length },
     };
   }
 
-  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, dedupeInfo };
+  const api = { computeAggregates, weekStartMs, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, dedupeInfo };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.AdminAggregate = api;
 })(typeof window !== 'undefined' ? window : this);

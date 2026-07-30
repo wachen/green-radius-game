@@ -113,3 +113,26 @@ describe('superlatives', () => {
     expect(s.topL3.yes).toBe(2);
   });
 });
+
+describe('momentum: "this week" resets Monday', () => {
+  // UTC-noon fixtures so the assertions hold in any dev/CI timezone: every
+  // timestamp sits at least 10h inside its calendar day everywhere on Earth.
+  const wedNoon = Date.UTC(2026, 6, 29, 12); // Wednesday Jul 29 2026
+
+  test('weekStartMs backs up to the most recent Monday 00:00 local', () => {
+    const d = new Date(A.weekStartMs(wedNoon));
+    expect(d.getDay()).toBe(1); // Monday
+    expect(d.getHours()).toBe(0);
+    expect(d.getMinutes()).toBe(0);
+    expect(d.getTime()).toBeLessThanOrEqual(wedNoon);
+  });
+
+  test("last week's rows are excluded even when under 7 days old", () => {
+    const rows = [
+      row('this-tue', { food: 1, water: 0 }, {}, Date.UTC(2026, 6, 28, 12)), // Tuesday, this week
+      row('last-fri', { food: 1, water: 0 }, {}, Date.UTC(2026, 6, 24, 12)), // Friday, 5 days before `now`
+    ];
+    const agg = A.computeAggregates(rows, SECTORS, wedNoon);
+    expect(agg.momentum.thisWeek).toBe(1); // rolling 7-day window would say 2
+  });
+});
