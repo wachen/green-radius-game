@@ -89,11 +89,11 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      **Share** button delivers it via Web Share L2 — `navigator.share({ files: [pngFile] })`
      hands the pre-rasterized result-card PNG to the OS share sheet — then degrades to
      sharing the `?r=` URL (Web Share L1), then to copying the link to the clipboard.
-   - **`POST /api/complete`** — `{campName, email, campLocation, campSize, year, greens, mode, answers,
+   - **`POST /api/complete`** — `{campName, leadName, email, campLocation, campSize, year, greens, mode, answers,
      campId, nonce, schemaVersion, resultUrl}`. `campLocation`/`campSize` are required on the
-     board intro, optional on the form-mode intake (same `Intro` component, gated by a
-     `locationSizeRequired` prop); the Worker clamps/coerces them server-side and tolerates
-     their absence (older saves), forwarding both to the Apps Script row and the admin API —
+     intro in both modes (same shared `Intro` component); the Worker clamps/coerces them
+     server-side and tolerates their absence (older saves, pre-#96 form-mode submissions),
+     forwarding both to the Apps Script row and the admin API —
      neither field is added to the email or the `/api/city` payload. `greens` is now 0–10 per sector; `answers` (the full
      map) is backend-only (→ sheet `answers_json`). **`campId`** is a stable
      client-generated UUID (`crypto.randomUUID`, persisted in the localStorage save as an

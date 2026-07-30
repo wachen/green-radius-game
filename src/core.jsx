@@ -49,7 +49,8 @@ const STORAGE_KEY = 'green-radius-game/v1';
 const STORAGE_VERSION = 7;
 
 // Caps free-text notes (write-in ideas) UI-side, everywhere a player types one.
-const NOTE_MAX_LEN = 140;
+// Matches the Worker's server-side clamp (worker/index.js clampField 160).
+const NOTE_MAX_LEN = 160;
 
 const COMMUNITY_LINK_URL = 'https://www.greenthemecampcommunity.org/';
 // One player download on the home screen. The "How-to-Play" file is the
