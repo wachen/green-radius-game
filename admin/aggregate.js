@@ -255,7 +255,32 @@
     return !!(row && row.hidden);
   }
 
-  function computeAggregates(rows, sectors, now, windowMs) {
+  // "This week" means the current calendar week, resetting Monday 00:00
+  // PACIFIC time (America/Los_Angeles, playa time) in every environment, so
+  // the admin page (browser-local) and the Worker's /api/city (UTC isolate)
+  // flip at the same moment. It was a rolling 7-day window before, which
+  // never visibly resets — last week's camps lingered in the count.
+  var WEEK_TZ = 'America/Los_Angeles';
+  function tzOffsetMs(t) {
+    var p = {};
+    new Intl.DateTimeFormat('en-US', { timeZone: WEEK_TZ, hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      .formatToParts(t).forEach(function (x) { p[x.type] = x.value; });
+    return Date.UTC(+p.year, p.month - 1, +p.day, +p.hour, +p.minute, +p.second)
+      - Math.floor(t / 1000) * 1000;
+  }
+  function weekStartMs(now) {
+    var off = tzOffsetMs(now);
+    var clock = new Date(now + off); // Pacific wall clock, read via getUTC*
+    var mondayClock = Date.UTC(clock.getUTCFullYear(), clock.getUTCMonth(), clock.getUTCDate())
+      - ((clock.getUTCDay() + 6) % 7) * 864e5;
+    // Resolve the boundary with its own offset, not `now`'s — they differ when
+    // a DST flip (always a Sunday) sits between Monday 00:00 and `now`.
+    return mondayClock - tzOffsetMs(mondayClock - off);
+  }
+
+  function computeAggregates(rows, sectors, now) {
     rows = (rows || []).filter(function (r) { return !isHidden(r); });
     const legacyCount = rows.filter(isLegacy).length;
     rows = rows.filter(r => !isLegacy(r));
@@ -267,7 +292,7 @@
     const pq = perQuestion(rows, sectors);
     const totalYes = rows.reduce((n, r) => n + (r.total || 0), 0);
     const totalPossible = rows.length * sectors.length * 10;
-    const wMs = windowMs || 7 * 864e5;
+    const weekStart = weekStartMs(now);
     return {
       count: rows.length,
       legacyCount,
@@ -278,11 +303,11 @@
       perQuestion: pq,
       intensities: intensities(rows, sectors, pq),
       hasAnswers: rowsWithAnswers(rows).length > 0,
-      momentum: { thisWeek: rows.filter(r => typeof r.timestamp === 'number' && now - r.timestamp <= wMs).length },
+      momentum: { thisWeek: rows.filter(r => typeof r.timestamp === 'number' && r.timestamp >= weekStart).length },
     };
   }
 
-  const api = { computeAggregates, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, dedupeInfo };
+  const api = { computeAggregates, weekStartMs, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, dedupeInfo };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.AdminAggregate = api;
 })(typeof window !== 'undefined' ? window : this);

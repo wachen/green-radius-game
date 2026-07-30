@@ -373,7 +373,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
           </span>
           <span style={{ flex: 1, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {c.campName} {i === 0 && <span title="Highest score right now" style={{ color: '#e8c15a' }}>★</span>}
-            {c.timestamp && now - c.timestamp <= 7 * 864e5 ? <span title="New this week" style={{ color: '#7fc46a', marginLeft: 4 }}>●</span> : null}
+            {c.timestamp && c.timestamp >= A.weekStartMs(now) ? <span title="New this week" style={{ color: '#7fc46a', marginLeft: 4 }}>●</span> : null}
           </span>
           <b style={{ fontVariantNumeric: 'tabular-nums' }}>{c.total}/60</b>
         </div>
@@ -544,7 +544,7 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 14.5, fontWeight: 800, lineHeight: 1.25, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <span><Hi text={camp.campName} q={hi}/></span>
-          {camp.timestamp && Date.now() - camp.timestamp <= 7 * 864e5 ?
+          {camp.timestamp && camp.timestamp >= A.weekStartMs(Date.now()) ?
             <span title="New this week" style={{ color: '#7fc46a' }}>●</span> : null}
           {badge(camp.source, camp.source === 'board' ? 'Answered on the in-person board kiosk' : 'Answered via the public web form')}
           {legacy && badge('old scale', 'Submitted on the legacy 0-4 scale, shown here as an approximation')}
@@ -553,8 +553,14 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
           {!superseded && dupCount > 1 && badge(`x${dupCount}`, `${dupCount} submissions, stats use this latest one`)}
           {suspect && <AmberBadge text="possible dup" title="same contact email as another camp this year" />}
         </div>
+        {(camp.campLocation || camp.campSize) && (
+          <div data-loc style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
+            {[camp.campLocation, camp.campSize && `${camp.campSize} campers`].filter(Boolean).join(' · ')}
+          </div>
+        )}
         <div style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
-          <Hi text={camp.leadName} q={hi}/> · <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}><Hi text={camp.email} q={hi}/></a>
+          <Hi text={camp.leadName} q={hi}/><br/>
+          <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}><Hi text={camp.email} q={hi}/></a>
         </div>
         <div data-submitted style={{ fontSize: 11, color: '#7f988a', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
           {fmtWhen(camp.timestamp)}

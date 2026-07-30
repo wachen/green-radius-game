@@ -37,9 +37,11 @@ this implementation began from a Claude Design handoff bundle.
   precompiled to classic-runtime JS by a small Bun build step (`scripts/build.js`) into committed
   `dist/` artifacts, which the browser loads directly
 - **No bundler, no npm** — the compile step is one Bun script, not a build pipeline
-- A small **Cloudflare Worker** (`worker/index.js`) backs five dynamic routes:
+- A small **Cloudflare Worker** (`worker/index.js`) backs seven dynamic routes:
   `POST /api/complete` (saves a result row to a Google Sheet and emails the camp a
-  shareable link), the Cloudflare Access–gated `GET /api/admin/responses` (the
+  shareable link), `POST /api/event` (anonymous funnel telemetry, log-only) and
+  `POST /api/client-error` (client-side error beacon, log-only), the Cloudflare
+  Access–gated `GET /api/admin/responses` (the
   read path behind the internal admin viewer), `GET /api/city` (the public,
   aggregate-only community tally behind the `/city/` page, colo-cached ~5 min),
   `GET /result/?r=…` (rewrites the result page's Open Graph title and description
