@@ -26,7 +26,8 @@ function doGet(e) {
                 transport: r[col['Transport']], shelter: r[col['Shelter']], power: r[col['Power']] },
       total: r[col['Total']], source: r[col['Source']], resultUrl: r[col['Result URL']],
       answers_json: r[col['Answers JSON']] || '', schema_version: r[col['Schema Version']] || '',
-      hidden: r[col['Hidden']] || ''
+      hidden: r[col['Hidden']] || '',
+      campLocation: r[col['Location']] || '', campSize: r[col['Camp Size']] || ''
     };
   });
   return jsonOut({ ok: true, rows: rows });
@@ -35,11 +36,12 @@ function doGet(e) {
 
 The `col` lookup maps by **header text**, so the names here must match the sheet's
 header row exactly — including the pretty-printed **`Answers JSON`**, **`Schema
-Version`**, and **`Hidden`** columns. (The JSON keys `answers_json`/`schema_version`/
-`hidden` are what the Worker's `shapeAdminRows` reads — keep those as-is.) The `Hidden`
-column doesn't exist yet on the sheet — see "Flagging junk rows" below for adding it;
-until it's added, `r[col['Hidden']]` is `undefined` and `hidden` comes back `''`, which
-`shapeAdminRows` treats as "not hidden" (a safe no-op). Re-deploy the web app (Manage
+Version`**, **`Hidden`**, **`Location`**, and **`Camp Size`** columns. (The JSON keys
+`answers_json`/`schema_version`/`hidden`/`campLocation`/`campSize` are what the
+Worker's `shapeAdminRows` reads — keep those as-is.) The `Hidden`, `Location`, and
+`Camp Size` columns are added by sections 3–4 below; until a column exists on the
+sheet, its `r[col[...]]` read is `undefined` and the field comes back `''`, which
+`shapeAdminRows` treats as absent — a safe no-op. Re-deploy the web app (Manage
 deployments → edit → New version) — same `/exec` URL, same secret.
 
 ## 2. Cloudflare Access (gates the page)
@@ -119,40 +121,32 @@ headcount, required on the board-game intro and optional on the form-mode
 intake. The Worker forwards both to the Apps Script row and the admin API;
 they don't appear in the email or the public `/api/city` tally.
 
-1. Add two column headers, **`Location`** and **`Camp Size`**, at the **end** of
-   the `2026 Results` sheet.
-2. Update `doGet` to also map the new columns:
+1. Add two column headers, **`Location`** (Q) and **`Camp Size`** (R), after
+   `Schema Version` — and keep the owner-typed `Hidden` column **after both**
+   (S or later; see section 3 for why the order matters).
+2. Make sure the deployed `doGet` matches the full version in section 1 above —
+   it already maps `Location` → `campLocation` and `Camp Size` → `campSize`.
+3. Update `doPost`'s row build so the two new values land **last** (columns
+   Q/R). The full 18-value order, matching the deployed script — note `total`
+   in column L, computed in `doPost` from the clamped per-sector greens
+   (`sectorCells`):
 
 ```js
-  var rows = values.filter(function (r) { return r[col['Camp']]; }).map(function (r) {
-    return {
-      timestamp: r[col['Timestamp']], campName: r[col['Camp']], leadName: r[col['Lead']],
-      email: r[col['Email']], year: r[col['Year']],
-      greens: { food: r[col['Food']], water: r[col['Water']], waste: r[col['Waste']],
-                transport: r[col['Transport']], shelter: r[col['Shelter']], power: r[col['Power']] },
-      total: r[col['Total']], source: r[col['Source']], resultUrl: r[col['Result URL']],
-      answers_json: r[col['Answers JSON']] || '', schema_version: r[col['Schema Version']] || '',
-      hidden: r[col['Hidden']] || '',
-      campLocation: r[col['Location']] || '', campSize: r[col['Camp Size']] || ''
-    };
-  });
-```
-
-3. Update `doPost`'s `appendRow` to append the two new values **last**, matching
-   the column order from step 1:
-
-```js
-  sheet.appendRow([
+  var rowValues = [
     new Date(),
-    data.campName, data.leadName, data.email, data.year,
-    data.greens.food, data.greens.water, data.greens.waste,
-    data.greens.transport, data.greens.shelter, data.greens.power,
-    data.source, data.resultUrl,
-    JSON.stringify(data.answers || {}),  // -> answers_json
-    data.schemaVersion || '',            // -> schema_version
-    data.campLocation || '',             // -> Location
-    data.campSize || ''                  // -> Camp Size
+    data.campName || '', data.leadName || '', data.email || '', data.year || ''
+  ]
+  .concat(sectorCells)                    // F–K: the six clamped greens
+  .concat([
+    total,                                // L Total (0–60, summed from sectorCells)
+    data.source || '',                    // M Source
+    data.resultUrl || '',                 // N Result URL
+    JSON.stringify(data.answers || {}),   // O Answers JSON
+    data.schemaVersion || '',             // P Schema Version
+    data.campLocation || '',              // Q Location
+    data.campSize || ''                   // R Camp Size
   ]);
+  sheet.appendRow(rowValues);
 ```
 
 Re-deploy the web app (Manage deployments → edit → New version) — same `/exec`

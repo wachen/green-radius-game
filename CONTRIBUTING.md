@@ -36,7 +36,7 @@ No bundler, no npm, no `package.json` — but a tiny compile step: `bun run scri
 | `result/`          | Stateless shareable result page (renders a card from the `?r=` payload, legacy `#hash` fallback) |
 | `admin/`           | Internal, Cloudflare Access–gated response viewer (City + Camps tabs); read-only |
 | `city/`            | Public community-progress page (`/city/`), rendered from `GET /api/city` |
-| `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `GET /api/admin/responses` + `GET /api/health` + `GET /api/city` (public aggregate tally) + `GET /result/?r=` (per-camp OG unfurl); all else served as static assets |
+| `worker/index.js`  | Cloudflare Worker — `POST /api/complete` + `POST /api/event` + `POST /api/client-error` (log-only beacons) + `GET /api/admin/responses` + `GET /api/health` + `GET /api/city` (public aggregate tally) + `GET /result/?r=` (per-camp OG unfurl); all else served as static assets |
 | `wrangler.jsonc`   | Worker + static-assets config                                         |
 | `_headers`         | Static-asset response headers (HSTS, framing, permissions)            |
 | `vendor/`          | Pinned Preact runtime (+ React-names shim), served same-origin (see its README) |
