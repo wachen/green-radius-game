@@ -281,31 +281,16 @@
   }
 
   // ── Playa addresses + visit tracking (admin map) ──────────────────────────
-  // A BRC address is a polar coordinate: clock radial (2:00-10:00) by lettered
-  // ring (Esplanade, then A-K). parse -> {hour, ring}; unparseable -> null so
-  // the map surfaces the row for a sheet fix instead of guessing.
-  var RING_LETTERS = 'abcdefghijk'; // ring 1..11; ring 0 is Esplanade
-  function parsePlayaAddress(str) {
-    if (typeof str !== 'string') return null;
-    var s = str.trim().toLowerCase();
-    if (!s) return null;
-    var hour = null, m;
-    if ((m = s.match(/(^|\D)(\d{1,2})[:.](\d{2})(\D|$)/))) {
-      if (+m[3] >= 60) return null;
-      hour = +m[2] + (+m[3]) / 60;
-    } else if ((m = s.match(/(^|\D)(\d{3,4})(\D|$)/))) { // "730" -> 7:30
-      if (+m[2] % 100 >= 60) return null;
-      hour = Math.floor(+m[2] / 100) + (+m[2] % 100) / 60;
-    } else if ((m = s.match(/(^|\D)(\d{1,2})(\D|$)/))) { // bare "7" -> 7:00
-      hour = +m[2];
-    }
-    if (hour == null || hour < 2 || hour > 10) return null;
-    var ring = null;
-    if (/\besp(lanade)?\b/.test(s)) ring = 0;
-    else if ((m = s.match(/(^|[^a-z])([a-k])(?![a-z])/))) ring = RING_LETTERS.indexOf(m[2]) + 1;
-    if (ring == null) return null;
-    return { hour: hour, ring: ring };
-  }
+  // Parsing lives in the shared playa-address.js: the game intro's soft
+  // address hint uses the same grammar, and the hint and the map must agree.
+  // In the browser, admin/index.html loads playa-address.js before this file;
+  // under CJS (bun tests, the Worker bundle) require it directly.
+  var PlayaAddress = ((typeof module !== 'undefined' && module.exports)
+    ? require('../playa-address.js') : global.PlayaAddress)
+    // Fail open if the script somehow didn't load: every address reads as
+    // unparseable (listed under the map) instead of crashing the admin page.
+    || { parse: function () { return null; } };
+  function parsePlayaAddress(str) { return PlayaAddress.parse(str); }
   // Unit-space geometry: Man at the origin, 12:00 up, SVG y-axis down, so
   // 6:00 (the gate) points straight down. Esplanade at 0.40, +0.05 per ring
   // (K = 0.95) — the map scales these to pixels.

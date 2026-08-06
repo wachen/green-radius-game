@@ -85,6 +85,12 @@ function Intro({ onStart, onBack, palette, description, initial }) {
   const [campLocation, setCampLocation] = useState((initial && initial.campLocation) || '');
   const [campSize, setCampSize] = useState((initial && initial.campSize) || '');
   const [tried, setTried] = useState(false);
+  // Soft playa-address nudge: only after the field loses focus (no nagging
+  // mid-typing), never blocking, and fail-open if playa-address.js is absent.
+  // Same grammar as the admin Playa Map, so a hint-free address always pins.
+  const [locTouched, setLocTouched] = useState(false);
+  const locationLooksOff = !!(locTouched && campLocation.trim() &&
+    window.PlayaAddress && !window.PlayaAddress.parse(campLocation));
 
   const campOk = !!campName.trim();
   const leadOk = !!leadName.trim();
@@ -141,7 +147,9 @@ function Intro({ onStart, onBack, palette, description, initial }) {
         <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
         <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
         <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk} type="email"/>
-        <Field label="Camp location" value={campLocation} onChange={setCampLocation} placeholder="e.g. 7:30 & E" palette={palette} required invalid={tried && !campLocationOk} maxLength={80}/>
+        <Field label="Camp location" value={campLocation} onChange={setCampLocation} placeholder="e.g. 7:30 & E" palette={palette} required invalid={tried && !campLocationOk} maxLength={80}
+          onBlur={() => setLocTouched(true)}
+          hint={locationLooksOff ? 'Hmm, that doesn’t look like a playa address (like 7:30 & E). Totally fine if your camp is somewhere else, just double-check.' : null}/>
         <Field label="Camp size" value={campSize} onChange={setCampSize} placeholder="Number of campers" palette={palette} required invalid={tried && !campSizeOk} type="number" min={1} max={2000}/>
       </div>
 
@@ -197,7 +205,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, palette, required, invalid, type, min, max, maxLength }) {
+function Field({ label, value, onChange, onBlur, placeholder, palette, required, invalid, hint, type, min, max, maxLength }) {
   const isEmail = type === 'email';
   const isNumber = type === 'number';
   return (
@@ -209,6 +217,7 @@ function Field({ label, value, onChange, placeholder, palette, required, invalid
         type={type || 'text'}
         value={value}
         onChange={e => onChange(e.target.value)}
+        onBlur={onBlur}
         placeholder={placeholder}
         required={required}
         aria-invalid={invalid || undefined}
@@ -228,6 +237,12 @@ function Field({ label, value, onChange, placeholder, palette, required, invalid
           fontFamily: 'inherit',
         }}
       />
+      {hint && (
+        <div data-field-hint role="status" style={{
+          fontSize: 11.5, lineHeight: 1.4, color: '#8a6d1f',
+          marginTop: 4, fontWeight: 600, textWrap: 'pretty',
+        }}>{hint}</div>
+      )}
     </label>
   );
 }
