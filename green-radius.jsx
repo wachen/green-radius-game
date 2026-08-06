@@ -149,7 +149,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
         <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk} type="email"/>
         <Field label="Camp location" value={campLocation} onChange={setCampLocation} placeholder="e.g. 7:30 & E" palette={palette} required invalid={tried && !campLocationOk} maxLength={80}
           onBlur={() => setLocTouched(true)}
-          hint={locationLooksOff ? 'Hmm, that doesn’t look like a playa address (like 7:30 & E). Totally fine if your camp is somewhere else, just double-check.' : null}/>
+          hint={locationLooksOff ? "Hmm, that doesn't look like a playa address (like 7:30 & E). Totally fine if your camp is somewhere else, just double-check." : null}/>
         <Field label="Camp size" value={campSize} onChange={setCampSize} placeholder="Number of campers" palette={palette} required invalid={tried && !campSizeOk} type="number" min={1} max={2000}/>
       </div>
 
