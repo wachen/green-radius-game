@@ -331,6 +331,24 @@ function FaqModal({ onClose, palette }) {
 }
 
 // ─── mode picker ─────────────────────────────────────────────────────────────
+// Signup-deadline announcement (BLAST 2026), home screen only. Auto-hides
+// once the deadline passes in Pacific time (Aug 11 00:00 PDT), so no removal
+// deploy is needed and a stale banner can't linger. Purely presentational:
+// no state, no storage, safe to roll out mid-season.
+const SIGNUP_DEADLINE_END_MS = Date.UTC(2026, 7, 11, 7); // end of Aug 10 2026, PDT
+function DeadlineBanner() {
+  if (Date.now() >= SIGNUP_DEADLINE_END_MS) return null;
+  return (
+    <div data-deadline-banner role="status" style={{
+      background: '#FEF3C7', color: '#5b4a16', border: '1px solid #F4D67A',
+      borderRadius: 10, padding: '8px 12px', margin: '0 0 14px',
+      fontSize: 13, lineHeight: 1.4, fontWeight: 600, textWrap: 'pretty',
+    }}>
+      Signup deadline: <b>August 10</b>. Submit by then to be included in the printed signage. Playing stays open after that.
+    </div>
+  );
+}
+
 function ModePicker({ onPick, palette }) {
   const tileBase = {
     display: 'block', width: '100%', border: 'none', cursor: 'pointer',
@@ -342,6 +360,7 @@ function ModePicker({ onPick, palette }) {
   const closeFaq = useCallback(() => { setFaqOpen(false); faqBtnRef.current?.focus(); }, []);
   return (
     <div style={{ padding: '14px 24px 18px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+      <DeadlineBanner/>
       <h1 style={{
         fontSize: 40, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
         textWrap: 'balance', color: palette.heading,
