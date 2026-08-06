@@ -200,3 +200,58 @@ describe('visit tracking (owner-typed Visit column)', () => {
     expect(out).toEqual(['first', 'near', 'mid', 'far', 'lost']);
   });
 });
+
+describe('city analytics (admin panel)', () => {
+  test('scoreHistogram buckets totals by ten, 60 lands in the top bucket', () => {
+    const rows = [
+      row('a', { food: 5, water: 0 }, { F1: 'yes' }, 1000),          // 5  -> 0-9
+      row('b', { food: 10, water: 5 }, { F1: 'yes' }, 1000),         // 15 -> 10-19
+      Object.assign(row('c', { food: 10, water: 10 }, { F1: 'yes' }, 1000), { total: 60 }), // 50-60
+      Object.assign(row('d', { food: 10, water: 9 }, { F1: 'yes' }, 1000), { total: 58 }),  // 50-60
+    ];
+    const h = A.scoreHistogram(rows);
+    expect(h.bins.map(b => b.count)).toEqual([1, 1, 0, 0, 0, 2]);
+    expect(h.max).toBe(2);
+  });
+
+  test('scoreHistogram uses the aggregate population: hidden and legacy out, deduped', () => {
+    const rows = [
+      row('a', { food: 5, water: 0 }, { F1: 'yes' }, 1000),
+      Object.assign(row('junk', { food: 9, water: 9 }, { F1: 'yes' }, 1000), { hidden: 'x' }),
+      { campName: 'old', email: 'old@x.com', greens: { food: 2, water: 1 }, total: 3, answers: {}, timestamp: 900 }, // legacy 0-4 scale
+      row('a', { food: 10, water: 5 }, { F1: 'yes' }, 2000), // same camp, newer -> only this one counts
+    ];
+    const h = A.scoreHistogram(rows);
+    expect(h.bins.map(b => b.count)).toEqual([0, 1, 0, 0, 0, 0]); // just camp a's latest (15)
+  });
+
+  test('weeklyCounts groups by the Monday-Pacific week, oldest first, window-bounded', () => {
+    const wedNoon = Date.UTC(2026, 6, 29, 12); // Wed Jul 29 2026; week starts Mon Jul 27 07:00 UTC
+    const rows = [
+      row('w1', { food: 1, water: 0 }, {}, Date.UTC(2026, 6, 28, 12)), // this week
+      row('w2', { food: 1, water: 0 }, {}, Date.UTC(2026, 6, 29, 1)),  // this week
+      row('p1', { food: 1, water: 0 }, {}, Date.UTC(2026, 6, 24, 12)), // prior week (Fri Jul 24)
+      row('anc', { food: 1, water: 0 }, {}, Date.UTC(2026, 2, 1, 12)), // March: outside the 8-week window
+    ];
+    const weeks = A.weeklyCounts(rows, wedNoon);
+    expect(weeks.length).toBe(8);
+    expect(weeks[7].start).toBe(Date.UTC(2026, 6, 27, 7));
+    expect(weeks[7].count).toBe(2);
+    expect(weeks[6].count).toBe(1);
+    expect(weeks.reduce((n, w) => n + w.count, 0)).toBe(3);
+    expect(weeks[7].count).toBe(A.computeAggregates(rows, SECTORS, wedNoon).momentum.thisWeek);
+  });
+
+  test('opportunities: lowest yes-rate fixed questions, minAsked-gated, write-ins never appear', () => {
+    const rows = [
+      row('a', { food: 8, water: 2 }, { F1: 'no', W1: 'yes', W3: 'yes', 'F-camp': 'no' }),
+      row('b', { food: 6, water: 1 }, { F1: 'no', W1: 'yes', W3: 'yes' }),
+      row('c', { food: 7, water: 3 }, { F1: 'yes', W1: 'no' }),
+    ];
+    const agg = A.computeAggregates(rows, SECTORS, 2000);
+    const opps = A.opportunities(agg, SECTORS);
+    expect(opps.map(o => o.id)).toEqual(['F1', 'W1']); // W3 asked twice, under minAsked; F-camp is a topic, not a fixed question
+    expect(opps[0].rate).toBeCloseTo(1 / 3);
+    expect(opps[0].asked).toBe(3);
+  });
+});

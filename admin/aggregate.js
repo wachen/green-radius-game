@@ -325,6 +325,61 @@
     });
   }
 
+  // ── City-tab analytics (admin only, computed from the fetched rows) ───────
+  // Same population as computeAggregates' tallies: hidden out, legacy out,
+  // one row per camp (latest wins) — so these charts always agree with the
+  // count/momentum tiles beside them.
+  function activeRows(rows) {
+    return dedupeRows((rows || []).filter(function (r) { return !isHidden(r) && !isLegacy(r); }));
+  }
+  // Score distribution over the 0-60 total: six buckets of ten, the last one
+  // inclusive of a perfect 60. Returns { bins: [{label, count}], max }.
+  function scoreHistogram(rows) {
+    var bins = ['0-9', '10-19', '20-29', '30-39', '40-49', '50-60'].map(function (label) {
+      return { label: label, count: 0 };
+    });
+    activeRows(rows).forEach(function (r) {
+      bins[Math.min(5, Math.floor((r.total || 0) / 10))].count++;
+    });
+    return { bins: bins, max: bins.reduce(function (m, b) { return Math.max(m, b.count); }, 0) };
+  }
+  // Submissions per calendar week (Monday 00:00 Pacific, same boundary as
+  // momentum), oldest first, ending with the current week. Week starts are
+  // walked back one at a time (1ms before a start lands in the prior week),
+  // which keeps DST-shortened/stretched weeks exact. Rows older than the
+  // window are simply not counted.
+  function weeklyCounts(rows, now, nWeeks) {
+    var n = nWeeks == null ? 8 : nWeeks;
+    var starts = [weekStartMs(now)];
+    for (var i = 1; i < n; i++) starts.push(weekStartMs(starts[i - 1] - 1));
+    starts.reverse();
+    var out = starts.map(function (s) { return { start: s, count: 0 }; });
+    activeRows(rows).forEach(function (r) {
+      if (typeof r.timestamp !== 'number') return;
+      for (var w = out.length - 1; w >= 0; w--) {
+        if (r.timestamp >= out[w].start) { out[w].count++; break; }
+      }
+    });
+    return out;
+  }
+  // The n lowest city-wide yes-rate fixed questions (Levels 1-3) with a decent
+  // sample — what GTCC should teach or provision next. Reads the perQuestion
+  // block of an already-computed aggregate; write-in topics never appear
+  // because they aren't fixed questions.
+  function opportunities(agg, sectors, n, minAsked) {
+    var min = minAsked == null ? 3 : minAsked;
+    var out = [];
+    sectors.forEach(function (sector) {
+      [].concat.apply([], sector.levels.slice(0, 3)).forEach(function (q) {
+        var pq = agg.perQuestion[q.id];
+        if (!pq || pq.asked < min) return;
+        out.push({ id: q.id, sector: sector.name, title: q.prompt || q.title, rate: pq.rate, asked: pq.asked });
+      });
+    });
+    out.sort(function (a, b) { return (a.rate - b.rate) || (b.asked - a.asked); });
+    return out.slice(0, n == null ? 4 : n);
+  }
+
   function computeAggregates(rows, sectors, now) {
     rows = (rows || []).filter(function (r) { return !isHidden(r); });
     const legacyCount = rows.filter(isLegacy).length;
@@ -353,7 +408,8 @@
   }
 
   const api = { computeAggregates, weekStartMs, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, dedupeInfo,
-    parsePlayaAddress, playaRingRadius, playaXY, visitState, visitAssignee, visitOrder };
+    parsePlayaAddress, playaRingRadius, playaXY, visitState, visitAssignee, visitOrder,
+    activeRows, scoreHistogram, weeklyCounts, opportunities };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.AdminAggregate = api;
 })(typeof window !== 'undefined' ? window : this);
