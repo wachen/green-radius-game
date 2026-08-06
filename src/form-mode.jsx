@@ -59,12 +59,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
         <button
           onClick={onBack}
           aria-label="Back to your camp details"
-          style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: palette.text + '99', fontSize: 12, fontWeight: 700,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-            padding: '4px 0', fontFamily: 'inherit',
-          }}
+          style={{ ...BACK_BTN_STYLE, cursor: 'pointer', color: palette.text + '99' }}
         >← Back</button>
       </div>
 

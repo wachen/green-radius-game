@@ -4,6 +4,10 @@
 // The modal is a designed "About the Game": why-this-exists, the six sectors,
 // the four levels (in their live LEVEL_COLORS), results, then leftover Q&A.
 // Link answers hard-code accent colors (the app has a single fixed palette).
+// Light-to-dark green ramp for the six-wedge wheel mark (FAQ medallion and
+// the "Play the Game" tile share it).
+const WEDGE_COLORS = ['#A3D178', '#86C169', '#68B05C', '#56A85C', '#439F5B', '#31975B'];
+
 const SECTOR_ONE_LINERS = {
   food: 'Purchase mindfully, share cooking, cut food waste.',
   water: 'Drink it. Share it. Reuse it.',
@@ -196,7 +200,7 @@ function FaqModal({ onClose, palette }) {
               cream card the way it does on the tile's solid green. */}
           <svg viewBox="0 0 64 64" width="26" height="26" aria-hidden="true" style={{ display: 'block', margin: '0 auto 6px' }}>
             <circle cx="32" cy="33" r="26" fill={palette.accent}/>
-            {['#A3D178', '#86C169', '#68B05C', '#56A85C', '#439F5B', '#31975B'].map((c, i) => {
+            {WEDGE_COLORS.map((c, i) => {
               const a0 = (i * 60 - 90) * Math.PI / 180;
               const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
               const r = 23;
@@ -401,7 +405,7 @@ function ModePicker({ onPick, palette }) {
               ramp clockwise from the pointer with white seams and a plain dark
               hub dot — no light/dark alternation, no pale center disc, no dark
               spokes, the three cues that made it read as the radiation trefoil. */}
-          {['#A3D178', '#86C169', '#68B05C', '#56A85C', '#439F5B', '#31975B'].map((c, i) => {
+          {WEDGE_COLORS.map((c, i) => {
             const a0 = (i * 60 - 90) * Math.PI / 180;
             const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
             const r = 23;

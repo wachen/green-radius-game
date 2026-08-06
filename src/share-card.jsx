@@ -84,7 +84,7 @@ const GOLD_LIGHT = '#F4D488';
 
 // ─── shareable card ───────────────────────────────────────────────────────────
 // fills shape: see SectorFill typedef in src/core.jsx
-function ShareCard({ sectors, fills, campName, leadName, year, palette, reveal = null }) {
+function ShareCard({ sectors, fills, campName, year, reveal = null }) {
   const fullTotal = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
   const total = reveal == null ? fullTotal : reveal;
   // Gated on the currently-displayed total (not fullTotal) so a live count-up
@@ -197,7 +197,7 @@ function fitCampName(name) {
   if (l2.length > 20) l2 = `${l2.slice(0, 19)}…`;
   return { lines: [l1, l2], size: 18, ys: [72, 94] };
 }
-function ResultCardSVG({ sectors, fills, campName, leadName, year, svgRef }) {
+function ResultCardSVG({ sectors, fills, campName, year, svgRef }) {
   const pad = 28;
   const name = fitCampName(campName);
   const total = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);

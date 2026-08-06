@@ -64,7 +64,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v101';
+const APP_VERSION = 'v102';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -174,6 +174,18 @@ function genCampId() {
 // radiating outward from the center. (The Spin hub itself uses accentDark so
 // its white label passes WCAG AA.)
 const LEVEL_COLORS = ['#68B05C', '#56A85C', '#439F5B', '#31975B'];
+
+// One email test for intro validation, submit, and the done-screen resend.
+function isValidEmail(s) {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((s || '').trim());
+}
+
+// Base style for the "← Back" text buttons (intro, form mode, playing screen).
+// Callers spread it and add cursor/color per instance.
+const BACK_BTN_STYLE = {
+  background: 'transparent', border: 'none', fontSize: 12, fontWeight: 700,
+  letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 0', fontFamily: 'inherit',
+};
 
 // Up to 4 write-in "Our Camp's Idea" slots per sector. The first is the
 // data-defined X-camp topic (already in tier4Topics); slots 2-4 are synthetic

@@ -10,7 +10,7 @@ const data = window.ResultState.decode(
 );
 
 // Read-only card + the same Download / Share Link actions as the done screen.
-function ResultView({ sectors, fills, campName, leadName, year }) {
+function ResultView({ sectors, fills, campName, year }) {
   const cardSvgRef = React.useRef(null);
   const cardPngRef = React.useRef(null);
   const [copied, setCopied] = React.useState(false);
@@ -88,7 +88,7 @@ function ResultView({ sectors, fills, campName, leadName, year }) {
 
   return (
     <div style={{ width: 'min(360px, 100%)', display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <ShareCard sectors={sectors} fills={fills} campName={campName} leadName={leadName} year={year} palette={{}} />
+      <ShareCard sectors={sectors} fills={fills} campName={campName} year={year} />
       <div style={{ display: 'flex', gap: 10 }}>
         <button onClick={handleDownload} style={{ ...btn, background: '#558040', boxShadow: '0 3px 0 #38542b' }}>
           <DownloadIcon />
@@ -130,7 +130,7 @@ function ResultView({ sectors, fills, campName, leadName, year }) {
       )}
       {/* offscreen SVG twin of the card — serialized to PNG by handleDownload/share */}
       <div aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: CARD_W, height: CARD_H, overflow: 'hidden', pointerEvents: 'none' }}>
-        <ResultCardSVG svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={campName} leadName={leadName} year={year}/>
+        <ResultCardSVG svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={campName} year={year}/>
       </div>
     </div>
   );
@@ -159,6 +159,6 @@ if (!data) {
 } else {
   root.render(
     <ResultView sectors={window.SECTORS} fills={data.fills}
-      campName={data.campName} leadName={data.leadName} year={data.year} />
+      campName={data.campName} year={data.year} />
   );
 }

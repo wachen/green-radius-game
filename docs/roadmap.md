@@ -42,10 +42,6 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
   and alerts when either leg fails, so an expired Apps Script deployment or dead
   API key breaks a canary instead of a camper. Needs an agreed flag so canaries
   stay out of the sheet aggregates.
-- **Intake playa-address hint** (new, brainstormed 2026-08-05 · small) — soft-validate
-  the intro's camp-location field ("doesn't look like a playa address — 7:30 & E
-  format?" hint, never blocking). Best single lever for admin Playa Map coverage:
-  every address fixed at the source saves a sheet edit later.
 - **On-playa offline story** (SG · med) — runtime is vendored, but there's no
   service worker or "needs signal" messaging. Decide the story before the burn:
   add a minimal service worker, or just honest messaging.
@@ -132,12 +128,11 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 
 ## Waiting on something
 
-- **Apps Script `Visit` column deploy** — owner-side step that activates visit
-  tracking (Playa Map pin colors, Camps-tab filter) end to end; snippet and
-  steps in `docs/admin-setup.md` section 6. Safe no-op until deployed. (The
-  `Hidden` column equivalent shipped 2026-07-24 and is verified working.)
-- **Funnel dashboard first look** — needs ~2 weeks of Web Analytics data; check
-  in late July.
+- **Funnel dashboard first look** — needed ~2 weeks of Web Analytics data;
+  that window has passed, so the first look can happen any time (as of
+  2026-08-05). (The `Visit` column deploy that used to sit here shipped
+  2026-08-05: Wes added the header and redeployed Code.gs, so visit tracking
+  is active end to end.)
 
 ## Shelved — do not build without an explicit ask
 
@@ -146,6 +141,31 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
   2026-07-16 before deploy. The complete diff is preserved in closed PR #78.
 
 ## Recently done
+
+- Housekeeping round from a five-agent codebase review: shared helpers
+  (isValidEmail, campFills, Badge tones, withMockFetch), shared.css +
+  favicon.svg replacing per-page duplicates, trimmed dead exports/props,
+  roadmap/doc corrections (#102) - 2026-08-05
+
+- Home-page signup-deadline banner: August 10 printed-signage cutoff, playing
+  stays open after; auto-hides once the deadline passes Pacific time (#101) -
+  2026-08-05
+
+- Admin analytics panel on the City tab: score histogram, Monday-Pacific
+  submissions-by-week (current week matches the "+N this week" tile), and
+  biggest-opportunity questions (#100) - 2026-08-05
+
+- Intake playa-address hint: soft, non-blocking "doesn't look like a playa
+  address" nudge on the intro location field, sharing one parser with the
+  admin map via the new playa-address.js (#99) - 2026-08-05
+
+- Admin visit planning: BRC Playa Map on the City tab (pin color = visit
+  state), owner-typed Visit sheet column, Camps-tab visit filter and chips,
+  walkable visit order (#98) - 2026-08-05
+
+- Consistency pass: required intro fields everywhere, leadName validation,
+  meta/copy alignment (#96); admin Camps row meta + Monday-reset week stat
+  (#97) - 2026-07-24
 
 - Duplicate handling upgrade: year-scoped union grouping (campId OR normalized
   name per year), admin badges (xN winner count, "superseded", "possible dup"

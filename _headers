@@ -33,13 +33,14 @@
   Cache-Control: public, max-age=300, stale-while-revalidate=86400
 /admin/aggregate.js
   Cache-Control: public, max-age=300, stale-while-revalidate=86400
+/shared.css
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+/favicon.svg
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
 
 # Wrangler infers text/jsx for .jsx, which is not on Cloudflare's compressible
-# MIME list, so these files were shipping uncompressed (~144KB raw vs ~40KB).
-# The JS content-type is safe: browsers never execute type="text/babel" script
-# tags natively; @babel/standalone fetches the source itself and ignores the
-# content-type.
-/green-radius.jsx
-  Content-Type: text/javascript; charset=utf-8
+# MIME list, so this file was shipping uncompressed (~144KB raw vs ~40KB).
+# (The matching /green-radius.jsx entry was removed once .assetsignore stopped
+# serving that path — the entry matched only a 404.)
 /admin/admin.jsx
   Content-Type: text/javascript; charset=utf-8

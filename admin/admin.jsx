@@ -210,12 +210,15 @@ const LoadingWheel = ({ size = 44 }) => (
 const CITY_CARD_BG = 'linear-gradient(160deg, #0e2733 0%, #14323f 100%)';
 const panelStyle = { background: '#111d16', border: '1px solid #26382e', borderRadius: 16, padding: '14px 16px' };
 
-// Mini-badge fills for a leaderboard entry — same precedence as CampRow.
-function miniFills(sectors, entry) {
-  const hasAns = entry.answers && Object.keys(entry.answers).some(k =>
-    entry.answers[k] === 'yes' || entry.answers[k] === 'no');
-  if (hasAns) return fillsFromAnswers(sectors, entry.answers);
-  return A.isLegacy(entry) ? legacyFills(sectors, entry.greens) : approxFills(sectors, entry.greens);
+// Fill precedence for one camp row, shared by the leaderboard mini-badges,
+// CampRow, and CampDetail: real per-question answers win, then legacy (0-4)
+// or approximate (0-10) fills derived from the greens tallies.
+function campFills(sectors, camp) {
+  const hasAnswers = rowHasAnswers(camp);
+  const legacy = A.isLegacy(camp);
+  const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers)
+    : (legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens));
+  return { hasAnswers, legacy, fills, denom: legacy ? 4 : 10 };
 }
 
 function StatTile({ value, suffix, label }) {
@@ -299,7 +302,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
           {/* +20px badge, offset by the tighter hero padding/margins above so
               the card's overall height stays put. Hovering a Top Camps row
               temporarily swaps the aggregate for that camp's own fills. */}
-          <RadialBadge sectors={sectors} fills={peek ? miniFills(sectors, peek) : {}} size={wide ? 284 : 276} dark
+          <RadialBadge sectors={sectors} fills={peek ? campFills(sectors, peek).fills : {}} size={wide ? 284 : 276} dark
             intensities={peek ? null : agg.intensities}
             selected={sel}
             onSelectSegment={agg.hasAnswers ? (sector, level, qi) => setSel({ sector, level, qi }) : null} />
@@ -369,7 +372,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
           style={{ ...rowStyle, gap: 10, cursor: 'pointer' }}>
           <span style={{ width: 18, color: '#93a89b', fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
           <span aria-hidden="true" title="Camp's green radius shape" style={{ flexShrink: 0, display: 'inline-flex' }}>
-            <RadialBadge sectors={sectors} fills={miniFills(sectors, c)} size={30} dark showLabels={false} showCenter={false}/>
+            <RadialBadge sectors={sectors} fills={campFills(sectors, c).fills} size={30} dark showLabels={false} showCenter={false}/>
           </span>
           <span style={{ flex: 1, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {c.campName} {i === 0 && <span title="Highest score right now" style={{ color: '#e8c15a' }}>★</span>}
@@ -648,27 +651,19 @@ function Hi({ text, q }) {
   return parts;
 }
 
-// Small pill badge, shared by CampRow and CampDetail (source/legacy/hidden/dedup tags).
-function MiniBadge({ text, title }) {
+// Small pill badge, shared by CampRow and CampDetail. Tones: neutral gray
+// (source/legacy/hidden/dedup tags), amber heads-up ("possible dup", assigned
+// visits — same warm tone as the refresh-error banner), green win ("visited",
+// matching the idea-chip green).
+const BADGE_TONES = {
+  gray: { color: '#93a89b', border: '1px solid #26382e' },
+  amber: { color: '#e8c15a', border: '1px solid #573a26', background: '#2a1c14' },
+  green: { color: '#8fd4ae', border: '1px solid #2e5b43', background: '#15291e' },
+};
+function Badge({ text, title, tone = 'gray' }) {
   return (
-    <span title={title} style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99,
+    <span title={title} style={{ ...BADGE_TONES[tone], fontSize: 9, borderRadius: 99,
       padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
-  );
-}
-// Amber-toned variant for the "possible dup" flag — same warm tone as the
-// existing refresh-error banner, so it reads as a heads-up, not routine info.
-function AmberBadge({ text, title }) {
-  return (
-    <span title={title} style={{ fontSize: 9, color: '#e8c15a', border: '1px solid #573a26', background: '#2a1c14',
-      borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
-  );
-}
-// Green-toned variant for the "visited" flag — done reads as a win, matching
-// the idea-chip green rather than the neutral gray or heads-up amber.
-function GreenBadge({ text, title }) {
-  return (
-    <span title={title} style={{ fontSize: 9, color: '#8fd4ae', border: '1px solid #2e5b43', background: '#15291e',
-      borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
   );
 }
 
@@ -743,15 +738,11 @@ function SectorDigits({ sector, fill, answers, hasAnswers, legacy }) {
 }
 
 function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
-  const hasAnswers = rowHasAnswers(camp);
   const hidden = !!camp.hidden;
-  const legacy = A.isLegacy(camp);
-  const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers)
-    : (legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens));
-  const denom = legacy ? 4 : 10;
+  const { hasAnswers, legacy, fills, denom } = campFills(sectors, camp);
   const l4 = campL4(sectors, camp);
 
-  const badge = (text, title) => <MiniBadge text={text} title={title} />;
+  const badge = (text, title) => <Badge text={text} title={title} />;
   const Identity = (
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
       {/* 44px radius thumbnail: round vs lopsided camps read at a glance */}
@@ -768,11 +759,11 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
           {hidden && badge('hidden', 'Owner-flagged as junk or test data; excluded from every aggregate')}
           {superseded && badge('superseded', 'replaced by a newer submission from this camp')}
           {!superseded && dupCount > 1 && badge(`x${dupCount}`, `${dupCount} submissions, stats use this latest one`)}
-          {suspect && <AmberBadge text="possible dup" title="same contact email as another camp this year" />}
+          {suspect && <Badge tone="amber" text="possible dup" title="same contact email as another camp this year" />}
           {A.visitState(camp.visit) === 'assigned' &&
-            <AmberBadge text={`visit: ${A.visitAssignee(camp.visit) || 'assigned'}`} title="Assigned a camp visit (owner-typed Visit column)" />}
+            <Badge tone="amber" text={`visit: ${A.visitAssignee(camp.visit) || 'assigned'}`} title="Assigned a camp visit (owner-typed Visit column)" />}
           {A.visitState(camp.visit) === 'done' &&
-            <GreenBadge text="visited ✓" title="Camp visit completed (owner-typed Visit column)" />}
+            <Badge tone="green" text="visited ✓" title="Camp visit completed (owner-typed Visit column)" />}
         </div>
         {(camp.campLocation || camp.campSize) && (
           <div data-loc style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
@@ -901,11 +892,7 @@ function exportCsv(list, sectors) {
 // as the rest of the app; legacy/approx rows explain themselves instead of
 // inventing per-question detail.
 function CampDetail({ sectors, camp, onClose, dupCount, superseded }) {
-  const hasAnswers = rowHasAnswers(camp);
-  const legacy = A.isLegacy(camp);
-  const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers)
-    : (legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens));
-  const denom = legacy ? 4 : 10;
+  const { hasAnswers, legacy, fills, denom } = campFills(sectors, camp);
   const l4 = campL4(sectors, camp);
   const dialogRef = React.useRef(null);
   const closeRef = React.useRef(null);
@@ -940,8 +927,8 @@ function CampDetail({ sectors, camp, onClose, dupCount, superseded }) {
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
               <span>{camp.campName}</span>
-              {superseded && <MiniBadge text="superseded" title="replaced by a newer submission from this camp" />}
-              {!superseded && dupCount > 1 && <MiniBadge text={`x${dupCount}`} title={`${dupCount} submissions, stats use this latest one`} />}
+              {superseded && <Badge text="superseded" title="replaced by a newer submission from this camp" />}
+              {!superseded && dupCount > 1 && <Badge text={`x${dupCount}`} title={`${dupCount} submissions, stats use this latest one`} />}
             </div>
             <div style={{ fontSize: 12.5, color: '#93a89b', marginTop: 3, overflowWrap: 'anywhere' }}>
               {camp.leadName} · <a href={`mailto:${camp.email}`} style={{ color: '#8fd4ae' }}>{camp.email}</a>

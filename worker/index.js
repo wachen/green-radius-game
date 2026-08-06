@@ -248,12 +248,17 @@ export async function sendEmail(env, to, campName, resultUrl, answers, greens, n
   return true;
 }
 
+// Total Yes across all sectors, shared by the HTML and plain-text headlines.
+function sectorTotal(greens) {
+  return GameData.SECTORS.reduce((n, s) => n + ((greens && greens[s.id]) | 0), 0);
+}
+
 // The email's headline: the result itself. Sector names/order come from
 // game-data (the same source the sheet and UI use); inline CSS only so it
 // renders in every client. Dark green (#3d7a31) stays readable on white.
 // No playa-rank title here by decision: the score speaks for itself.
 export function headlineEmailHtml(greens) {
-  const total = GameData.SECTORS.reduce((n, s) => n + ((greens && greens[s.id]) | 0), 0);
+  const total = sectorTotal(greens);
   const rows = GameData.SECTORS.map(s =>
     `<tr><td style="padding:2px 14px 2px 0;color:#555">${escAttr(s.name)}</td>` +
     `<td style="padding:2px 0;font-weight:bold;color:#3d7a31;font-variant-numeric:tabular-nums">${(greens && greens[s.id]) | 0}/10</td></tr>`
@@ -264,7 +269,7 @@ export function headlineEmailHtml(greens) {
 
 // Plain-text counterpart to headlineEmailHtml: same total + per-sector lines, no markup.
 export function headlineEmailText(greens) {
-  const total = GameData.SECTORS.reduce((n, s) => n + ((greens && greens[s.id]) | 0), 0);
+  const total = sectorTotal(greens);
   const lines = GameData.SECTORS.map(s => `${s.name}: ${(greens && greens[s.id]) | 0}/10`);
   return `${total}/60 achieved\n\n${lines.join('\n')}`;
 }

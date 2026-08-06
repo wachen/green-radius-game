@@ -10,6 +10,12 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Housekeeping round from a five-agent codebase review: shared isValidEmail /
+  BACK_BTN_STYLE / campFills / Badge / withMockFetch / sectorTotal helpers
+  replace copy-pasted logic, shared.css and favicon.svg replace per-page
+  duplicates, dead ShareCard/ResultCardSVG props and unused aggregate.js
+  exports removed, roadmap brought current through #101 (#102)
+
 - Home-page signup-deadline banner: a small amber announcement at the top of the mode picker ("Signup deadline: August 10. Submit by then to be included in the printed signage. Playing stays open after that."), styled on the existing restored-save banner idiom; it auto-hides once the deadline passes in Pacific time (Aug 11 00:00 PDT) so no removal deploy is needed, and it is purely presentational (no state, no storage shape change) for a safe mid-season rollout (#101)
 - Admin analytics panel: the City tab gains a compact three-part analytics panel under Superlatives - a Score Spread histogram (0-60 totals in six buckets of ten, so you can see where camps cluster), a Submissions by Week bar chart (last 8 calendar weeks on the same Monday-Pacific boundary as the momentum tile, current week highlighted and always equal to the "+N this week" number), and a Biggest Opportunities list (the 4 lowest city-wide yes-rate questions with at least 3 answers - what GTCC should teach or provision next); all computed client-side from the already-fetched rows over the same population as every other aggregate (hidden out, legacy out, deduped), no backend changes; the shipped entry is removed from the roadmap's Proposed list (#100)
 - Intake playa-address hint: the intro's Camp location field shows a gentle non-blocking nudge after you leave the field if the text doesn't parse as a playa address ("Hmm, that doesn't look like a playa address (like 7:30 & E)..."), so more submissions land on the admin Playa Map without a sheet fix; the address grammar moved from `admin/aggregate.js` into a shared `playa-address.js` (`window.PlayaAddress`, same isomorphic IIFE pattern as `result-state.js`) loaded by the game and admin pages and required by the aggregate module under bun and the Worker bundle, so the hint and the map can never disagree; the new script joins the `_headers` stale-while-revalidate list (#99)

@@ -7,6 +7,13 @@ function b64url(data) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+// Swap globalThis.fetch for a stub while body() runs, restoring it after.
+async function withMockFetch(stub, body) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = stub;
+  try { return await body(); } finally { globalThis.fetch = originalFetch; }
+}
+
 describe('sheetCell', () => {
   test('formula-leading strings get a guarding leading quote', () => {
     expect(sheetCell('=SUM(A1)')).toBe("'=SUM(A1)");
@@ -247,13 +254,10 @@ describe('buildEmailText', () => {
 
 describe('sendEmail body order', () => {
   test('intro, headline, link, plan, footer appear in order', async () => {
-    const originalFetch = globalThis.fetch;
     let sent;
-    globalThis.fetch = async (url, opts) => { sent = JSON.parse(opts.body); return new Response('{}', { status: 200 }); };
-    try {
-      await sendEmail({ RESEND_API_KEY: 'k' }, 'a@b.co', 'Dusty', 'https://greenradi.us/result/?r=x',
-        {}, { food: 1, water: 0, waste: 0, transport: 0, shelter: 0, power: 0 });
-    } finally { globalThis.fetch = originalFetch; }
+    await withMockFetch(async (url, opts) => { sent = JSON.parse(opts.body); return new Response('{}', { status: 200 }); },
+      () => sendEmail({ RESEND_API_KEY: 'k' }, 'a@b.co', 'Dusty', 'https://greenradi.us/result/?r=x',
+        {}, { food: 1, water: 0, waste: 0, transport: 0, shelter: 0, power: 0 }));
     const html = sent.html;
     const iIntro = html.indexOf('Thanks for playing');
     const iHead = html.indexOf('/60 achieved');
@@ -266,13 +270,10 @@ describe('sendEmail body order', () => {
   });
 
   test('a plain-text alternative rides alongside the html, with the same result link', async () => {
-    const originalFetch = globalThis.fetch;
     let sent;
-    globalThis.fetch = async (url, opts) => { sent = JSON.parse(opts.body); return new Response('{}', { status: 200 }); };
-    try {
-      await sendEmail({ RESEND_API_KEY: 'k' }, 'a@b.co', 'Dusty', 'https://greenradi.us/result/?r=x',
-        {}, { food: 1, water: 0, waste: 0, transport: 0, shelter: 0, power: 0 });
-    } finally { globalThis.fetch = originalFetch; }
+    await withMockFetch(async (url, opts) => { sent = JSON.parse(opts.body); return new Response('{}', { status: 200 }); },
+      () => sendEmail({ RESEND_API_KEY: 'k' }, 'a@b.co', 'Dusty', 'https://greenradi.us/result/?r=x',
+        {}, { food: 1, water: 0, waste: 0, transport: 0, shelter: 0, power: 0 }));
     expect(sent.text).toBeTruthy();
     expect(typeof sent.text).toBe('string');
     expect(sent.text).toContain('https://greenradi.us/result/?r=x');
@@ -283,13 +284,10 @@ describe('sendEmail body order', () => {
 
 describe('sendEmail idempotency (R4 nonce)', () => {
   const send = async (nonce) => {
-    const originalFetch = globalThis.fetch;
     let headers;
-    globalThis.fetch = async (url, opts) => { headers = opts.headers; return new Response('{}', { status: 200 }); };
-    try {
-      await sendEmail({ RESEND_API_KEY: 'k' }, 'a@b.co', 'Dusty', 'https://greenradi.us/result/?r=x',
-        {}, { food: 0, water: 0, waste: 0, transport: 0, shelter: 0, power: 0 }, nonce);
-    } finally { globalThis.fetch = originalFetch; }
+    await withMockFetch(async (url, opts) => { headers = opts.headers; return new Response('{}', { status: 200 }); },
+      () => sendEmail({ RESEND_API_KEY: 'k' }, 'a@b.co', 'Dusty', 'https://greenradi.us/result/?r=x',
+        {}, { food: 0, water: 0, waste: 0, transport: 0, shelter: 0, power: 0 }, nonce));
     return headers;
   };
   test('nonce rides as the Resend Idempotency-Key', async () => {
@@ -364,21 +362,16 @@ describe('handleClientError', () => {
 
 describe('handleComplete campLocation/campSize', () => {
   async function submit(extra) {
-    const originalFetch = globalThis.fetch;
     let sentRow;
-    globalThis.fetch = async (url, opts) => {
+    const env = { SHEETS_WEBAPP_URL: 'https://script.google.com/fake', SHEETS_SHARED_SECRET: 's' };
+    const res = await withMockFetch(async (url, opts) => {
       sentRow = JSON.parse(opts.body);
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
-    };
-    const env = { SHEETS_WEBAPP_URL: 'https://script.google.com/fake', SHEETS_SHARED_SECRET: 's' };
-    let res;
-    try {
-      res = await worker.fetch(new Request('https://greenradi.us/api/complete', {
-        method: 'POST',
-        headers: { Origin: 'https://greenradi.us', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campName: 'Dusty Camp', leadName: 'Dusty Lead', email: 'a@b.co', year: 2026, greens: {}, ...extra }),
-      }), env, {});
-    } finally { globalThis.fetch = originalFetch; }
+    }, () => worker.fetch(new Request('https://greenradi.us/api/complete', {
+      method: 'POST',
+      headers: { Origin: 'https://greenradi.us', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campName: 'Dusty Camp', leadName: 'Dusty Lead', email: 'a@b.co', year: 2026, greens: {}, ...extra }),
+    }), env, {}));
     return { res, sentRow };
   }
 
@@ -432,10 +425,9 @@ describe('computeCityBody season scoping', () => {
       source: 'board', schemaVersion: 'v2', ...overrides };
   }
   async function cityBody(sheetRows) {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => new Response(JSON.stringify({ rows: sheetRows }), { status: 200 });
     const env = { SHEETS_WEBAPP_URL: 'https://script.google.com/fake', SHEETS_SHARED_SECRET: 's' };
-    try { return await computeCityBody(env); } finally { globalThis.fetch = originalFetch; }
+    return withMockFetch(async () => new Response(JSON.stringify({ rows: sheetRows }), { status: 200 }),
+      () => computeCityBody(env));
   }
 
   test('a returning next season does not blend with the prior year', async () => {
