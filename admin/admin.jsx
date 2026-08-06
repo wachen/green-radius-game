@@ -409,11 +409,71 @@ function CommunityTally({ sectors, rows, onCampClick }) {
   // Superlatives. Narrow screens stack both columns in the same order. The
   // playa map spans full width underneath.
   const LeftCol = <div>{Hero}{Standings}</div>;
-  const RightCol = <div>{Pulse}{Leaderboard}{Superlatives}</div>;
+  const RightCol = <div>{Pulse}{Leaderboard}{Superlatives}<AnalyticsPanel rows={rows} agg={agg} sectors={sectors} /></div>;
   const Grid = wide
     ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{LeftCol}{RightCol}</div>
     : <div style={{ paddingTop: 12 }}>{LeftCol}{RightCol}</div>;
   return <div>{Grid}<PlayaMap rows={mapRows} onCampClick={onCampClick} /></div>;
+}
+
+// ── City analytics (score spread, weekly submissions, opportunities) ─────────
+// Three small reads of the already-fetched rows, stacked in one panel under
+// Superlatives. Same population as the tiles above (activeRows), so the
+// current-week bar always equals the "+N this week" tile.
+function BarChart({ data, max, highlightLast, barTitle, testId }) {
+  // Inline-block bars on a shared baseline; height scales to the busiest bar.
+  const H = 56;
+  return (
+    <div data-chart={testId} style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: H + 30, marginTop: 6 }}>
+      {data.map((d, i) => {
+        const hot = highlightLast && i === data.length - 1;
+        const h = max ? Math.max(d.count ? 3 : 1, Math.round((d.count / max) * H)) : 1;
+        return (
+          <div key={i} title={barTitle(d)} style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+            <div style={{ fontSize: 10, color: d.count ? '#cdebd8' : '#42574a', fontVariantNumeric: 'tabular-nums' }}>{d.count || ''}</div>
+            <div data-bar style={{ height: h, borderRadius: '3px 3px 0 0', margin: '1px auto 0',
+              background: d.count ? (hot ? '#7fc46a' : '#3f7a53') : '#1d2c24' }} />
+            <div style={{ fontSize: 8.5, color: hot ? '#7fc46a' : '#5d7367', fontWeight: 700, marginTop: 3,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+function AnalyticsPanel({ rows, agg, sectors }) {
+  const hist = React.useMemo(() => A.scoreHistogram(rows), [rows]);
+  const weeks = React.useMemo(() => A.weeklyCounts(rows, Date.now()), [rows]);
+  const opps = React.useMemo(() => A.opportunities(agg, sectors), [agg, sectors]);
+  if (!agg.count) return null;
+  const fmtWk = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const weekData = weeks.map(w => ({ ...w, label: fmtWk(w.start) }));
+  const weekMax = weeks.reduce((m, w) => Math.max(m, w.count), 0);
+  return (
+    <div data-analytics style={{ ...panelStyle, marginTop: 12 }}>
+      <SecHead style={{ marginTop: 0 }}>Score Spread</SecHead>
+      <BarChart testId="histogram" data={hist.bins} max={hist.max} highlightLast={false}
+        barTitle={d => `${d.count} ${d.count === 1 ? 'camp' : 'camps'} scoring ${d.label}`} />
+      <SecHead>Submissions by Week</SecHead>
+      <BarChart testId="weekly" data={weekData} max={weekMax} highlightLast
+        barTitle={d => `Week of ${fmtWk(d.start)}: ${d.count} ${d.count === 1 ? 'submission' : 'submissions'}`} />
+      {opps.length > 0 && (
+        <React.Fragment>
+          <SecHead>Biggest Opportunities</SecHead>
+          <div style={{ fontSize: 11, color: '#7f988a', margin: '-2px 0 4px' }}>
+            Lowest city-wide yes rates. Good candidates for GTCC guidance or shared resources.
+          </div>
+          {opps.map(o => (
+            <div key={o.id} data-opportunity style={rowStyle}>
+              <span style={{ flex: 1, color: '#eaf2ec', minWidth: 0 }}>{o.title} <span style={{ color: '#7f988a' }}>({o.sector})</span></span>
+              <b style={{ fontVariantNumeric: 'tabular-nums', color: '#e8c15a', flexShrink: 0 }}>{Math.round(o.rate * 100)}%</b>
+              <span style={{ color: '#7f988a', fontSize: 11, flexShrink: 0 }}>of {o.asked}</span>
+            </div>
+          ))}
+        </React.Fragment>
+      )}
+    </div>
+  );
 }
 
 // ── Playa map (visit planning) ───────────────────────────────────────────────

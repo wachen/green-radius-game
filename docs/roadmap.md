@@ -46,13 +46,6 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
   the intro's camp-location field ("doesn't look like a playa address — 7:30 & E
   format?" hint, never blocking). Best single lever for admin Playa Map coverage:
   every address fixed at the source saves a sheet edit later.
-- **Admin analytics panel** (new, brainstormed 2026-08-05 · small each) — three
-  small City-tab additions as data accumulates: a score-distribution histogram
-  (where camps cluster on 0-60), a submissions-by-week mini bar chart (trend
-  behind the "this week" tile), and a "biggest opportunities" callout (the 3-5
-  lowest city-wide yes-rate questions with decent sample size — what GTCC should
-  teach or provision). Each is its own quick PR; the per-question data already
-  powers the heatmap.
 - **On-playa offline story** (SG · med) — runtime is vendored, but there's no
   service worker or "needs signal" messaging. Decide the story before the burn:
   add a minimal service worker, or just honest messaging.
