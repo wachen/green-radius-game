@@ -280,6 +280,66 @@
     return mondayClock - tzOffsetMs(mondayClock - off);
   }
 
+  // ── Playa addresses + visit tracking (admin map) ──────────────────────────
+  // A BRC address is a polar coordinate: clock radial (2:00-10:00) by lettered
+  // ring (Esplanade, then A-K). parse -> {hour, ring}; unparseable -> null so
+  // the map surfaces the row for a sheet fix instead of guessing.
+  var RING_LETTERS = 'abcdefghijk'; // ring 1..11; ring 0 is Esplanade
+  function parsePlayaAddress(str) {
+    if (typeof str !== 'string') return null;
+    var s = str.trim().toLowerCase();
+    if (!s) return null;
+    var hour = null, m;
+    if ((m = s.match(/(^|\D)(\d{1,2})[:.](\d{2})(\D|$)/))) {
+      if (+m[3] >= 60) return null;
+      hour = +m[2] + (+m[3]) / 60;
+    } else if ((m = s.match(/(^|\D)(\d{3,4})(\D|$)/))) { // "730" -> 7:30
+      if (+m[2] % 100 >= 60) return null;
+      hour = Math.floor(+m[2] / 100) + (+m[2] % 100) / 60;
+    } else if ((m = s.match(/(^|\D)(\d{1,2})(\D|$)/))) { // bare "7" -> 7:00
+      hour = +m[2];
+    }
+    if (hour == null || hour < 2 || hour > 10) return null;
+    var ring = null;
+    if (/\besp(lanade)?\b/.test(s)) ring = 0;
+    else if ((m = s.match(/(^|[^a-z])([a-k])(?![a-z])/))) ring = RING_LETTERS.indexOf(m[2]) + 1;
+    if (ring == null) return null;
+    return { hour: hour, ring: ring };
+  }
+  // Unit-space geometry: Man at the origin, 12:00 up, SVG y-axis down, so
+  // 6:00 (the gate) points straight down. Esplanade at 0.40, +0.05 per ring
+  // (K = 0.95) — the map scales these to pixels.
+  function playaRingRadius(ring) { return 0.40 + ring * 0.05; }
+  function playaXY(addr) {
+    var th = (addr.hour / 12) * 2 * Math.PI;
+    var r = playaRingRadius(addr.ring);
+    return { x: r * Math.sin(th), y: -r * Math.cos(th) };
+  }
+  // Owner-typed "Visit" sheet cell (column T or later — after Hidden, since
+  // doPost's appendRow is positional): blank = needs visit, a volunteer name =
+  // assigned, a leading check mark or done/visited = done. Fails open to
+  // "assigned" for any other text.
+  function visitState(visit) {
+    var s = typeof visit === 'string' ? visit.trim() : '';
+    if (!s) return 'none';
+    return /^(✓|✔|done\b|visited\b)/i.test(s) ? 'done' : 'assigned';
+  }
+  function visitAssignee(visit) {
+    var s = typeof visit === 'string' ? visit.trim() : '';
+    return s.replace(/^[✓✔]\s*/, '').replace(/^(done|visited)\b[\s:,-]*/i, '').trim();
+  }
+  // Walking order for one volunteer's camps: a single sweep across the city —
+  // clock hour ascending, then ring outward. Unmappable camps sort last, by name.
+  function visitOrder(camps) {
+    return (camps || []).slice().sort(function (a, b) {
+      var pa = parsePlayaAddress(a.campLocation), pb = parsePlayaAddress(b.campLocation);
+      if (!pa && !pb) return String(a.campName || '').localeCompare(String(b.campName || ''));
+      if (!pa) return 1;
+      if (!pb) return -1;
+      return (pa.hour - pb.hour) || (pa.ring - pb.ring);
+    });
+  }
+
   function computeAggregates(rows, sectors, now) {
     rows = (rows || []).filter(function (r) { return !isHidden(r); });
     const legacyCount = rows.filter(isLegacy).length;
@@ -307,7 +367,8 @@
     };
   }
 
-  const api = { computeAggregates, weekStartMs, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, dedupeInfo };
+  const api = { computeAggregates, weekStartMs, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, dedupeInfo,
+    parsePlayaAddress, playaRingRadius, playaXY, visitState, visitAssignee, visitOrder };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.AdminAggregate = api;
 })(typeof window !== 'undefined' ? window : this);

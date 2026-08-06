@@ -136,3 +136,67 @@ describe('momentum: "this week" resets Monday 00:00 Pacific', () => {
     expect(agg.momentum.thisWeek).toBe(1); // rolling 7-day window would say 2
   });
 });
+
+describe('playa address parsing (admin map)', () => {
+  test('accepts the common formats in either order', () => {
+    expect(A.parsePlayaAddress('7:30 & E')).toEqual({ hour: 7.5, ring: 5 });
+    expect(A.parsePlayaAddress('E & 7:30')).toEqual({ hour: 7.5, ring: 5 });
+    expect(A.parsePlayaAddress('7.30 and Esplanade')).toEqual({ hour: 7.5, ring: 0 });
+    expect(A.parsePlayaAddress('730 & e')).toEqual({ hour: 7.5, ring: 5 });
+    expect(A.parsePlayaAddress('  5:00 & A ')).toEqual({ hour: 5, ring: 1 });
+    expect(A.parsePlayaAddress('10:00 & K')).toEqual({ hour: 10, ring: 11 });
+    expect(A.parsePlayaAddress('2 & esp')).toEqual({ hour: 2, ring: 0 });
+  });
+
+  test('rejects garbage, out-of-range hours, bad minutes, missing halves', () => {
+    expect(A.parsePlayaAddress('')).toBe(null);
+    expect(A.parsePlayaAddress(null)).toBe(null);
+    expect(A.parsePlayaAddress('Center Camp')).toBe(null);
+    expect(A.parsePlayaAddress('12:00 & A')).toBe(null);  // outside 2:00-10:00
+    expect(A.parsePlayaAddress('1:30 & B')).toBe(null);
+    expect(A.parsePlayaAddress('10:30 & K')).toBe(null);  // past the city's edge
+    expect(A.parsePlayaAddress('7:99 & E')).toBe(null);   // bad minutes
+    expect(A.parsePlayaAddress('7:30')).toBe(null);       // no ring
+    expect(A.parsePlayaAddress('E')).toBe(null);          // no hour
+    expect(A.parsePlayaAddress('7:30 & Z')).toBe(null);   // ring past K
+  });
+
+  test('geometry: 6:00 points straight down, rings order outward, 2:00/10:00 mirror', () => {
+    const six = A.playaXY({ hour: 6, ring: 5 });
+    expect(Math.abs(six.x)).toBeLessThan(1e-9);
+    expect(six.y).toBeCloseTo(A.playaRingRadius(5));
+    expect(A.playaRingRadius(0)).toBeLessThan(A.playaRingRadius(11));
+    const two = A.playaXY({ hour: 2, ring: 3 }), ten = A.playaXY({ hour: 10, ring: 3 });
+    expect(two.x).toBeCloseTo(-ten.x);
+    expect(two.y).toBeCloseTo(ten.y);
+    expect(two.y).toBeLessThan(0); // 2:00 sits above the Man on screen
+  });
+});
+
+describe('visit tracking (owner-typed Visit column)', () => {
+  test('visitState: blank = none, name = assigned, check/done/visited = done', () => {
+    expect(A.visitState('')).toBe('none');
+    expect(A.visitState(undefined)).toBe('none');
+    expect(A.visitState('Alice')).toBe('assigned');
+    expect(A.visitState('✓ Alice')).toBe('done');
+    expect(A.visitState('done')).toBe('done');
+    expect(A.visitState('Visited 8/25')).toBe('done');
+    expect(A.visitState('Donna')).toBe('assigned'); // "done" must not match inside a name
+  });
+
+  test('visitAssignee strips the done marker', () => {
+    expect(A.visitAssignee('Alice')).toBe('Alice');
+    expect(A.visitAssignee('✓ Alice')).toBe('Alice');
+    expect(A.visitAssignee('done: Bob')).toBe('Bob');
+    expect(A.visitAssignee('done')).toBe('');
+  });
+
+  test('visitOrder sweeps by hour then ring; unmappable camps go last', () => {
+    const c = (name, loc) => ({ campName: name, campLocation: loc });
+    const out = A.visitOrder([
+      c('far', '9:00 & B'), c('mid', '4:30 & K'), c('near', '4:30 & A'),
+      c('lost', 'no idea'), c('first', '3:00 & C'),
+    ]).map(x => x.campName);
+    expect(out).toEqual(['first', 'near', 'mid', 'far', 'lost']);
+  });
+});

@@ -398,15 +398,164 @@ function CommunityTally({ sectors, rows, onCampClick }) {
     </div>
   );
 
+  // The map draws the same rows the aggregates count: deduped winners, hidden
+  // rows excluded (computeAggregates does this internally; the map needs the
+  // actual row list, so it repeats the two filters here).
+  const mapRows = React.useMemo(() => A.dedupeRows(rows.filter(r => !A.isHidden(r))), [rows]);
+
   // Left column: the BRC radius box with Sector Averages sitting directly
   // under it (same color scheme, just relocated). Right column: Top Camps
   // leads (moved to the top of the stack), then the pulse tiles, then
-  // Superlatives. Narrow screens stack both columns in the same order.
+  // Superlatives. Narrow screens stack both columns in the same order. The
+  // playa map spans full width underneath.
   const LeftCol = <div>{Hero}{Standings}</div>;
   const RightCol = <div>{Pulse}{Leaderboard}{Superlatives}</div>;
-  return wide
+  const Grid = wide
     ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{LeftCol}{RightCol}</div>
     : <div style={{ paddingTop: 12 }}>{LeftCol}{RightCol}</div>;
+  return <div>{Grid}<PlayaMap rows={mapRows} onCampClick={onCampClick} /></div>;
+}
+
+// ── Playa map (visit planning) ───────────────────────────────────────────────
+// Pure-SVG Black Rock City fan — ring arcs Esplanade-K spanning 2:00-10:00,
+// one pin per camp with a parseable playa address. No map service: a BRC
+// address IS a polar coordinate (clock radial × lettered ring), so
+// AdminAggregate.parsePlayaAddress/playaXY place pins directly. Pin color
+// tracks the owner-typed Visit sheet column (blank / name / ✓ name); pin size
+// tracks camp size. Clicking a pin jumps to that camp on the Camps tab.
+// Renders nothing until at least one address parses.
+const PIN_STYLE = {
+  none: { fill: 'rgba(147,168,155,0.22)', stroke: '#93a89b' },
+  assigned: { fill: '#e8c15a', stroke: '#b3923a' },
+  done: { fill: '#45c483', stroke: '#2e5b43' },
+};
+function PlayaMap({ rows, onCampClick }) {
+  const [assignee, setAssignee] = React.useState('');
+  // Unit space -> px: Man at (CX,CY), Esplanade r=0.40..K r=0.95 times S.
+  const S = 330, CX = 360, CY = 180;
+  const polar = (hour, r) => {
+    const th = (hour / 12) * 2 * Math.PI;
+    return { x: CX + r * S * Math.sin(th), y: CY - r * S * Math.cos(th) };
+  };
+
+  const camps = React.useMemo(() => rows.map(r => ({
+    row: r, addr: A.parsePlayaAddress(r.campLocation),
+    state: A.visitState(r.visit), who: A.visitAssignee(r.visit),
+  })), [rows]);
+  const mapped = camps.filter(c => c.addr);
+  const unparsed = camps.filter(c => !c.addr && String(c.row.campLocation || '').trim());
+  const noAddr = camps.length - mapped.length - unparsed.length;
+  const assignees = React.useMemo(() => Array.from(new Set(
+    camps.filter(c => c.state !== 'none' && c.who).map(c => c.who))).sort(), [camps]);
+  if (!mapped.length) return null;
+
+  // One volunteer selected: their camps get walking-order numbers (a single
+  // 2:00->10:00 sweep, see visitOrder) and everyone else's pins dim.
+  const mine = assignee ? camps.filter(c => c.who === assignee) : [];
+  const ordered = assignee ? A.visitOrder(mine.map(c => c.row)) : [];
+  const stopNo = new Map(ordered.map((r, i) => [r, i + 1]));
+
+  const counts = {
+    none: mapped.filter(c => c.state === 'none').length,
+    assigned: mapped.filter(c => c.state === 'assigned').length,
+    done: mapped.filter(c => c.state === 'done').length,
+  };
+  const legendDot = (state, label) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#93a89b' }}>
+      <svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill={PIN_STYLE[state].fill} stroke={PIN_STYLE[state].stroke}/></svg>
+      {label}
+    </span>
+  );
+
+  return (
+    <div data-playa-map style={{ ...panelStyle, marginTop: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <SecHead style={{ margin: 0 }}>Playa Map</SecHead>
+        <span style={{ fontSize: 11, color: '#93a89b' }}>{mapped.length} of {camps.length} camps mapped</span>
+        <div style={{ flex: 1 }} />
+        {legendDot('none', `needs visit (${counts.none})`)}
+        {legendDot('assigned', `assigned (${counts.assigned})`)}
+        {legendDot('done', `visited (${counts.done})`)}
+        {assignees.length > 0 && (
+          <select data-assignee value={assignee} onChange={e => setAssignee(e.target.value)}
+            title="Show one volunteer's visit route" style={selStyle}>
+            <option value="">All volunteers</option>
+            {assignees.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        )}
+      </div>
+      <svg viewBox="0 0 720 532" style={{ width: '100%', height: 'auto', display: 'block', marginTop: 6 }}
+        role="img" aria-label="Map of camps across the Black Rock City street grid">
+        {/* radial streets: whole hours solid, half hours fainter */}
+        {Array.from({ length: 17 }, (_, i) => 2 + i * 0.5).map(h => {
+          const a = polar(h, 0.40), b = polar(h, 0.95);
+          return <line key={h} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+            stroke={h % 1 ? '#1a281f' : '#26382e'} strokeWidth="1"/>;
+        })}
+        {/* ring arcs, Esplanade (0) through K (11), 2:00 -> 10:00 via 6:00 */}
+        {Array.from({ length: 12 }, (_, ring) => {
+          const r = A.playaRingRadius(ring) * S;
+          const a = polar(2, A.playaRingRadius(ring)), b = polar(10, A.playaRingRadius(ring));
+          return <path key={ring} d={`M ${a.x} ${a.y} A ${r} ${r} 0 1 1 ${b.x} ${b.y}`}
+            fill="none" stroke={ring === 0 ? '#2e4436' : '#26382e'} strokeWidth="1"/>;
+        })}
+        {/* street labels: clock hours outside the fan, ring letters down 6:00 */}
+        {Array.from({ length: 9 }, (_, i) => 2 + i).map(h => {
+          const p = polar(h, 1.015);
+          return <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle"
+            fontSize="11" fill="#5d7367" fontWeight="700">{h}:00</text>;
+        })}
+        {Array.from({ length: 12 }, (_, ring) => (
+          <text key={ring} x={CX + 6} y={CY + A.playaRingRadius(ring) * S - 3}
+            fontSize="9" fill="#42574a" fontWeight="700">{ring === 0 ? 'ESP' : 'ABCDEFGHIJK'[ring - 1]}</text>
+        ))}
+        <circle cx={CX} cy={CY} r="3.5" fill="#d9885c"><title>The Man</title></circle>
+        {/* camp pins — drawn last so they sit above the grid lines */}
+        {mapped.map((c, i) => {
+          const p = polar(c.addr.hour, A.playaRingRadius(c.addr.ring));
+          const size = +c.row.campSize || 0;
+          const pr = Math.max(4, Math.min(10, 4 + Math.sqrt(size) * 0.35));
+          const dimmed = assignee && c.who !== assignee;
+          const n = stopNo.get(c.row);
+          const tip = [c.row.campName, c.row.campLocation, `${c.row.total}/60`,
+            c.state === 'none' ? 'needs visit' : (c.state === 'done' ? 'visited' : `assigned: ${c.who}`)]
+            .filter(Boolean).join(' · ');
+          return (
+            <g key={i} data-pin data-visit-state={c.state} opacity={dimmed ? 0.22 : 1}
+              style={{ cursor: 'pointer' }} onClick={() => onCampClick && onCampClick(c.row.campName)}>
+              <circle cx={p.x} cy={p.y} r={pr} fill={PIN_STYLE[c.state].fill}
+                stroke={PIN_STYLE[c.state].stroke} strokeWidth="1.5"/>
+              {n && <text x={p.x} y={p.y - pr - 4} textAnchor="middle" fontSize="11"
+                fontWeight="800" fill="#eaf2ec">{n}</text>}
+              <title>{tip}</title>
+            </g>
+          );
+        })}
+      </svg>
+      {assignee && ordered.length > 0 && (
+        <div data-route style={{ fontSize: 12.5, color: '#cdebd8', marginTop: 8 }}>
+          <b style={{ color: '#eaf2ec' }}>{assignee}'s route:</b>{' '}
+          {ordered.map((r, i) => (
+            <span key={i} style={{ whiteSpace: 'nowrap', marginRight: 10 }}>
+              <b style={{ color: '#7fc46a' }}>{i + 1}.</b> {r.campName}
+              <span style={{ color: '#93a89b' }}>{r.campLocation ? ` (${r.campLocation})` : ' (no address)'}</span>
+              {A.visitState(r.visit) === 'done' ? ' ✓' : ''}
+            </span>
+          ))}
+        </div>
+      )}
+      {(unparsed.length > 0 || noAddr > 0) && (
+        <div data-unmapped style={{ fontSize: 11, color: '#93a89b', marginTop: 8, lineHeight: 1.5 }}>
+          Not on the map:{' '}
+          {unparsed.map((c, i) => (
+            <span key={i}>{i > 0 && ' · '}{c.row.campName} <i>("{c.row.campLocation}" didn't parse — fix the sheet cell)</i></span>
+          ))}
+          {unparsed.length > 0 && noAddr > 0 && ' · '}
+          {noAddr > 0 && `${noAddr} ${noAddr === 1 ? 'camp' : 'camps'} with no address`}
+        </div>
+      )}
+    </div>
+  );
 }
 const SecHead = ({ children, style }) => <div style={{ fontSize: 14, letterSpacing: '.16em', color: '#93a89b', fontWeight: 800, margin: '16px 0 6px', ...style }}>{String(children).toUpperCase()}</div>;
 const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px dashed #21332a', fontSize: 13 };
@@ -451,6 +600,14 @@ function MiniBadge({ text, title }) {
 function AmberBadge({ text, title }) {
   return (
     <span title={title} style={{ fontSize: 9, color: '#e8c15a', border: '1px solid #573a26', background: '#2a1c14',
+      borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
+  );
+}
+// Green-toned variant for the "visited" flag — done reads as a win, matching
+// the idea-chip green rather than the neutral gray or heads-up amber.
+function GreenBadge({ text, title }) {
+  return (
+    <span title={title} style={{ fontSize: 9, color: '#8fd4ae', border: '1px solid #2e5b43', background: '#15291e',
       borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
   );
 }
@@ -552,6 +709,10 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
           {superseded && badge('superseded', 'replaced by a newer submission from this camp')}
           {!superseded && dupCount > 1 && badge(`x${dupCount}`, `${dupCount} submissions, stats use this latest one`)}
           {suspect && <AmberBadge text="possible dup" title="same contact email as another camp this year" />}
+          {A.visitState(camp.visit) === 'assigned' &&
+            <AmberBadge text={`visit: ${A.visitAssignee(camp.visit) || 'assigned'}`} title="Assigned a camp visit (owner-typed Visit column)" />}
+          {A.visitState(camp.visit) === 'done' &&
+            <GreenBadge text="visited ✓" title="Camp visit completed (owner-typed Visit column)" />}
         </div>
         {(camp.campLocation || camp.campSize) && (
           <div data-loc style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
@@ -728,6 +889,8 @@ function CampDetail({ sectors, camp, onClose, dupCount, superseded }) {
             <div style={{ fontSize: 12, color: '#7f988a', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
               {fmtWhen(camp.timestamp)} · {camp.source}{camp.year ? ` · ${camp.year}` : ''}
               {legacy ? ' · old 0-4 scale' : ''}{camp.hidden ? ' · flagged hidden' : ''}
+              {A.visitState(camp.visit) === 'assigned' ? ` · visit: ${A.visitAssignee(camp.visit) || 'assigned'}` : ''}
+              {A.visitState(camp.visit) === 'done' ? ' · visited ✓' : ''}
             </div>
             <div style={{ marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
               <b style={{ fontSize: 26, color: '#fff' }}>{camp.total}</b>
@@ -831,6 +994,10 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
   // their group's dup > 1 count, so filtering on dup > 1 alone keeps a group's
   // winner and its superseded siblings together).
   const [dupsOnly, setDupsOnly] = React.useState(false);
+  // Visit-status filter (needs visit / assigned / visited), shown only once
+  // any row carries a Visit cell — dormant until the sheet column exists.
+  const [visitSel, setVisitSel] = React.useState('all');
+  const anyVisit = React.useMemo(() => rows.some(r => String(r.visit || '').trim()), [rows]);
   const dupsCount = React.useMemo(() => {
     let n = 0;
     rows.forEach(r => { const info = dInfo.get(r); if (info && (info.dup > 1 || info.suspect)) n++; });
@@ -870,6 +1037,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
     let xs = ql ? rows.filter(r => hay.get(r).includes(ql)) : rows;
     if (hideFlagged) xs = xs.filter(r => !r.hidden);
     if (dupsOnly) xs = xs.filter(r => { const info = dInfo.get(r); return !!(info && (info.dup > 1 || info.suspect)); });
+    if (visitSel !== 'all') xs = xs.filter(r => A.visitState(r.visit) === visitSel);
     // Primary key ascending; `dir` flips only the primary so the name-A→Z
     // tiebreak stays stable in either direction.
     const bySector = sectors.some(s => s.id === sort);
@@ -881,7 +1049,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
     const flip = dir === 'asc' ? key : (a, b) => key(b, a);
     xs = xs.slice().sort((a, b) => flip(a, b) || a.campName.localeCompare(b.campName));
     return xs;
-  }, [rows, hay, dq, sort, dir, sectors, hideFlagged, dupsOnly, dInfo]);
+  }, [rows, hay, dq, sort, dir, sectors, hideFlagged, dupsOnly, visitSel, dInfo]);
 
   const headBtn = (id, label, align) => (
     <button key={id} type="button" onClick={() => pickSort(id)}
@@ -923,6 +1091,13 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
             {dupsOnly ? 'All camps' : `Dups (${dupsCount})`}
           </button>
         );
+        const visitSelEl = anyVisit && (
+          <select data-visit-filter value={visitSel} onChange={e => setVisitSel(e.target.value)}
+            title="Filter by visit status (owner-typed Visit column)" style={selStyle}>
+            <option value="all">All visits</option><option value="none">Needs visit</option>
+            <option value="assigned">Assigned</option><option value="done">Visited</option>
+          </select>
+        );
         const sortSel = (
           <select value={sort} onChange={e => { setSort(e.target.value); setDir(defaultDir(e.target.value)); }}
             title="Sort camps by" style={selStyle}>
@@ -963,7 +1138,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
         );
         return wide ? (
           <div style={{ display: 'flex', gap: 6, padding: '10px 0', alignItems: 'center', flexWrap: 'wrap' }}>
-            {searchEl}{countEl}{flaggedBtn}{dupsBtn}
+            {searchEl}{countEl}{flaggedBtn}{dupsBtn}{visitSelEl}
             <div style={{ flex: 1 }} />
             {filters}{sortSel}{dirBtn}{refreshBtn}{csvBtn}{emailBtn}
           </div>
@@ -971,7 +1146,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 0' }}>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{searchEl}{countEl}</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              {filters}{sortSel}{dirBtn}{refreshBtn}{flaggedBtn}{dupsBtn}
+              {filters}{sortSel}{dirBtn}{refreshBtn}{flaggedBtn}{dupsBtn}{visitSelEl}
             </div>
           </div>
         );

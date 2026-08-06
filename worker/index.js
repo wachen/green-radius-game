@@ -409,6 +409,10 @@ export function shapeAdminRows(raw) {
       source: r.source === 'form' ? 'form' : 'board', resultUrl: String(r.resultUrl || ''),
       answers, schemaVersion: String(r.schema_version || r.schemaVersion || ''),
       hidden: !!(r.hidden && String(r.hidden).trim()),
+      // Owner-typed "Visit" sheet column (visit planning) — raw text; the
+      // admin UI derives needs-visit/assigned/done from it. Admin route only,
+      // never /api/city.
+      visit: String(r.visit || ''),
     };
   });
 }
