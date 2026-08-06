@@ -27,7 +27,8 @@ function doGet(e) {
       total: r[col['Total']], source: r[col['Source']], resultUrl: r[col['Result URL']],
       answers_json: r[col['Answers JSON']] || '', schema_version: r[col['Schema Version']] || '',
       hidden: r[col['Hidden']] || '',
-      campLocation: r[col['Location']] || '', campSize: r[col['Camp Size']] || ''
+      campLocation: r[col['Location']] || '', campSize: r[col['Camp Size']] || '',
+      visit: r[col['Visit']] || ''
     };
   });
   return jsonOut({ ok: true, rows: rows });
@@ -36,10 +37,10 @@ function doGet(e) {
 
 The `col` lookup maps by **header text**, so the names here must match the sheet's
 header row exactly — including the pretty-printed **`Answers JSON`**, **`Schema
-Version`**, **`Hidden`**, **`Location`**, and **`Camp Size`** columns. (The JSON keys
-`answers_json`/`schema_version`/`hidden`/`campLocation`/`campSize` are what the
-Worker's `shapeAdminRows` reads — keep those as-is.) The `Hidden`, `Location`, and
-`Camp Size` columns are added by sections 3–4 below; until a column exists on the
+Version`**, **`Hidden`**, **`Location`**, **`Camp Size`**, and **`Visit`** columns. (The JSON keys
+`answers_json`/`schema_version`/`hidden`/`campLocation`/`campSize`/`visit` are what the
+Worker's `shapeAdminRows` reads — keep those as-is.) The `Hidden`, `Location`,
+`Camp Size`, and `Visit` columns are added by sections 3–4 and 6 below; until a column exists on the
 sheet, its `r[col[...]]` read is `undefined` and the field comes back `''`, which
 `shapeAdminRows` treats as absent — a safe no-op. Re-deploy the web app (Manage
 deployments → edit → New version) — same `/exec` URL, same secret.
@@ -171,3 +172,32 @@ When you flag a row as hidden via the `Hidden` column (see "Flagging junk rows" 
 the latest submission for that camp becomes invisible to the aggregates, and the camp's
 previous (older) submission automatically becomes the counted one in `/api/city` and the
 admin City tab.
+
+## 6. Visit tracking (`Visit` column)
+
+The admin City tab draws a Playa Map — every camp with a parseable playa address
+(e.g. `7:30 & E`) pinned on the Black Rock City street grid — and the Camps tab
+gains a visit-status filter. Both read an owner-typed **`Visit`** column, same
+pattern as `Hidden`: you type in the sheet, the UI reflects it on the next refresh.
+
+**Setup (one time):**
+
+1. Add a column header **`Visit`** to the `2026 Results` sheet, **after `Hidden`**
+   (column T or later). Same positional-`appendRow` rule as `Hidden` (section 3):
+   owner-typed columns must sit after every column `doPost` writes (A–R).
+2. Make sure the deployed `doGet` matches section 1 above (it maps `Visit` → `visit`)
+   and re-deploy the web app (Manage deployments → edit → New version).
+
+**Cell convention** (free text, parsed tolerantly):
+
+- **Blank** — camp still needs a visit (dim hollow pin).
+- **A volunteer's name** (`Alice`) — visit assigned (amber pin). The name feeds the
+  map's per-volunteer route view: pick a volunteer to see just their camps, numbered
+  in a suggested walking order (a 2:00 → 10:00 sweep).
+- **A leading `✓`, or `done`/`visited`** (`✓ Alice`, `done`, `Visited 8/25`) — visit
+  completed (green pin, "visited ✓" chip on the Camps tab).
+
+Like `Hidden`, everything fails open: until the column exists the feature is dormant,
+and an address the map can't parse just lists the camp under the map ("fix the sheet
+cell") instead of guessing a location. `visit` is served on the Access-gated admin
+route only — never on the public `/api/city`.

@@ -42,6 +42,17 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
   and alerts when either leg fails, so an expired Apps Script deployment or dead
   API key breaks a canary instead of a camper. Needs an agreed flag so canaries
   stay out of the sheet aggregates.
+- **Intake playa-address hint** (new, brainstormed 2026-08-05 · small) — soft-validate
+  the intro's camp-location field ("doesn't look like a playa address — 7:30 & E
+  format?" hint, never blocking). Best single lever for admin Playa Map coverage:
+  every address fixed at the source saves a sheet edit later.
+- **Admin analytics panel** (new, brainstormed 2026-08-05 · small each) — three
+  small City-tab additions as data accumulates: a score-distribution histogram
+  (where camps cluster on 0-60), a submissions-by-week mini bar chart (trend
+  behind the "this week" tile), and a "biggest opportunities" callout (the 3-5
+  lowest city-wide yes-rate questions with decent sample size — what GTCC should
+  teach or provision). Each is its own quick PR; the per-question data already
+  powers the heatmap.
 - **On-playa offline story** (SG · med) — runtime is vendored, but there's no
   service worker or "needs signal" messaging. Decide the story before the burn:
   add a minimal service worker, or just honest messaging.
@@ -128,9 +139,10 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 
 ## Waiting on something
 
-- **Apps Script `Hidden` column deploy** — owner-side step that activates the
-  #85 junk flagging end to end; exact snippet and steps in
-  `docs/admin-setup.md` ("Flagging junk rows"). Safe no-op until deployed.
+- **Apps Script `Visit` column deploy** — owner-side step that activates visit
+  tracking (Playa Map pin colors, Camps-tab filter) end to end; snippet and
+  steps in `docs/admin-setup.md` section 6. Safe no-op until deployed. (The
+  `Hidden` column equivalent shipped 2026-07-24 and is verified working.)
 - **Funnel dashboard first look** — needs ~2 weeks of Web Analytics data; check
   in late July.
 

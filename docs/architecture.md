@@ -357,6 +357,15 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   never filtered, so flagged rows stay visible there, dimmed with a "hidden"
   chip, for audit. No `Hidden` column yet on the sheet → the field is always
   absent → nothing is excluded (a no-op until the owner adds the column).
+  **Visit tracking.** Same owner-typed-column pattern: a `Visit` sheet cell
+  (blank / volunteer name / leading `✓` or `done` = visited) flows through
+  `doGet` → `shapeAdminRows`' `visit` field on the **admin route only** (never
+  `/api/city`). `admin/aggregate.js` parses it (`visitState`/`visitAssignee`)
+  plus each camp's playa address (`parsePlayaAddress`/`playaXY` — a BRC address
+  is a polar coordinate) to drive the admin City tab's pure-SVG Playa Map
+  (pins colored by visit state, sized by camp size, per-volunteer walking
+  order) and the Camps tab's visit filter. Fails open end to end; see
+  `docs/admin-setup.md` section 6.
   The page itself (`city/index.html`) is a
   static asset built like `/result/` (vendored runtime, `RadialBadge` in
   aggregate `intensities` mode); no `run_worker_first` entry is needed because
