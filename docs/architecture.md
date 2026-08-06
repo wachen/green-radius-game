@@ -361,8 +361,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   (blank / volunteer name / leading `✓` or `done` = visited) flows through
   `doGet` → `shapeAdminRows`' `visit` field on the **admin route only** (never
   `/api/city`). `admin/aggregate.js` parses it (`visitState`/`visitAssignee`)
-  plus each camp's playa address (`parsePlayaAddress`/`playaXY` — a BRC address
-  is a polar coordinate) to drive the admin City tab's pure-SVG Playa Map
+  plus each camp's playa address (`playaXY`, with the parsing grammar in the
+  shared `playa-address.js` → `window.PlayaAddress`, also loaded by the game's
+  `index.html` for the intro's soft address-format hint — a BRC address is a
+  polar coordinate) to drive the admin City tab's pure-SVG Playa Map
   (pins colored by visit state, sized by camp size, per-volunteer walking
   order) and the Camps tab's visit filter. Fails open end to end; see
   `docs/admin-setup.md` section 6.
