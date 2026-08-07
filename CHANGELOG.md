@@ -10,6 +10,13 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Admin City desktop layout, round two: the left column is now just the city
+  wheel, with Sector Averages (single column, sorted descending) and Top Camps
+  as adjoining columns under the stat tiles, cutting the tab's vertical dead
+  space; the wheel's question-detail box now always renders (dim placeholder
+  before the first hover) so the hero height never jumps; button labels across
+  all pages are no longer text-selectable on long-press (they are controls,
+  not copy); the intro's Camp location placeholder is now "4:20 & D" (#103)
 - Admin Playa Map: camps with no plottable address now pin inside a dashed
   "Open camping" box in the map's free corner (visit-state color, click-through
   to the Camps tab included), and all pins get instant styled hover tooltips
