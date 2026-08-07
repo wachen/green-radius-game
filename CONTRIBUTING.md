@@ -41,6 +41,8 @@ No bundler, no npm, no `package.json` — but a tiny compile step: `bun run scri
 | `_headers`         | Static-asset response headers (HSTS, framing, permissions)            |
 | `vendor/`          | Pinned Preact runtime (+ React-names shim), served same-origin (see its README) |
 | `og-card.png`      | Static Open Graph share-card image (source: `scripts/og-card.html`)   |
+| `shared.css`       | Shared entry-page CSS — the vendored `@font-face` + pre-mount loading placeholder rules (linked by `index.html`, `result/index.html`, `city/index.html`; `admin/` keeps its own smaller variant) |
+| `favicon.svg`      | The six-wedge favicon, linked by all four HTML entry points           |
 | `downloads/`       | Printable board-game + how-to-play PDFs                               |
 
 ### One JSX gotcha worth knowing

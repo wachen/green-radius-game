@@ -432,10 +432,12 @@ Two independent, privacy-conscious layers. Neither is load-bearing for gameplay.
   reference an earlier module's names at eval time (render-time JSX references
   are fine in any order).
 - **`/result/` must load the same web fonts as `index.html`.** `ShareCard` inherits
-  its font (`Space Grotesk`), so the vendored `@font-face` block + the
-  `/vendor/fonts/space-grotesk-v22-latin.woff2` preload live in **both**
-  `index.html` and `result/index.html`; drop them from `result/index.html` and the
-  shared card silently renders in a serif fallback.
+  its font (`Space Grotesk`): the `@font-face` block lives in the shared
+  `/shared.css` (linked by `index.html`, `result/index.html`, and
+  `city/index.html`), and the `/vendor/fonts/space-grotesk-v22-latin.woff2`
+  preload `<link>` stays inline in every entry point; drop the stylesheet link
+  or the preload from `result/index.html` and the shared card silently renders
+  in a serif fallback.
 - **`localStorage` versioning.** Bump `STORAGE_VERSION` whenever the saved shape
   changes; `loadSaved` drops any save whose `version` doesn't match.
 - **`wrangler dev` can reload-loop from the repo root.** Its own Cache API

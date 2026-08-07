@@ -4,6 +4,10 @@
 // The modal is a designed "About the Game": why-this-exists, the six sectors,
 // the four levels (in their live LEVEL_COLORS), results, then leftover Q&A.
 // Link answers hard-code accent colors (the app has a single fixed palette).
+// Light-to-dark green ramp for the six-wedge wheel mark (FAQ medallion and
+// the "Play the Game" tile share it).
+const WEDGE_COLORS = ['#A3D178', '#86C169', '#68B05C', '#56A85C', '#439F5B', '#31975B'];
+
 const SECTOR_ONE_LINERS = {
   food: 'Purchase mindfully, share cooking, cut food waste.',
   water: 'Drink it. Share it. Reuse it.',
@@ -196,7 +200,7 @@ function FaqModal({ onClose, palette }) {
               cream card the way it does on the tile's solid green. */}
           <svg viewBox="0 0 64 64" width="26" height="26" aria-hidden="true" style={{ display: 'block', margin: '0 auto 6px' }}>
             <circle cx="32" cy="33" r="26" fill={palette.accent}/>
-            {['#A3D178', '#86C169', '#68B05C', '#56A85C', '#439F5B', '#31975B'].map((c, i) => {
+            {WEDGE_COLORS.map((c, i) => {
               const a0 = (i * 60 - 90) * Math.PI / 180;
               const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
               const r = 23;
@@ -331,20 +335,21 @@ function FaqModal({ onClose, palette }) {
 }
 
 // ─── mode picker ─────────────────────────────────────────────────────────────
-// Signup-deadline announcement (BLAST 2026), home screen only. Auto-hides
-// once the deadline passes in Pacific time (Aug 11 00:00 PDT), so no removal
-// deploy is needed and a stale banner can't linger. Purely presentational:
-// no state, no storage, safe to roll out mid-season.
+// Signup-deadline announcement (BLAST 2026), home screen only: a full-width
+// strip across the top of the frame. Auto-hides once the deadline passes in
+// Pacific time (Aug 11 00:00 PDT), so no removal deploy is needed and a stale
+// banner can't linger. Purely presentational: no state, no storage, safe to
+// roll out mid-season.
 const SIGNUP_DEADLINE_END_MS = Date.UTC(2026, 7, 11, 7); // end of Aug 10 2026, PDT
 function DeadlineBanner() {
   if (Date.now() >= SIGNUP_DEADLINE_END_MS) return null;
   return (
     <div data-deadline-banner role="status" style={{
-      background: '#FEF3C7', color: '#5b4a16', border: '1px solid #F4D67A',
-      borderRadius: 10, padding: '8px 12px', margin: '0 0 14px',
+      background: '#FBE3DE', color: '#8a2f25', borderBottom: '1px solid #F1C3BB',
+      padding: '9px 16px', textAlign: 'center',
       fontSize: 13, lineHeight: 1.4, fontWeight: 600, textWrap: 'pretty',
     }}>
-      Signup deadline: <b>August 10</b>. Submit by then to be included in the printed signage. Playing stays open after that.
+      Sign up by <b>August 10</b> to be included on printed signage!
     </div>
   );
 }
@@ -359,8 +364,9 @@ function ModePicker({ onPick, palette }) {
   const faqBtnRef = useRef(null);
   const closeFaq = useCallback(() => { setFaqOpen(false); faqBtnRef.current?.focus(); }, []);
   return (
+    <React.Fragment>
+    <DeadlineBanner/>
     <div style={{ padding: '14px 24px 18px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-      <DeadlineBanner/>
       <h1 style={{
         fontSize: 40, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
         textWrap: 'balance', color: palette.heading,
@@ -401,7 +407,7 @@ function ModePicker({ onPick, palette }) {
               ramp clockwise from the pointer with white seams and a plain dark
               hub dot — no light/dark alternation, no pale center disc, no dark
               spokes, the three cues that made it read as the radiation trefoil. */}
-          {['#A3D178', '#86C169', '#68B05C', '#56A85C', '#439F5B', '#31975B'].map((c, i) => {
+          {WEDGE_COLORS.map((c, i) => {
             const a0 = (i * 60 - 90) * Math.PI / 180;
             const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
             const r = 23;
@@ -517,5 +523,6 @@ function ModePicker({ onPick, palette }) {
 
       {faqOpen && <FaqModal onClose={closeFaq} palette={palette}/>}
     </div>
+    </React.Fragment>
   );
 }

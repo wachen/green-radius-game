@@ -94,7 +94,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
 
   const campOk = !!campName.trim();
   const leadOk = !!leadName.trim();
-  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const emailOk = isValidEmail(email);
   const campLocationOk = !!campLocation.trim();
   const campSizeTrim = campSize.trim();
   const campSizeNum = Number(campSizeTrim);
@@ -124,12 +124,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
         <button
           onClick={onBack}
           aria-label="Back to mode picker"
-          style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: palette.text + '99', fontSize: 12, fontWeight: 700,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-            padding: '4px 0', fontFamily: 'inherit',
-          }}
+          style={{ ...BACK_BTN_STYLE, cursor: 'pointer', color: palette.text + '99' }}
         >← Back</button>
       </div>
       <h1 style={{
@@ -443,7 +438,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       // overrideEmail (from the done-screen "edit & resend") wins over camp.email,
       // which may not have flushed through setCamp yet when resend fires.
       const email = (overrideEmail != null ? overrideEmail : (camp.email || '')).trim();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { if (gen === submitGenRef.current) setSubmitState('error'); return; }
+      if (!isValidEmail(email)) { if (gen === submitGenRef.current) setSubmitState('error'); return; }
       setSubmitState('sending');
       const evMode = mode === 'form' ? 'form' : 'board';
       trackEvent('submit_attempted', { mode: evMode, sectors: Object.values(greens).filter(v => v > 0).length });
@@ -658,9 +653,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setPhase('form');
   }
 
-  // Wheel reads the per-question fill directly; an untouched sector is all-empty.
-  const displayStates = fills;
-
   if (phase === 'pick-mode') {
     return (
       <ModePicker
@@ -755,13 +747,13 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     }
     function handleResend() {
       const e = emailDraft.trim();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return; // ignore an obviously bad address
+      if (!isValidEmail(e)) return; // ignore an obviously bad address
       setCamp(c => ({ ...c, email: e }));
       setEditingEmail(false);
       setSubmitResult(null);
       runSubmit(e, true); // corrected address directly (setCamp hasn't flushed) + a fresh nonce so the resend isn't deduped
     }
-    const emailDraftOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailDraft.trim());
+    const emailDraftOk = isValidEmail(emailDraft);
     function handleExit() {
       // Nothing landed yet (offline / total failure) and Exit wipes the save —
       // confirm first so a stray tap can't destroy the only copy of the result.
@@ -805,12 +797,12 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           }}>{total}/60 · Thanks for playing!</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <ShareCard sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year} palette={palette} reveal={revealActive ? revealValue : null}/>
+          <ShareCard sectors={sectors} fills={fills} campName={camp.campName} year={year} reveal={revealActive ? revealValue : null}/>
         </div>
 
         {/* offscreen SVG twin of the card — serialized to PNG by handleDownload */}
         <div aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: CARD_W, height: CARD_H, overflow: 'hidden', pointerEvents: 'none' }}>
-          <ResultCardSVG svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={camp.campName} leadName={camp.leadName} year={year}/>
+          <ResultCardSVG svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={camp.campName} year={year}/>
         </div>
 
         <div role="status" aria-live="polite" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
@@ -910,10 +902,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // PLAYING
   const totalGreens = sectors.reduce((acc, s) => acc + (fills[s.id].totalYes || 0), 0);
   const totalAttempted = sectors.reduce((acc, s) => acc + (sectorClosed[s.id] ? 1 : 0), 0);
-  const backBtn = {
-    background: 'transparent', border: 'none', fontSize: 12, fontWeight: 700,
-    letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 0', fontFamily: 'inherit',
-  };
 
   return (
     <div style={{ padding: '20px 16px 32px', maxWidth: 480, margin: '0 auto' }}>
@@ -927,7 +915,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <button
           onClick={() => setPhase('intro')}
           aria-label="Back to your camp details"
-          style={{ ...backBtn, cursor: 'pointer', color: palette.text + '99', justifySelf: 'start' }}
+          style={{ ...BACK_BTN_STYLE, cursor: 'pointer', color: palette.text + '99', justifySelf: 'start' }}
         >← Back</button>
 
         <div style={{ minWidth: 0, textAlign: 'center' }}>
@@ -947,7 +935,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         <button
           aria-hidden="true"
           tabIndex={-1}
-          style={{ ...backBtn, visibility: 'hidden', justifySelf: 'end' }}
+          style={{ ...BACK_BTN_STYLE, visibility: 'hidden', justifySelf: 'end' }}
         >← Back</button>
       </div>
 
@@ -955,7 +943,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       <div style={{ position: 'relative' }}>
         <Wheel
           sectors={sectors}
-          fills={displayStates}
+          fills={fills}
           rotation={rotation}
           spinning={spinning}
           canSpin={!allDone}

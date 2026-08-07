@@ -407,7 +407,7 @@
     };
   }
 
-  const api = { computeAggregates, weekStartMs, perQuestion, intensities, sectorStandings, leaderboard, superlatives, sectorIds, advYesCount, isLegacy, isHidden, dedupeRows, dedupeInfo,
+  const api = { computeAggregates, weekStartMs, superlatives, isLegacy, isHidden, dedupeRows, dedupeInfo,
     parsePlayaAddress, playaRingRadius, playaXY, visitState, visitAssignee, visitOrder,
     activeRows, scoreHistogram, weeklyCounts, opportunities };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

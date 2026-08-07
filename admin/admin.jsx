@@ -210,12 +210,15 @@ const LoadingWheel = ({ size = 44 }) => (
 const CITY_CARD_BG = 'linear-gradient(160deg, #0e2733 0%, #14323f 100%)';
 const panelStyle = { background: '#111d16', border: '1px solid #26382e', borderRadius: 16, padding: '14px 16px' };
 
-// Mini-badge fills for a leaderboard entry — same precedence as CampRow.
-function miniFills(sectors, entry) {
-  const hasAns = entry.answers && Object.keys(entry.answers).some(k =>
-    entry.answers[k] === 'yes' || entry.answers[k] === 'no');
-  if (hasAns) return fillsFromAnswers(sectors, entry.answers);
-  return A.isLegacy(entry) ? legacyFills(sectors, entry.greens) : approxFills(sectors, entry.greens);
+// Fill precedence for one camp row, shared by the leaderboard mini-badges,
+// CampRow, and CampDetail: real per-question answers win, then legacy (0-4)
+// or approximate (0-10) fills derived from the greens tallies.
+function campFills(sectors, camp) {
+  const hasAnswers = rowHasAnswers(camp);
+  const legacy = A.isLegacy(camp);
+  const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers)
+    : (legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens));
+  return { hasAnswers, legacy, fills, denom: legacy ? 4 : 10 };
 }
 
 function StatTile({ value, suffix, label }) {
@@ -299,7 +302,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
           {/* +20px badge, offset by the tighter hero padding/margins above so
               the card's overall height stays put. Hovering a Top Camps row
               temporarily swaps the aggregate for that camp's own fills. */}
-          <RadialBadge sectors={sectors} fills={peek ? miniFills(sectors, peek) : {}} size={wide ? 284 : 276} dark
+          <RadialBadge sectors={sectors} fills={peek ? campFills(sectors, peek).fills : {}} size={wide ? 284 : 276} dark
             intensities={peek ? null : agg.intensities}
             selected={sel}
             onSelectSegment={agg.hasAnswers ? (sector, level, qi) => setSel({ sector, level, qi }) : null} />
@@ -369,7 +372,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
           style={{ ...rowStyle, gap: 10, cursor: 'pointer' }}>
           <span style={{ width: 18, color: '#93a89b', fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
           <span aria-hidden="true" title="Camp's green radius shape" style={{ flexShrink: 0, display: 'inline-flex' }}>
-            <RadialBadge sectors={sectors} fills={miniFills(sectors, c)} size={30} dark showLabels={false} showCenter={false}/>
+            <RadialBadge sectors={sectors} fills={campFills(sectors, c).fills} size={30} dark showLabels={false} showCenter={false}/>
           </span>
           <span style={{ flex: 1, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {c.campName} {i === 0 && <span title="Highest score right now" style={{ color: '#e8c15a' }}>★</span>}
@@ -405,15 +408,16 @@ function CommunityTally({ sectors, rows, onCampClick }) {
 
   // Left column: the BRC radius box with Sector Averages sitting directly
   // under it (same color scheme, just relocated). Right column: Top Camps
-  // leads (moved to the top of the stack), then the pulse tiles, then
-  // Superlatives. Narrow screens stack both columns in the same order. The
-  // playa map spans full width underneath.
+  // leads (moved to the top of the stack), after the pulse tiles. The two
+  // columns are roughly equal height; Superlatives, the analytics panel, and
+  // the playa map span full width underneath so the left column doesn't leave
+  // a dead gap. Narrow screens stack everything in the same order.
   const LeftCol = <div>{Hero}{Standings}</div>;
-  const RightCol = <div>{Pulse}{Leaderboard}{Superlatives}<AnalyticsPanel rows={rows} agg={agg} sectors={sectors} /></div>;
+  const RightCol = <div>{Pulse}{Leaderboard}</div>;
   const Grid = wide
     ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{LeftCol}{RightCol}</div>
     : <div style={{ paddingTop: 12 }}>{LeftCol}{RightCol}</div>;
-  return <div>{Grid}<PlayaMap rows={mapRows} onCampClick={onCampClick} /></div>;
+  return <div>{Grid}{Superlatives}<AnalyticsPanel rows={rows} agg={agg} sectors={sectors} /><PlayaMap rows={mapRows} onCampClick={onCampClick} /></div>;
 }
 
 // ── City analytics (score spread, weekly submissions, opportunities) ─────────
@@ -491,6 +495,7 @@ const PIN_STYLE = {
 };
 function PlayaMap({ rows, onCampClick }) {
   const [assignee, setAssignee] = React.useState('');
+  const [tip, setTip] = React.useState(null); // hover tooltip, in viewBox coords
   // Unit space -> px: Man at (CX,CY), Esplanade r=0.40..K r=0.95 times S.
   const S = 330, CX = 360, CY = 180;
   const polar = (hour, r) => {
@@ -504,7 +509,10 @@ function PlayaMap({ rows, onCampClick }) {
   })), [rows]);
   const mapped = camps.filter(c => c.addr);
   const unparsed = camps.filter(c => !c.addr && String(c.row.campLocation || '').trim());
-  const noAddr = camps.length - mapped.length - unparsed.length;
+  // Camps with no plottable coordinates (blank address or one that didn't
+  // parse) go in the "Open camping" box in the bottom-left corner, outside
+  // the city fan, so they still get a pin, a tooltip, and a visit state.
+  const openCamps = camps.filter(c => !c.addr);
   const assignees = React.useMemo(() => Array.from(new Set(
     camps.filter(c => c.state !== 'none' && c.who).map(c => c.who))).sort(), [camps]);
   if (!mapped.length) return null;
@@ -520,6 +528,39 @@ function PlayaMap({ rows, onCampClick }) {
     assigned: mapped.filter(c => c.state === 'assigned').length,
     done: mapped.filter(c => c.state === 'done').length,
   };
+
+  // One pin, used both on the fan and in the Open camping box. Hover shows
+  // the custom tooltip (instant, styled — the native <title> delay made pins
+  // feel dead); click jumps to the camp on the Camps tab.
+  const renderPin = (c, x, y, key) => {
+    const size = +c.row.campSize || 0;
+    const pr = Math.max(4, Math.min(10, 4 + Math.sqrt(size) * 0.35));
+    const dimmed = assignee && c.who !== assignee;
+    const n = stopNo.get(c.row);
+    const stateText = c.state === 'none' ? 'needs visit' : (c.state === 'done' ? 'visited' : `assigned: ${c.who}`);
+    const loc = c.addr ? c.row.campLocation
+      : (String(c.row.campLocation || '').trim() ? `"${c.row.campLocation}" (didn't parse)` : 'no address');
+    return (
+      <g key={key} data-pin data-visit-state={c.state} opacity={dimmed ? 0.22 : 1}
+        role="img" aria-label={`${c.row.campName} · ${loc} · ${c.row.total}/60 · ${stateText}`}
+        style={{ cursor: 'pointer' }} onClick={() => onCampClick && onCampClick(c.row.campName)}
+        onMouseEnter={() => setTip({ x, y: y - pr - 3, name: c.row.campName, loc, score: `${c.row.total}/60`, state: stateText })}
+        onMouseLeave={() => setTip(null)}>
+        <circle cx={x} cy={y} r={pr} fill={PIN_STYLE[c.state].fill}
+          stroke={PIN_STYLE[c.state].stroke} strokeWidth="1.5"/>
+        {n && <text x={x} y={y - pr - 4} textAnchor="middle" fontSize="11"
+          fontWeight="800" fill="#eaf2ec">{n}</text>}
+      </g>
+    );
+  };
+
+  // Open camping box geometry: anchored to the bottom-left corner (free space
+  // outside the 2:00-10:00 fan), grows upward if the pins need more rows.
+  const OC = { cols: 5, gap: 26, x: 12 };
+  const ocRows = Math.ceil(openCamps.length / OC.cols);
+  const ocW = Math.max(122, 24 + Math.min(openCamps.length, OC.cols) * OC.gap);
+  const ocH = 24 + ocRows * OC.gap + 4;
+  const ocY = 526 - ocH;
   const legendDot = (state, label) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#93a89b' }}>
       <svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill={PIN_STYLE[state].fill} stroke={PIN_STYLE[state].stroke}/></svg>
@@ -544,6 +585,7 @@ function PlayaMap({ rows, onCampClick }) {
           </select>
         )}
       </div>
+      <div style={{ position: 'relative' }}>
       <svg viewBox="0 0 720 532" style={{ width: '100%', height: 'auto', display: 'block', marginTop: 6 }}
         role="img" aria-label="Map of camps across the Black Rock City street grid">
         {/* radial streets: whole hours solid, half hours fainter */}
@@ -570,28 +612,40 @@ function PlayaMap({ rows, onCampClick }) {
             fontSize="9" fill="#42574a" fontWeight="700">{ring === 0 ? 'ESP' : 'ABCDEFGHIJK'[ring - 1]}</text>
         ))}
         <circle cx={CX} cy={CY} r="3.5" fill="#d9885c"><title>The Man</title></circle>
+        {/* Open camping: camps with no plottable address, pinned in a dashed
+            box in the free corner so they keep visit-state color and clicks. */}
+        {openCamps.length > 0 && (
+          <g data-open-camping>
+            <rect x={OC.x} y={ocY} width={ocW} height={ocH} rx="10"
+              fill="rgba(147,168,155,0.05)" stroke="#26382e" strokeDasharray="4 3"/>
+            <text x={OC.x + 12} y={ocY + 15} fontSize="9" letterSpacing="1.5"
+              fill="#5d7367" fontWeight="700">OPEN CAMPING</text>
+            {openCamps.map((c, i) => renderPin(c,
+              OC.x + 24 + (i % OC.cols) * OC.gap,
+              ocY + 24 + Math.floor(i / OC.cols) * OC.gap + OC.gap / 2 - 2,
+              `open-${i}`))}
+          </g>
+        )}
         {/* camp pins — drawn last so they sit above the grid lines */}
         {mapped.map((c, i) => {
           const p = polar(c.addr.hour, A.playaRingRadius(c.addr.ring));
-          const size = +c.row.campSize || 0;
-          const pr = Math.max(4, Math.min(10, 4 + Math.sqrt(size) * 0.35));
-          const dimmed = assignee && c.who !== assignee;
-          const n = stopNo.get(c.row);
-          const tip = [c.row.campName, c.row.campLocation, `${c.row.total}/60`,
-            c.state === 'none' ? 'needs visit' : (c.state === 'done' ? 'visited' : `assigned: ${c.who}`)]
-            .filter(Boolean).join(' · ');
-          return (
-            <g key={i} data-pin data-visit-state={c.state} opacity={dimmed ? 0.22 : 1}
-              style={{ cursor: 'pointer' }} onClick={() => onCampClick && onCampClick(c.row.campName)}>
-              <circle cx={p.x} cy={p.y} r={pr} fill={PIN_STYLE[c.state].fill}
-                stroke={PIN_STYLE[c.state].stroke} strokeWidth="1.5"/>
-              {n && <text x={p.x} y={p.y - pr - 4} textAnchor="middle" fontSize="11"
-                fontWeight="800" fill="#eaf2ec">{n}</text>}
-              <title>{tip}</title>
-            </g>
-          );
+          return renderPin(c, p.x, p.y, i);
         })}
       </svg>
+      {tip && (
+        <div data-map-tip style={{
+          position: 'absolute', left: `${tip.x / 7.2}%`, top: `${tip.y / 5.32}%`,
+          transform: 'translate(-50%, -100%)', pointerEvents: 'none', zIndex: 5,
+          background: '#0b1410', border: '1px solid #2e5b43', borderRadius: 8,
+          padding: '6px 10px', fontSize: 12, lineHeight: 1.45, color: '#eaf2ec',
+          whiteSpace: 'nowrap', boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+        }}>
+          <b>{tip.name}</b> <span style={{ color: '#93a89b' }}>{tip.score}</span>
+          <div style={{ color: '#93a89b' }}>{tip.loc}</div>
+          <div style={{ color: '#8fd4ae' }}>{tip.state}</div>
+        </div>
+      )}
+      </div>
       {assignee && ordered.length > 0 && (
         <div data-route style={{ fontSize: 12.5, color: '#cdebd8', marginTop: 8 }}>
           <b style={{ color: '#eaf2ec' }}>{assignee}'s route:</b>{' '}
@@ -604,14 +658,12 @@ function PlayaMap({ rows, onCampClick }) {
           ))}
         </div>
       )}
-      {(unparsed.length > 0 || noAddr > 0) && (
+      {unparsed.length > 0 && (
         <div data-unmapped style={{ fontSize: 11, color: '#93a89b', marginTop: 8, lineHeight: 1.5 }}>
-          Not on the map:{' '}
+          In Open camping because the address didn't parse:{' '}
           {unparsed.map((c, i) => (
-            <span key={i}>{i > 0 && ' · '}{c.row.campName} <i>("{c.row.campLocation}" didn't parse — fix the sheet cell)</i></span>
+            <span key={i}>{i > 0 && ' · '}{c.row.campName} <i>("{c.row.campLocation}" — fix the sheet cell)</i></span>
           ))}
-          {unparsed.length > 0 && noAddr > 0 && ' · '}
-          {noAddr > 0 && `${noAddr} ${noAddr === 1 ? 'camp' : 'camps'} with no address`}
         </div>
       )}
     </div>
@@ -648,27 +700,19 @@ function Hi({ text, q }) {
   return parts;
 }
 
-// Small pill badge, shared by CampRow and CampDetail (source/legacy/hidden/dedup tags).
-function MiniBadge({ text, title }) {
+// Small pill badge, shared by CampRow and CampDetail. Tones: neutral gray
+// (source/legacy/hidden/dedup tags), amber heads-up ("possible dup", assigned
+// visits — same warm tone as the refresh-error banner), green win ("visited",
+// matching the idea-chip green).
+const BADGE_TONES = {
+  gray: { color: '#93a89b', border: '1px solid #26382e' },
+  amber: { color: '#e8c15a', border: '1px solid #573a26', background: '#2a1c14' },
+  green: { color: '#8fd4ae', border: '1px solid #2e5b43', background: '#15291e' },
+};
+function Badge({ text, title, tone = 'gray' }) {
   return (
-    <span title={title} style={{ fontSize: 9, color: '#93a89b', border: '1px solid #26382e', borderRadius: 99,
+    <span title={title} style={{ ...BADGE_TONES[tone], fontSize: 9, borderRadius: 99,
       padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
-  );
-}
-// Amber-toned variant for the "possible dup" flag — same warm tone as the
-// existing refresh-error banner, so it reads as a heads-up, not routine info.
-function AmberBadge({ text, title }) {
-  return (
-    <span title={title} style={{ fontSize: 9, color: '#e8c15a', border: '1px solid #573a26', background: '#2a1c14',
-      borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
-  );
-}
-// Green-toned variant for the "visited" flag — done reads as a win, matching
-// the idea-chip green rather than the neutral gray or heads-up amber.
-function GreenBadge({ text, title }) {
-  return (
-    <span title={title} style={{ fontSize: 9, color: '#8fd4ae', border: '1px solid #2e5b43', background: '#15291e',
-      borderRadius: 99, padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
   );
 }
 
@@ -743,15 +787,11 @@ function SectorDigits({ sector, fill, answers, hasAnswers, legacy }) {
 }
 
 function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
-  const hasAnswers = rowHasAnswers(camp);
   const hidden = !!camp.hidden;
-  const legacy = A.isLegacy(camp);
-  const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers)
-    : (legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens));
-  const denom = legacy ? 4 : 10;
+  const { hasAnswers, legacy, fills, denom } = campFills(sectors, camp);
   const l4 = campL4(sectors, camp);
 
-  const badge = (text, title) => <MiniBadge text={text} title={title} />;
+  const badge = (text, title) => <Badge text={text} title={title} />;
   const Identity = (
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
       {/* 44px radius thumbnail: round vs lopsided camps read at a glance */}
@@ -768,11 +808,11 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
           {hidden && badge('hidden', 'Owner-flagged as junk or test data; excluded from every aggregate')}
           {superseded && badge('superseded', 'replaced by a newer submission from this camp')}
           {!superseded && dupCount > 1 && badge(`x${dupCount}`, `${dupCount} submissions, stats use this latest one`)}
-          {suspect && <AmberBadge text="possible dup" title="same contact email as another camp this year" />}
+          {suspect && <Badge tone="amber" text="possible dup" title="same contact email as another camp this year" />}
           {A.visitState(camp.visit) === 'assigned' &&
-            <AmberBadge text={`visit: ${A.visitAssignee(camp.visit) || 'assigned'}`} title="Assigned a camp visit (owner-typed Visit column)" />}
+            <Badge tone="amber" text={`visit: ${A.visitAssignee(camp.visit) || 'assigned'}`} title="Assigned a camp visit (owner-typed Visit column)" />}
           {A.visitState(camp.visit) === 'done' &&
-            <GreenBadge text="visited ✓" title="Camp visit completed (owner-typed Visit column)" />}
+            <Badge tone="green" text="visited ✓" title="Camp visit completed (owner-typed Visit column)" />}
         </div>
         {(camp.campLocation || camp.campSize) && (
           <div data-loc style={{ fontSize: 11.5, color: '#93a89b', marginTop: 2, overflowWrap: 'anywhere' }}>
@@ -901,11 +941,7 @@ function exportCsv(list, sectors) {
 // as the rest of the app; legacy/approx rows explain themselves instead of
 // inventing per-question detail.
 function CampDetail({ sectors, camp, onClose, dupCount, superseded }) {
-  const hasAnswers = rowHasAnswers(camp);
-  const legacy = A.isLegacy(camp);
-  const fills = hasAnswers ? fillsFromAnswers(sectors, camp.answers)
-    : (legacy ? legacyFills(sectors, camp.greens) : approxFills(sectors, camp.greens));
-  const denom = legacy ? 4 : 10;
+  const { hasAnswers, legacy, fills, denom } = campFills(sectors, camp);
   const l4 = campL4(sectors, camp);
   const dialogRef = React.useRef(null);
   const closeRef = React.useRef(null);
@@ -940,8 +976,8 @@ function CampDetail({ sectors, camp, onClose, dupCount, superseded }) {
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
               <span>{camp.campName}</span>
-              {superseded && <MiniBadge text="superseded" title="replaced by a newer submission from this camp" />}
-              {!superseded && dupCount > 1 && <MiniBadge text={`x${dupCount}`} title={`${dupCount} submissions, stats use this latest one`} />}
+              {superseded && <Badge text="superseded" title="replaced by a newer submission from this camp" />}
+              {!superseded && dupCount > 1 && <Badge text={`x${dupCount}`} title={`${dupCount} submissions, stats use this latest one`} />}
             </div>
             <div style={{ fontSize: 12.5, color: '#93a89b', marginTop: 3, overflowWrap: 'anywhere' }}>
               {camp.leadName} · <a href={`mailto:${camp.email}`} style={{ color: '#8fd4ae' }}>{camp.email}</a>
