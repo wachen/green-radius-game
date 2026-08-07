@@ -197,7 +197,10 @@ pattern as `Hidden`: you type in the sheet, the UI reflects it on the next refre
 - **A leading `✓`, or `done`/`visited`** (`✓ Alice`, `done`, `Visited 8/25`) — visit
   completed (green pin, "visited ✓" chip on the Camps tab).
 
-Like `Hidden`, everything fails open: until the column exists the feature is dormant,
-and an address the map can't parse just lists the camp under the map ("fix the sheet
-cell") instead of guessing a location. `visit` is served on the Access-gated admin
-route only — never on the public `/api/city`.
+Like `Hidden`, everything fails open: until the column exists the feature is dormant.
+A camp whose address is blank or doesn't parse is never guessed onto the street grid;
+it pins inside the dashed "Open camping" box in the map's bottom-left corner instead
+(keeping its visit-state color, hover tooltip, and click-through to the Camps tab),
+and unparseable-but-non-blank addresses also get a footnote under the map ("fix the
+sheet cell"). `visit` is served on the Access-gated admin route only — never on the
+public `/api/city`.

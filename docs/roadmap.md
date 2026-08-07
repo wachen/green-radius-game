@@ -145,7 +145,10 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 - Housekeeping round from a five-agent codebase review: shared helpers
   (isValidEmail, campFills, Badge tones, withMockFetch), shared.css +
   favicon.svg replacing per-page duplicates, trimmed dead exports/props,
-  roadmap/doc corrections (#102) - 2026-08-05
+  roadmap/doc corrections; plus three UI asks: full-width light red home
+  banner with shorter copy, admin City analytics/Superlatives gone
+  full-width, and the admin map's Open camping box + instant pin tooltips
+  (#102) - 2026-08-07
 
 - Home-page signup-deadline banner: August 10 printed-signage cutoff, playing
   stays open after; auto-hides once the deadline passes Pacific time (#101) -
