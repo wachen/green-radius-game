@@ -10,6 +10,11 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Admin Playa Map: camps with no plottable address now pin inside a dashed
+  "Open camping" box in the map's free corner (visit-state color, click-through
+  to the Camps tab included), and all pins get instant styled hover tooltips
+  (camp name, address, score, visit state) replacing the slow native ones
+  (#102)
 - Admin City tab: Superlatives and the analytics panel move out of the right
   column to span full width above the playa map, closing the dead gap that
   sat under Sector Averages (#102)

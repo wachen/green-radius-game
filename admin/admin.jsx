@@ -495,6 +495,7 @@ const PIN_STYLE = {
 };
 function PlayaMap({ rows, onCampClick }) {
   const [assignee, setAssignee] = React.useState('');
+  const [tip, setTip] = React.useState(null); // hover tooltip, in viewBox coords
   // Unit space -> px: Man at (CX,CY), Esplanade r=0.40..K r=0.95 times S.
   const S = 330, CX = 360, CY = 180;
   const polar = (hour, r) => {
@@ -508,7 +509,10 @@ function PlayaMap({ rows, onCampClick }) {
   })), [rows]);
   const mapped = camps.filter(c => c.addr);
   const unparsed = camps.filter(c => !c.addr && String(c.row.campLocation || '').trim());
-  const noAddr = camps.length - mapped.length - unparsed.length;
+  // Camps with no plottable coordinates (blank address or one that didn't
+  // parse) go in the "Open camping" box in the bottom-left corner, outside
+  // the city fan, so they still get a pin, a tooltip, and a visit state.
+  const openCamps = camps.filter(c => !c.addr);
   const assignees = React.useMemo(() => Array.from(new Set(
     camps.filter(c => c.state !== 'none' && c.who).map(c => c.who))).sort(), [camps]);
   if (!mapped.length) return null;
@@ -524,6 +528,39 @@ function PlayaMap({ rows, onCampClick }) {
     assigned: mapped.filter(c => c.state === 'assigned').length,
     done: mapped.filter(c => c.state === 'done').length,
   };
+
+  // One pin, used both on the fan and in the Open camping box. Hover shows
+  // the custom tooltip (instant, styled — the native <title> delay made pins
+  // feel dead); click jumps to the camp on the Camps tab.
+  const renderPin = (c, x, y, key) => {
+    const size = +c.row.campSize || 0;
+    const pr = Math.max(4, Math.min(10, 4 + Math.sqrt(size) * 0.35));
+    const dimmed = assignee && c.who !== assignee;
+    const n = stopNo.get(c.row);
+    const stateText = c.state === 'none' ? 'needs visit' : (c.state === 'done' ? 'visited' : `assigned: ${c.who}`);
+    const loc = c.addr ? c.row.campLocation
+      : (String(c.row.campLocation || '').trim() ? `"${c.row.campLocation}" (didn't parse)` : 'no address');
+    return (
+      <g key={key} data-pin data-visit-state={c.state} opacity={dimmed ? 0.22 : 1}
+        role="img" aria-label={`${c.row.campName} · ${loc} · ${c.row.total}/60 · ${stateText}`}
+        style={{ cursor: 'pointer' }} onClick={() => onCampClick && onCampClick(c.row.campName)}
+        onMouseEnter={() => setTip({ x, y: y - pr - 3, name: c.row.campName, loc, score: `${c.row.total}/60`, state: stateText })}
+        onMouseLeave={() => setTip(null)}>
+        <circle cx={x} cy={y} r={pr} fill={PIN_STYLE[c.state].fill}
+          stroke={PIN_STYLE[c.state].stroke} strokeWidth="1.5"/>
+        {n && <text x={x} y={y - pr - 4} textAnchor="middle" fontSize="11"
+          fontWeight="800" fill="#eaf2ec">{n}</text>}
+      </g>
+    );
+  };
+
+  // Open camping box geometry: anchored to the bottom-left corner (free space
+  // outside the 2:00-10:00 fan), grows upward if the pins need more rows.
+  const OC = { cols: 5, gap: 26, x: 12 };
+  const ocRows = Math.ceil(openCamps.length / OC.cols);
+  const ocW = Math.max(122, 24 + Math.min(openCamps.length, OC.cols) * OC.gap);
+  const ocH = 24 + ocRows * OC.gap + 4;
+  const ocY = 526 - ocH;
   const legendDot = (state, label) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#93a89b' }}>
       <svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill={PIN_STYLE[state].fill} stroke={PIN_STYLE[state].stroke}/></svg>
@@ -548,6 +585,7 @@ function PlayaMap({ rows, onCampClick }) {
           </select>
         )}
       </div>
+      <div style={{ position: 'relative' }}>
       <svg viewBox="0 0 720 532" style={{ width: '100%', height: 'auto', display: 'block', marginTop: 6 }}
         role="img" aria-label="Map of camps across the Black Rock City street grid">
         {/* radial streets: whole hours solid, half hours fainter */}
@@ -574,28 +612,40 @@ function PlayaMap({ rows, onCampClick }) {
             fontSize="9" fill="#42574a" fontWeight="700">{ring === 0 ? 'ESP' : 'ABCDEFGHIJK'[ring - 1]}</text>
         ))}
         <circle cx={CX} cy={CY} r="3.5" fill="#d9885c"><title>The Man</title></circle>
+        {/* Open camping: camps with no plottable address, pinned in a dashed
+            box in the free corner so they keep visit-state color and clicks. */}
+        {openCamps.length > 0 && (
+          <g data-open-camping>
+            <rect x={OC.x} y={ocY} width={ocW} height={ocH} rx="10"
+              fill="rgba(147,168,155,0.05)" stroke="#26382e" strokeDasharray="4 3"/>
+            <text x={OC.x + 12} y={ocY + 15} fontSize="9" letterSpacing="1.5"
+              fill="#5d7367" fontWeight="700">OPEN CAMPING</text>
+            {openCamps.map((c, i) => renderPin(c,
+              OC.x + 24 + (i % OC.cols) * OC.gap,
+              ocY + 24 + Math.floor(i / OC.cols) * OC.gap + OC.gap / 2 - 2,
+              `open-${i}`))}
+          </g>
+        )}
         {/* camp pins — drawn last so they sit above the grid lines */}
         {mapped.map((c, i) => {
           const p = polar(c.addr.hour, A.playaRingRadius(c.addr.ring));
-          const size = +c.row.campSize || 0;
-          const pr = Math.max(4, Math.min(10, 4 + Math.sqrt(size) * 0.35));
-          const dimmed = assignee && c.who !== assignee;
-          const n = stopNo.get(c.row);
-          const tip = [c.row.campName, c.row.campLocation, `${c.row.total}/60`,
-            c.state === 'none' ? 'needs visit' : (c.state === 'done' ? 'visited' : `assigned: ${c.who}`)]
-            .filter(Boolean).join(' · ');
-          return (
-            <g key={i} data-pin data-visit-state={c.state} opacity={dimmed ? 0.22 : 1}
-              style={{ cursor: 'pointer' }} onClick={() => onCampClick && onCampClick(c.row.campName)}>
-              <circle cx={p.x} cy={p.y} r={pr} fill={PIN_STYLE[c.state].fill}
-                stroke={PIN_STYLE[c.state].stroke} strokeWidth="1.5"/>
-              {n && <text x={p.x} y={p.y - pr - 4} textAnchor="middle" fontSize="11"
-                fontWeight="800" fill="#eaf2ec">{n}</text>}
-              <title>{tip}</title>
-            </g>
-          );
+          return renderPin(c, p.x, p.y, i);
         })}
       </svg>
+      {tip && (
+        <div data-map-tip style={{
+          position: 'absolute', left: `${tip.x / 7.2}%`, top: `${tip.y / 5.32}%`,
+          transform: 'translate(-50%, -100%)', pointerEvents: 'none', zIndex: 5,
+          background: '#0b1410', border: '1px solid #2e5b43', borderRadius: 8,
+          padding: '6px 10px', fontSize: 12, lineHeight: 1.45, color: '#eaf2ec',
+          whiteSpace: 'nowrap', boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+        }}>
+          <b>{tip.name}</b> <span style={{ color: '#93a89b' }}>{tip.score}</span>
+          <div style={{ color: '#93a89b' }}>{tip.loc}</div>
+          <div style={{ color: '#8fd4ae' }}>{tip.state}</div>
+        </div>
+      )}
+      </div>
       {assignee && ordered.length > 0 && (
         <div data-route style={{ fontSize: 12.5, color: '#cdebd8', marginTop: 8 }}>
           <b style={{ color: '#eaf2ec' }}>{assignee}'s route:</b>{' '}
@@ -608,14 +658,12 @@ function PlayaMap({ rows, onCampClick }) {
           ))}
         </div>
       )}
-      {(unparsed.length > 0 || noAddr > 0) && (
+      {unparsed.length > 0 && (
         <div data-unmapped style={{ fontSize: 11, color: '#93a89b', marginTop: 8, lineHeight: 1.5 }}>
-          Not on the map:{' '}
+          In Open camping because the address didn't parse:{' '}
           {unparsed.map((c, i) => (
-            <span key={i}>{i > 0 && ' · '}{c.row.campName} <i>("{c.row.campLocation}" didn't parse — fix the sheet cell)</i></span>
+            <span key={i}>{i > 0 && ' · '}{c.row.campName} <i>("{c.row.campLocation}" — fix the sheet cell)</i></span>
           ))}
-          {unparsed.length > 0 && noAddr > 0 && ' · '}
-          {noAddr > 0 && `${noAddr} ${noAddr === 1 ? 'camp' : 'camps'} with no address`}
         </div>
       )}
     </div>
