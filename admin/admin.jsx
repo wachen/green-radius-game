@@ -500,6 +500,7 @@ function AnalyticsPanel({ rows, agg, sectors }) {
 // tracks the owner-typed Visit sheet column (blank / name / ✓ name); pin size
 // tracks camp size. Clicking a pin jumps to that camp on the Camps tab.
 // Renders nothing until at least one address parses.
+const LABEL_FS = 9.5; // camp-name label font size on the playa map
 const PIN_STYLE = {
   none: { fill: 'rgba(147,168,155,0.22)', stroke: '#93a89b' },
   assigned: { fill: '#e8c15a', stroke: '#b3923a' },
@@ -543,8 +544,10 @@ function PlayaMap({ rows, onCampClick }) {
 
   // One pin, used both on the fan and in the Open camping box. Hover shows
   // the custom tooltip (instant, styled — the native <title> delay made pins
-  // feel dead); click jumps to the camp on the Camps tab.
-  const renderPin = (c, x, y, key) => {
+  // feel dead); click jumps to the camp on the Camps tab. The optional label
+  // (fan pins only) rides inside the same <g>, so it dims, clicks, and
+  // tooltips exactly like its pin.
+  const renderPin = (c, x, y, key, label) => {
     const size = +c.row.campSize || 0;
     const pr = Math.max(4, Math.min(10, 4 + Math.sqrt(size) * 0.35));
     const dimmed = assignee && c.who !== assignee;
@@ -562,6 +565,11 @@ function PlayaMap({ rows, onCampClick }) {
           stroke={PIN_STYLE[c.state].stroke} strokeWidth="1.5"/>
         {n && <text x={x} y={y - pr - 4} textAnchor="middle" fontSize="11"
           fontWeight="800" fill="#eaf2ec">{n}</text>}
+        {label && <text data-pin-label x={label.x} y={label.y} textAnchor={label.anchor}
+          dominantBaseline="middle" fontSize={LABEL_FS} fontWeight="600" fill="#a9bfb1"
+          style={{ paintOrder: 'stroke', stroke: '#101c15', strokeWidth: 2.5, strokeLinejoin: 'round' }}>
+          {label.text}
+        </text>}
       </g>
     );
   };
@@ -573,6 +581,50 @@ function PlayaMap({ rows, onCampClick }) {
   const ocW = Math.max(122, 24 + Math.min(openCamps.length, OC.cols) * OC.gap);
   const ocH = 24 + ocRows * OC.gap + 4;
   const ocY = 526 - ocH;
+
+  // Camp-name labels, greedy no-overlap placement: each fan pin tries a ring
+  // of candidate spots (right, left, below, then the diagonals — straight
+  // above is reserved for the walking-order numbers) and takes the first one
+  // that stays on the canvas and clears every pin, every placed label, and
+  // the Open camping box. A pin too crowded to label keeps its name in the
+  // hover tooltip. Width is estimated (no DOM measuring in SVG pre-render);
+  // the 0.62em/char heuristic is generous for Space Grotesk at this size.
+  const fanPins = mapped.map(c => {
+    const p = polar(c.addr.hour, A.playaRingRadius(c.addr.ring));
+    const size = +c.row.campSize || 0;
+    return { c, x: p.x, y: p.y, pr: Math.max(4, Math.min(10, 4 + Math.sqrt(size) * 0.35)) };
+  });
+  const labels = (() => {
+    const obstacles = fanPins.map(p => ({ x0: p.x - p.pr - 1, y0: p.y - p.pr - 1, x1: p.x + p.pr + 1, y1: p.y + p.pr + 1 }));
+    if (openCamps.length > 0) obstacles.push({ x0: OC.x, y0: ocY, x1: OC.x + ocW, y1: 526 });
+    const hits = (r) => obstacles.some(o => r.x0 < o.x1 && r.x1 > o.x0 && r.y0 < o.y1 && r.y1 > o.y0);
+    return fanPins.map(p => {
+      const text = p.c.row.campName.length > 18 ? p.c.row.campName.slice(0, 17) + '…' : p.c.row.campName;
+      const w = text.length * LABEL_FS * 0.62 + 4, h = LABEL_FS + 2;
+      // Two rings of candidates: snug first, then a farther ring so camps in
+      // a tight cluster can still push their label into nearby clear space.
+      const ring = (d) => [
+        { dx: p.pr + d, dy: 0, anchor: 'start' },
+        { dx: -(p.pr + d), dy: 0, anchor: 'end' },
+        { dx: 0, dy: p.pr + d + 5, anchor: 'middle' },
+        { dx: p.pr + d - 1, dy: -(p.pr + d), anchor: 'start' },
+        { dx: p.pr + d - 1, dy: p.pr + d, anchor: 'start' },
+        { dx: -(p.pr + d - 1), dy: -(p.pr + d), anchor: 'end' },
+        { dx: -(p.pr + d - 1), dy: p.pr + d, anchor: 'end' },
+      ];
+      const cands = [...ring(4), ...ring(14)];
+      for (const cd of cands) {
+        const x = p.x + cd.dx, y = p.y + cd.dy;
+        const x0 = cd.anchor === 'start' ? x : (cd.anchor === 'end' ? x - w : x - w / 2);
+        const rect = { x0, y0: y - h / 2, x1: x0 + w, y1: y + h / 2 };
+        if (rect.x0 < 2 || rect.x1 > 718 || rect.y0 < 2 || rect.y1 > 530) continue;
+        if (hits(rect)) continue;
+        obstacles.push(rect);
+        return { x, y, anchor: cd.anchor, text };
+      }
+      return null;
+    });
+  })();
   const legendDot = (state, label) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#93a89b' }}>
       <svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill={PIN_STYLE[state].fill} stroke={PIN_STYLE[state].stroke}/></svg>
@@ -639,10 +691,7 @@ function PlayaMap({ rows, onCampClick }) {
           </g>
         )}
         {/* camp pins — drawn last so they sit above the grid lines */}
-        {mapped.map((c, i) => {
-          const p = polar(c.addr.hour, A.playaRingRadius(c.addr.ring));
-          return renderPin(c, p.x, p.y, i);
-        })}
+        {fanPins.map((p, i) => renderPin(p.c, p.x, p.y, i, labels[i]))}
       </svg>
       {tip && (
         <div data-map-tip style={{

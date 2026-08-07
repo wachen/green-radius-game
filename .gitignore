@@ -27,3 +27,7 @@ _design/
 
 # Claude Code local agent settings/state
 .claude/
+
+# Deployed Apps Script reference copy — kept local on purpose (Wes's call,
+# 2026-08-07): the sheet-side code lives in the Apps Script editor, not here.
+/docs/apps-script/
