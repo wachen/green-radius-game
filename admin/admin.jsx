@@ -318,14 +318,23 @@ function CommunityTally({ sectors, rows, onCampClick }) {
           </div>
         )}
         {!agg.hasAnswers && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>Per-question detail appears once granular capture is live.</div>}
-        {detail && (
+        {/* Always rendered (placeholder before the first hover) so the hero's
+            height never jumps when a segment is first hovered. */}
+        {agg.hasAnswers && (
           <div data-segment-detail style={{ background: 'rgba(0,0,0,0.28)', border: '1px solid rgba(255,255,255,0.12)', borderLeft: '3px solid #7fc46a',
             borderRadius: 10, padding: '9px 11px', margin: '10px auto 0', maxWidth: 320, textAlign: 'left' }}>
-            <div style={{ fontSize: 10, letterSpacing: '.1em', color: '#7fc46a', fontWeight: 800 }}>{detail.label.toUpperCase()}</div>
+            <div style={{ fontSize: 10, letterSpacing: '.1em', color: '#7fc46a', fontWeight: 800 }}>{detail ? detail.label.toUpperCase() : 'CITY RADIUS'}</div>
             {/* Fixed 4-line well so the box height never shifts between hovers. */}
             <div style={{ fontSize: 12.5, lineHeight: 1.35, margin: '2px 0 4px', height: '5.4em',
-              display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{detail.text}</div>
-            <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}><b style={{ color: '#fff', fontSize: 15 }}>{Math.round(detail.rate * 100)}%</b> of {detail.n} camps</div>
+              display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+              color: detail ? undefined : 'rgba(255,255,255,0.45)' }}>
+              {detail ? detail.text : 'Hover or tap a segment on the wheel to see its question and the city-wide yes rate.'}
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>
+              {detail
+                ? <React.Fragment><b style={{ color: '#fff', fontSize: 15 }}>{Math.round(detail.rate * 100)}%</b> of {detail.n} camps</React.Fragment>
+                : <b style={{ fontSize: 15 }}>{' '}</b>}
+            </div>
           </div>
         )}
       </div>
@@ -387,7 +396,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
   const Standings = (
     <div style={{ ...panelStyle, marginTop: 12 }}>
       <SecHead style={{ marginTop: 0 }}>Sector Averages</SecHead>
-      <div style={{ display: 'grid', gridTemplateColumns: wide ? '1fr 1fr' : '1fr', gap: '0 18px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0 18px' }}>
         {agg.sectorStandings.map(s => (
           <div key={s.id} style={rowStyle}>
             <span title={s.name} style={{ display: 'inline-flex' }}>
@@ -406,17 +415,20 @@ function CommunityTally({ sectors, rows, onCampClick }) {
   // actual row list, so it repeats the two filters here).
   const mapRows = React.useMemo(() => A.dedupeRows(rows.filter(r => !A.isHidden(r))), [rows]);
 
-  // Left column: the BRC radius box with Sector Averages sitting directly
-  // under it (same color scheme, just relocated). Right column: Top Camps
-  // leads (moved to the top of the stack), after the pulse tiles. The two
-  // columns are roughly equal height; Superlatives, the analytics panel, and
-  // the playa map span full width underneath so the left column doesn't leave
-  // a dead gap. Narrow screens stack everything in the same order.
-  const LeftCol = <div>{Hero}{Standings}</div>;
-  const RightCol = <div>{Pulse}{Leaderboard}</div>;
+  // Left column: just the BRC radius box. Right column: the pulse tiles, then
+  // Sector Averages (single column, already sorted descending by average) and
+  // Top Camps as adjoining columns — together they roughly match the hero's
+  // height. Superlatives, the analytics panel, and the playa map span full
+  // width underneath. Narrow screens stack everything in the previous order.
   const Grid = wide
-    ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{LeftCol}{RightCol}</div>
-    : <div style={{ paddingTop: 12 }}>{LeftCol}{RightCol}</div>;
+    ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>
+        <div>{Hero}</div>
+        <div>
+          {Pulse}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(190px, 240px) 1fr', gap: '0 14px', alignItems: 'start' }}>{Standings}{Leaderboard}</div>
+        </div>
+      </div>
+    : <div style={{ paddingTop: 12 }}>{Hero}{Standings}{Pulse}{Leaderboard}</div>;
   return <div>{Grid}{Superlatives}<AnalyticsPanel rows={rows} agg={agg} sectors={sectors} /><PlayaMap rows={mapRows} onCampClick={onCampClick} /></div>;
 }
 

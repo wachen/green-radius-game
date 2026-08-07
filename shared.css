@@ -30,3 +30,5 @@
 @media (prefers-reduced-motion: reduce) {
   .grg-loading .grg-loading-wheel { animation: none; }
 }
+/* Button labels are controls, not copy: no long-press text selection on touch. */
+button, .grg-hit44 { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
