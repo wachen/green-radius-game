@@ -10,6 +10,9 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Admin City tab: Superlatives and the analytics panel move out of the right
+  column to span full width above the playa map, closing the dead gap that
+  sat under Sector Averages (#102)
 - Home banner restyled: a full-width light red strip across the top of the
   frame with shorter copy, "Sign up by August 10 to be included on printed
   signage!" (#102)

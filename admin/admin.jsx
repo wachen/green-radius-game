@@ -408,15 +408,16 @@ function CommunityTally({ sectors, rows, onCampClick }) {
 
   // Left column: the BRC radius box with Sector Averages sitting directly
   // under it (same color scheme, just relocated). Right column: Top Camps
-  // leads (moved to the top of the stack), then the pulse tiles, then
-  // Superlatives. Narrow screens stack both columns in the same order. The
-  // playa map spans full width underneath.
+  // leads (moved to the top of the stack), after the pulse tiles. The two
+  // columns are roughly equal height; Superlatives, the analytics panel, and
+  // the playa map span full width underneath so the left column doesn't leave
+  // a dead gap. Narrow screens stack everything in the same order.
   const LeftCol = <div>{Hero}{Standings}</div>;
-  const RightCol = <div>{Pulse}{Leaderboard}{Superlatives}<AnalyticsPanel rows={rows} agg={agg} sectors={sectors} /></div>;
+  const RightCol = <div>{Pulse}{Leaderboard}</div>;
   const Grid = wide
     ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, paddingTop: 16, alignItems: 'start' }}>{LeftCol}{RightCol}</div>
     : <div style={{ paddingTop: 12 }}>{LeftCol}{RightCol}</div>;
-  return <div>{Grid}<PlayaMap rows={mapRows} onCampClick={onCampClick} /></div>;
+  return <div>{Grid}{Superlatives}<AnalyticsPanel rows={rows} agg={agg} sectors={sectors} /><PlayaMap rows={mapRows} onCampClick={onCampClick} /></div>;
 }
 
 // ── City analytics (score spread, weekly submissions, opportunities) ─────────
