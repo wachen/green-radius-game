@@ -10,6 +10,9 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Home banner restyled: a full-width light red strip across the top of the
+  frame with shorter copy, "Sign up by August 10 to be included on printed
+  signage!" (#102)
 - Housekeeping round from a five-agent codebase review: shared isValidEmail /
   BACK_BTN_STYLE / campFills / Badge / withMockFetch / sectorTotal helpers
   replace copy-pasted logic, shared.css and favicon.svg replace per-page
