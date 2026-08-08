@@ -12,7 +12,25 @@ review findings are closed except where listed below.
 
 ## Approved — build next, in this order
 
-_(empty — move items up from Proposed to green-light them)_
+_(approved 2026-08-08; design in
+`docs/superpowers/specs/2026-08-08-admin-visits-city-design.md`. Field
+deadline: BLAST visits run Tue 9/1 + Wed 9/2, ~a dozen volunteers/day in
+teams of 2-3, so all three must be live well before 9/1.)_
+
+- **Admin Visits tab** (med) — third tab, phone-first: team picker (distinct
+  Visit-column labels, localStorage), the team's camps in `visitOrder` with
+  address/size/score/weakest-sector talking points, route map with numbered
+  pins, "Unassigned: N" strip; volunteer-onboarding checklist in
+  docs/admin-setup.md.
+- **Mark-visited write path** (med) — the one admin write: Apps Script
+  `doPost` `action: "visit"` updates only the Visit cell to `✓ <label>`
+  (Wes deploys); Worker `POST /api/admin/visit` re-validates the Access JWT
+  and logs the caller email; inline are-you-sure button on the route card.
+- **Public /city enrichment** (small-med) — `GET /api/city` grows computed
+  aggregate fields (histogram, weekly counts, opportunities, camp count,
+  total campers) via the isomorphic aggregate.js; `/city/` renders the
+  borrowed panels in the public palette. Aggregates only — the allowlist
+  rule stands. Subsumes the "City histogram / median" deferred idea.
 
 ## Proposed — needs Wes's call
 
@@ -118,8 +136,6 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 - **Tablet / landscape layout** (new · med) — the game is phone-first; a
   two-column landscape layout for iPads (likely at camp meetings and the booth)
   is unexplored territory.
-- **City histogram / median** (deferred idea · small) — richer `/city/` stats
-  once the camp count grows enough to be meaningful.
 - **Spin haptics + sound** (new · small) — an optional `navigator.vibrate` tick
   and a soft click as the wheel passes sectors, respecting reduced-motion and
   off-by-default sound; cheap tactile juice for the flagship interaction.
