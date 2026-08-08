@@ -10,6 +10,15 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Admin Playa Map camp-name labels: every mapped pin now shows its camp name,
+  placed greedily around the pin (right, left, below, diagonals) so labels
+  never overlap a pin, another label, or the Open camping box; pins too
+  crowded to label keep their name in the hover tooltip, which stays the
+  deep-info surface (name, address, score, visit state); docs/apps-script/ is
+  gitignored as a deliberately local-only reference; the City tab gains a
+  Visit Progress panel under Sector Averages (stacked visited/assigned/to-visit
+  bar in the map legend's colors, plus total campers represented), filling the
+  dead space beside Top Camps (#104)
 - Admin City desktop layout, round two: the left column is now just the city
   wheel, with Sector Averages (single column, sorted descending) and Top Camps
   as adjoining columns under the stat tiles, cutting the tab's vertical dead
