@@ -10,6 +10,15 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Admin Visits tab: a third, phone-first tab for the Sept 1-2 BLAST camp
+  visits. A volunteer picks their team label once (remembered per device,
+  free-type fallback), then sees their camps in a numbered walking order with
+  address, headcount, score, and weakest-sector talking points, plus the playa
+  map narrowed to their route; the picker panel also shows route progress and
+  the city-wide unassigned count. Volunteer onboarding checklist added to
+  docs/admin-setup.md; design spec for this and the next two rounds committed
+  under docs/superpowers/specs/ (#105)
+
 - Admin Playa Map camp-name labels: every mapped pin now shows its camp name,
   placed greedily around the pin (right, left, below, diagonals) so labels
   never overlap a pin, another label, or the Open camping box; pins too

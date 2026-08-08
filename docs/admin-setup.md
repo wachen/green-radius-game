@@ -191,9 +191,10 @@ pattern as `Hidden`: you type in the sheet, the UI reflects it on the next refre
 **Cell convention** (free text, parsed tolerantly):
 
 - **Blank** — camp still needs a visit (dim hollow pin).
-- **A volunteer's name** (`Alice`) — visit assigned (amber pin). The name feeds the
-  map's per-volunteer route view: pick a volunteer to see just their camps, numbered
-  in a suggested walking order (a 2:00 → 10:00 sweep).
+- **A volunteer or team label** (`Alice`, `Team 1`) — visit assigned (amber pin).
+  The label feeds the map's per-team route view and the Visits tab's team picker:
+  pick a label to see just those camps, numbered in a suggested walking order
+  (a 2:00 → 10:00 sweep).
 - **A leading `✓`, or `done`/`visited`** (`✓ Alice`, `done`, `Visited 8/25`) — visit
   completed (green pin, "visited ✓" chip on the Camps tab).
 
@@ -204,3 +205,24 @@ it pins inside the dashed "Open camping" box in the map's bottom-left corner ins
 and unparseable-but-non-blank addresses also get a footnote under the map ("fix the
 sheet cell"). `visit` is served on the Access-gated admin route only — never on the
 public `/api/city`.
+
+## 7. Onboarding a visit volunteer (Visits tab)
+
+The admin **Visits** tab is the field view for the BLAST camp visits: a volunteer
+opens `/admin/` on their phone, picks their team label once, and gets their camps
+in a numbered walking order with address, headcount, score, and weakest-sector
+talking points, plus the playa map narrowed to their route. Onboarding is three
+steps, no new accounts:
+
+1. **Access** — add the volunteer's email to the Access policy from section 2
+   (and keep the preview-URL policy's list in sync if they'll review previews).
+2. **Assign** — type the team's label (`Team 1`, `Alice + Bo`) into the `Visit`
+   cell of every camp that team should visit (section 6). The distinct labels in
+   that column are exactly what the tab's team picker offers.
+3. **Send the link** — they open `greenradi.us/admin/`, complete the emailed
+   one-time code, open the Visits tab, and tap their team.
+
+Teams of 2 or 3 share one label; each person taps the same label on their own
+phone (the pick is per-device, stored in localStorage, changeable any time).
+The tab is read-only: marking a visit done is still a sheet edit (`✓ Team 1`)
+until the mark-visited write path ships.

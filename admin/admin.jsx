@@ -114,7 +114,7 @@ function AdminApp({ sectors }) {
         <a href="/" title="Back to the site" aria-label="Exit admin, back to the site"
           style={{ ...selStyle, textDecoration: 'none', fontWeight: 700, lineHeight: 1.4 }}>EXIT ↗</a>
         <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', gap: 8 }}><Tab id="city" label="🌄 City" name="City" /><Tab id="camps" label="🎪 Camps" name="Camps" /></div>
+        <div style={{ display: 'flex', gap: 8 }}><Tab id="city" label="🌄 City" name="City" /><Tab id="visits" label="🥾 Visits" name="Visits" /><Tab id="camps" label="🎪 Camps" name="Camps" /></div>
       </header>
 
       {!campsToolbarOwnsFilters && (
@@ -136,8 +136,10 @@ function AdminApp({ sectors }) {
           {filtered.length > 0 && (
             tab === 'city'
               ? <CommunityTally sectors={sectors} rows={filtered} onCampClick={name => { setHighlightCamp(name); setTab('camps'); }} />
-              : <CampsView sectors={sectors} rows={filtered} filters={filterSelects} refreshBtn={refreshBtn}
-                  highlight={highlightCamp} onClearHighlight={() => setHighlightCamp(null)} dedupeInfo={dedupeInfo} />
+              : tab === 'visits'
+                ? <VisitsView sectors={sectors} rows={filtered} onCampClick={name => { setHighlightCamp(name); setTab('camps'); }} />
+                : <CampsView sectors={sectors} rows={filtered} filters={filterSelects} refreshBtn={refreshBtn}
+                    highlight={highlightCamp} onClearHighlight={() => setHighlightCamp(null)} dedupeInfo={dedupeInfo} />
           )}
         </div>
       )}
@@ -153,6 +155,7 @@ function AdminApp({ sectors }) {
 // on the page's near-black background when the tab is inactive.
 const TAB_META = {
   city: { activeBg: 'linear-gradient(135deg,#155163,#1c6b82)', border: '#2a7d94', text: '#eaf7fb', mutedText: '#7fb8c9' },
+  visits: { activeBg: 'linear-gradient(135deg,#6b4f14,#8a6a1e)', border: '#a8842e', text: '#fbf3df', mutedText: '#c9ad6b' },
   camps: { activeBg: 'linear-gradient(135deg,#1f5c32,#2f7a41)', border: '#3f9153', text: '#eafbea', mutedText: '#8fce9e' },
 };
 
@@ -536,8 +539,13 @@ const PIN_STYLE = {
   assigned: { fill: '#e8c15a', stroke: '#b3923a' },
   done: { fill: '#45c483', stroke: '#2e5b43' },
 };
-function PlayaMap({ rows, onCampClick }) {
-  const [assignee, setAssignee] = React.useState('');
+// The assignee filter is uncontrolled by default (the City tab's dropdown);
+// the Visits tab passes `assignee` to drive it from its own team picker, which
+// also hides the dropdown and the inline route line (the tab's cards own both).
+function PlayaMap({ rows, onCampClick, assignee: forced }) {
+  const controlled = forced !== undefined;
+  const [ownAssignee, setOwnAssignee] = React.useState('');
+  const assignee = controlled ? forced : ownAssignee;
   const [tip, setTip] = React.useState(null); // hover tooltip, in viewBox coords
   // Unit space -> px: Man at (CX,CY), Esplanade r=0.40..K r=0.95 times S.
   const S = 330, CX = 360, CY = 180;
@@ -671,8 +679,8 @@ function PlayaMap({ rows, onCampClick }) {
         {legendDot('none', `needs visit (${counts.none})`)}
         {legendDot('assigned', `assigned (${counts.assigned})`)}
         {legendDot('done', `visited (${counts.done})`)}
-        {assignees.length > 0 && (
-          <select data-assignee value={assignee} onChange={e => setAssignee(e.target.value)}
+        {!controlled && assignees.length > 0 && (
+          <select data-assignee value={assignee} onChange={e => setOwnAssignee(e.target.value)}
             title="Show one volunteer's visit route" style={selStyle}>
             <option value="">All volunteers</option>
             {assignees.map(a => <option key={a} value={a}>{a}</option>)}
@@ -737,7 +745,7 @@ function PlayaMap({ rows, onCampClick }) {
         </div>
       )}
       </div>
-      {assignee && ordered.length > 0 && (
+      {!controlled && assignee && ordered.length > 0 && (
         <div data-route style={{ fontSize: 12.5, color: '#cdebd8', marginTop: 8 }}>
           <b style={{ color: '#eaf2ec' }}>{assignee}'s route:</b>{' '}
           {ordered.map((r, i) => (
@@ -762,6 +770,114 @@ function PlayaMap({ rows, onCampClick }) {
 }
 const SecHead = ({ children, style }) => <div style={{ fontSize: 14, letterSpacing: '.16em', color: '#93a89b', fontWeight: 800, margin: '16px 0 6px', ...style }}>{String(children).toUpperCase()}</div>;
 const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px dashed #21332a', fontSize: 13 };
+
+// ── Visits: phone-first field view for the visit teams ───────────────────────
+// A volunteer opens /admin/ on their phone, picks their team label once
+// (remembered per device), and gets their camps in walking order with talking
+// points, plus the playa map narrowed to their route. Read-only in this round:
+// assignment and mark-done both live in the sheet's Visit column
+// (docs/admin-setup.md sections 6-7). The team labels are whatever the owner
+// types into that column; teams of 2-3 share one label.
+const TEAM_KEY = 'grg-admin-visit-team/v1';
+function VisitsView({ sectors, rows, onCampClick }) {
+  // Same population as the City tab's map and tallies: deduped winners,
+  // hidden rows excluded.
+  const mapRows = React.useMemo(() => A.dedupeRows(rows.filter(r => !A.isHidden(r))), [rows]);
+  const teams = React.useMemo(() => Array.from(new Set(
+    mapRows.map(r => A.visitAssignee(r.visit)).filter(Boolean))).sort(), [mapRows]);
+  const [team, setTeam] = React.useState(() => { try { return localStorage.getItem(TEAM_KEY) || ''; } catch { return ''; } });
+  const [other, setOther] = React.useState('');
+  const pick = (t) => { setTeam(t); try { localStorage.setItem(TEAM_KEY, t); } catch {} };
+  const mine = React.useMemo(() => team
+    ? A.visitOrder(mapRows.filter(r => A.visitAssignee(r.visit) === team)) : [], [mapRows, team]);
+  const doneCount = mine.filter(r => A.visitState(r.visit) === 'done').length;
+  const unassigned = mapRows.filter(r => A.visitState(r.visit) === 'none').length;
+  // A remembered label that no longer appears in the sheet still renders as a
+  // chip (active), so the volunteer sees their pick instead of a mystery blank.
+  const chipList = team && !teams.includes(team) ? [...teams, team] : teams;
+  // Talking points: the camp's two weakest sectors by greens tally. Legacy
+  // rows kept their 0-4 scale, so the denominator follows the row.
+  const denomOf = (r) => A.isLegacy(r) ? 4 : 10;
+  const weakest = (r) => sectors
+    .map(s => ({ name: s.name, v: +((r.greens || {})[s.id]) || 0 }))
+    .sort((a, b) => a.v - b.v).slice(0, 2);
+
+  return (
+    <div style={{ paddingTop: 12, maxWidth: 560, margin: '0 auto' }}>
+      <div data-team-picker style={panelStyle}>
+        <SecHead style={{ marginTop: 0 }}>{team ? 'Your team' : 'Which team are you?'}</SecHead>
+        {chipList.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            {chipList.map(t => {
+              const active = t === team;
+              return (
+                <button key={t} data-team={t} type="button" onClick={() => pick(t)}
+                  style={{ fontWeight: 700, fontSize: 13, padding: '8px 14px', borderRadius: 99, cursor: 'pointer',
+                    border: `2px solid ${active ? '#a8842e' : '#26382e'}`,
+                    background: active ? 'linear-gradient(135deg,#6b4f14,#8a6a1e)' : 'transparent',
+                    color: active ? '#fbf3df' : '#c9ad6b' }}>
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {teams.length === 0 && (
+          <div style={{ fontSize: 12.5, color: '#93a89b', marginTop: 6, lineHeight: 1.5 }}>
+            No teams assigned yet. Type a team label into the sheet's Visit column
+            to build routes (docs/admin-setup.md, section 6).
+          </div>
+        )}
+        <form onSubmit={e => { e.preventDefault(); const v = other.trim(); if (v) { pick(v); setOther(''); } }}
+          style={{ marginTop: 10 }}>
+          <input data-team-other value={other} onChange={e => setOther(e.target.value)}
+            placeholder="or type your team label" aria-label="Type your team label"
+            style={{ ...selStyle, borderRadius: 8, padding: '7px 10px', width: 180 }} />
+        </form>
+        <div data-visit-summary style={{ fontSize: 12, color: '#7f988a', marginTop: 10, borderTop: '1px dashed #21332a', paddingTop: 7 }}>
+          {team && <span><b style={{ color: '#cdebd8' }}>{doneCount}</b> of <b style={{ color: '#cdebd8' }}>{mine.length}</b> on your route visited · </span>}
+          Unassigned city-wide: <b style={{ color: unassigned ? '#e8c15a' : '#cdebd8' }}>{unassigned}</b> {unassigned === 1 ? 'camp' : 'camps'}
+        </div>
+      </div>
+
+      {team && mine.length === 0 && (
+        <div style={{ ...panelStyle, marginTop: 10, fontSize: 13, color: '#93a89b' }}>
+          No camps assigned to <b style={{ color: '#eaf2ec' }}>{team}</b> yet.
+        </div>
+      )}
+      {mine.map((r, i) => {
+        const done = A.visitState(r.visit) === 'done';
+        const wk = weakest(r);
+        return (
+          <div key={i} data-visit-card style={{ ...panelStyle, marginTop: 10,
+            borderLeft: `3px solid ${done ? '#45c483' : '#e8c15a'}`, opacity: done ? 0.72 : 1 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <b style={{ color: '#7fc46a', fontSize: 15, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</b>
+              <b style={{ fontSize: 15, flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{r.campName}</b>
+              <b style={{ fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{r.total}/60</b>
+            </div>
+            <div style={{ fontSize: 12.5, color: '#cdebd8', marginTop: 3 }}>
+              {String(r.campLocation || '').trim() || 'no address, see the Open camping box on the map'}
+              {+r.campSize > 0 && <span style={{ color: '#93a89b' }}> · about {r.campSize} campers</span>}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, marginTop: 5, color: done ? '#45c483' : '#e8c15a' }}>
+              {done ? '✓ visited' : 'not visited yet'}
+            </div>
+            {!done && wk.length > 0 && (
+              <div data-talking-points style={{ fontSize: 12, color: '#7f988a', marginTop: 6, borderTop: '1px dashed #21332a', paddingTop: 6 }}>
+                Talking points: {wk.map((s, j) => (
+                  <span key={j}>{j > 0 && ' · '}<b style={{ color: '#cdebd8' }}>{s.name}</b> {s.v}/{denomOf(r)}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <PlayaMap rows={mapRows} onCampClick={onCampClick} assignee={team} />
+    </div>
+  );
+}
 
 // ── Camps: full-width scannable rows ─────────────────────────────────────────
 // Every row shows everything — identity, submitted date/time, all six sector
