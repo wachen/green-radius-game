@@ -415,6 +415,36 @@ function CommunityTally({ sectors, rows, onCampClick }) {
   // actual row list, so it repeats the two filters here).
   const mapRows = React.useMemo(() => A.dedupeRows(rows.filter(r => !A.isHidden(r))), [rows]);
 
+  // Visit progress: same population and colors as the playa map legend, so
+  // "how far through the visits are we?" reads without scrolling to the map.
+  const visitCounts = React.useMemo(() => {
+    const c = { none: 0, assigned: 0, done: 0 };
+    mapRows.forEach(r => { c[A.visitState(r.visit)]++; });
+    return c;
+  }, [mapRows]);
+  const totalCampers = React.useMemo(() =>
+    mapRows.reduce((n, r) => n + (+r.campSize || 0), 0), [mapRows]);
+  const VisitProgress = mapRows.length > 0 ? (
+    <div data-visit-progress style={{ ...panelStyle, marginTop: 12 }}>
+      <SecHead style={{ marginTop: 0 }}>Visit Progress</SecHead>
+      <div style={{ display: 'flex', height: 8, borderRadius: 99, overflow: 'hidden', background: '#1d2c24', margin: '8px 0 7px' }}>
+        {visitCounts.done > 0 && <div style={{ flex: visitCounts.done, background: '#45c483' }}/>}
+        {visitCounts.assigned > 0 && <div style={{ flex: visitCounts.assigned, background: '#e8c15a' }}/>}
+        {visitCounts.none > 0 && <div style={{ flex: visitCounts.none, background: '#2c4234' }}/>}
+      </div>
+      <div style={{ fontSize: 12, color: '#cdebd8', display: 'flex', flexWrap: 'wrap', gap: '2px 10px' }}>
+        <span><b style={{ color: '#45c483' }}>{visitCounts.done}</b> visited</span>
+        <span><b style={{ color: '#e8c15a' }}>{visitCounts.assigned}</b> assigned</span>
+        <span><b style={{ color: '#93a89b' }}>{visitCounts.none}</b> to visit</span>
+      </div>
+      {totalCampers > 0 && (
+        <div style={{ fontSize: 11, color: '#7f988a', marginTop: 8, borderTop: '1px dashed #21332a', paddingTop: 7 }}>
+          These camps represent about <b style={{ color: '#cdebd8' }}>{totalCampers.toLocaleString()}</b> campers.
+        </div>
+      )}
+    </div>
+  ) : null;
+
   // Left column: just the BRC radius box. Right column: the pulse tiles, then
   // Sector Averages (single column, already sorted descending by average) and
   // Top Camps as adjoining columns — together they roughly match the hero's
@@ -425,10 +455,10 @@ function CommunityTally({ sectors, rows, onCampClick }) {
         <div>{Hero}</div>
         <div>
           {Pulse}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(190px, 240px) 1fr', gap: '0 14px', alignItems: 'start' }}>{Standings}{Leaderboard}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(190px, 240px) 1fr', gap: '0 14px', alignItems: 'start' }}><div>{Standings}{VisitProgress}</div>{Leaderboard}</div>
         </div>
       </div>
-    : <div style={{ paddingTop: 12 }}>{Hero}{Standings}{Pulse}{Leaderboard}</div>;
+    : <div style={{ paddingTop: 12 }}>{Hero}{Standings}{VisitProgress}{Pulse}{Leaderboard}</div>;
   return <div>{Grid}{Superlatives}<AnalyticsPanel rows={rows} agg={agg} sectors={sectors} /><PlayaMap rows={mapRows} onCampClick={onCampClick} /></div>;
 }
 
