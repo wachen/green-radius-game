@@ -226,3 +226,71 @@ Teams of 2 or 3 share one label; each person taps the same label on their own
 phone (the pick is per-device, stored in localStorage, changeable any time).
 The tab is read-only: marking a visit done is still a sheet edit (`✓ Team 1`)
 until the mark-visited write path ships.
+
+## 8. Mark visited from the Visits tab (one write)
+
+The Worker now exposes `POST /api/admin/visit` (Access-JWT gated, same as
+`/api/admin/responses`), which forwards `{ campId, campName, year, team }` to
+the Apps Script web app so a volunteer can mark a camp visited from their
+phone instead of editing the sheet by hand. It writes exactly one cell — the
+`Visit` column (section 6) — and never touches anything else.
+
+**In the same Apps Script project**, add the branch below near the top of
+`doPost`, right after the existing shared-secret check (it reuses the
+`SHEET_NAME` constant, the `col` header-lookup pattern from `doGet`, and the
+`jsonOut` helper):
+
+```js
+    // Visit-write branch: POST /api/admin/visit forwards { action: 'visit',
+    // campId, campName, year, team }. Locates the row by campId (parsed out
+    // of the Answers JSON column) if present, else falls back to an exact
+    // Camp name + Year match, then writes "✓ " + team into the Visit column
+    // (found by header name, same as doGet). Never touches any other column.
+    if (data.action === 'visit') {
+      var vSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+      if (!vSheet) return jsonOut({ ok: false, error: 'no_sheet' });
+
+      var vValues = vSheet.getDataRange().getValues();
+      var vHeader = vValues.shift();
+      var vCol = {}; vHeader.forEach(function (name, i) { vCol[name] = i; });
+      if (vCol['Visit'] === undefined) return jsonOut({ ok: false, error: 'no_visit_column' });
+
+      var rowIndex = -1;
+      if (data.campId && vCol['Answers JSON'] !== undefined) {
+        for (var i = 0; i < vValues.length; i++) {
+          try {
+            var rowAnswers = JSON.parse(vValues[i][vCol['Answers JSON']] || '{}');
+            if (rowAnswers.campId === data.campId) { rowIndex = i; break; }
+          } catch (e) {}
+        }
+      }
+      if (rowIndex === -1) {
+        for (var j = 0; j < vValues.length; j++) {
+          if (vValues[j][vCol['Camp']] === data.campName && String(vValues[j][vCol['Year']]) === String(data.year)) {
+            rowIndex = j; break;
+          }
+        }
+      }
+      if (rowIndex === -1) return jsonOut({ ok: false, error: 'not_found' });
+
+      // +2: vValues is 0-indexed after the header shift, and sheet rows are 1-indexed with row 1 = header.
+      vSheet.getRange(rowIndex + 2, vCol['Visit'] + 1).setValue('✓ ' + (data.team || ''));
+      return jsonOut({ ok: true });
+    }
+```
+
+It verifies the shared secret the same way the rest of `doPost` already does
+(the existing check above this branch, comparing `data.secret` against the
+`SHARED_SECRET` Script Property) — nothing extra to add there.
+
+**Re-deploy** the web app after pasting this in (Manage deployments → edit →
+New version — same `/exec` URL, same secret). **Deploy this before wiring up
+the "mark visited" button** — until this branch exists, `doPost` has no
+`action === 'visit'` check, so a visit-write call falls through to the normal
+row-append path instead of erroring: it appends a spurious row (the visit
+call's `campName`/`year` filled in, everything else blank/zero) and still
+reports `{ ok: true }`. Once this branch is deployed, a call that can't find
+its row (bad campId/campName/year) or hits a sheet with no `Visit` column yet
+(section 6 not done) cleanly returns `{ ok: false, ... }`, the Worker relays a
+502, the button shows an error, and no row is touched — the "nothing breaks"
+property only holds after this section is deployed.
