@@ -10,6 +10,17 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Public /city page grows four aggregate-only panels: City pulse (camp count
+  plus about-N-campers), Score spread (histogram), Momentum (submissions by
+  week, current week highlighted), and Where the city can grow (the five
+  lowest citywide yes-rate questions). GET /api/city now returns a computed
+  `stats` key (campers sum, histogram bins, weekly counts, top opportunities)
+  built from the same isomorphic aggregate.js population as the existing
+  tally, so the numbers always agree; every field is an aggregate and the
+  camp-identifying-fields allowlist rule stands (tests regex-sweep the
+  serialized response to prove it). The page guards every field, so a stale
+  cached old-shape response renders exactly as before (#107)
+
 - Mark visited from the Visits tab: the one write in the admin system. A
   pending route card gains a full-width "Mark visited" button with an inline
   are-you-sure step (no native dialogs); confirming POSTs to the new

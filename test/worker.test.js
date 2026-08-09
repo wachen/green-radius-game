@@ -448,6 +448,80 @@ describe('computeCityBody season scoping', () => {
   });
 });
 
+describe('computeCityBody stats', () => {
+  // Same raw sheet-row shape as the season-scoping suite above.
+  function sheetRow(overrides) {
+    return { campName: 'Camp', leadName: 'Lead', email: 'a@b.co', year: 2026, greens: {}, total: 0,
+      source: 'board', schemaVersion: 'v2', timestamp: new Date().toISOString(), ...overrides };
+  }
+  async function cityBody(sheetRows) {
+    const env = { SHEETS_WEBAPP_URL: 'https://script.google.com/fake', SHEETS_SHARED_SECRET: 's' };
+    return withMockFetch(async () => new Response(JSON.stringify({ rows: sheetRows }), { status: 200 }),
+      () => computeCityBody(env));
+  }
+
+  test('stats reflects the same deduped, hidden-excluded population as the tally', async () => {
+    const body = await cityBody([
+      // Superseded resubmission for Camp A — the earlier of the two, must not count.
+      sheetRow({ campName: 'Camp A', email: 'a@a.co', campSize: '10', total: 3,
+        answers: { F1: 'yes' }, timestamp: new Date(Date.now() - 60000).toISOString() }),
+      // Winner for Camp A (later timestamp) — this is the one that should count.
+      sheetRow({ campName: 'Camp A', email: 'a@a.co', campSize: '20', total: 8,
+        answers: { F1: 'yes' } }),
+      sheetRow({ campName: 'Camp B', email: 'b@b.co', campSize: '30', total: 15,
+        answers: { F1: 'no' } }),
+      sheetRow({ campName: 'Camp C', email: 'c@c.co', campSize: '40', total: 25,
+        answers: { F1: 'yes' } }),
+      // Owner-flagged junk row: must not contribute campers, histogram, or weekly counts.
+      sheetRow({ campName: 'Junk Camp', email: 'junk@x.co', campSize: '500', total: 50,
+        answers: { F1: 'yes' }, hidden: 'x' }),
+    ]);
+
+    // Population parity: stats and the existing tally describe the same 3 camps.
+    expect(body.count).toBe(3);
+    expect(body.stats.campers).toBe(20 + 30 + 40); // Junk Camp's 500 and Camp A's superseded 10 excluded
+
+    expect(body.stats.histogram.bins).toEqual([
+      { label: '0-9', count: 1 },   // Camp A: total 8
+      { label: '10-19', count: 1 }, // Camp B: total 15
+      { label: '20-29', count: 1 }, // Camp C: total 25
+      { label: '30-39', count: 0 },
+      { label: '40-49', count: 0 },
+      { label: '50-60', count: 0 },
+    ]);
+    expect(body.stats.histogram.max).toBe(1);
+
+    expect(Array.isArray(body.stats.weekly)).toBe(true);
+    const weeklyTotal = body.stats.weekly.reduce((n, w) => n + w.count, 0);
+    expect(weeklyTotal).toBe(3); // every fixture row's timestamp is "now"
+    expect(typeof body.stats.weekly[body.stats.weekly.length - 1].start).toBe('number');
+
+    // F1 was asked of all 3 active camps (2 yes, 1 no) — enough to clear the
+    // minAsked=3 floor and appear as an opportunity.
+    const f1 = body.stats.opportunities.find(o => o.id === 'F1');
+    expect(f1).toBeTruthy();
+    expect(f1.asked).toBe(3);
+    expect(f1.rate).toBeCloseTo(2 / 3, 5);
+    expect(body.stats.opportunities.length).toBeLessThanOrEqual(5);
+  });
+
+  test('the serialized response never carries camp-identifying fields', async () => {
+    const body = await cityBody([
+      sheetRow({ campName: 'Identifiable Camp', email: 'owner@identifiable.co',
+        campLocation: '3:00 & E', campSize: '15', leadName: 'Some Lead',
+        answers: { F1: 'yes' } }),
+      sheetRow({ campName: 'Another Camp', email: 'x@y.co', campLocation: '6:00 & K',
+        campSize: '22', answers: { F1: 'no' } }),
+      sheetRow({ campName: 'Third Camp', email: 'z@z.co', campLocation: '9:00 & G',
+        campSize: '9', answers: { F1: 'yes' } }),
+    ]);
+    const raw = JSON.stringify(body);
+    for (const forbidden of [/campName/, /leadName/, /"email"/, /campLocation/, /campSize/, /Identifiable Camp/, /owner@identifiable\.co/]) {
+      expect(raw).not.toMatch(forbidden);
+    }
+  });
+});
+
 describe('accessJwtEmail', () => {
   test('extracts the email claim from a token payload', async () => {
     const header = b64url(JSON.stringify({ alg: 'RS256', kid: 'x' }));
