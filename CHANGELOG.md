@@ -19,7 +19,7 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
   and logs the caller's Access email per attempt. The card flips green
   optimistically and a failed save restores the button with a gentle retry
   note. Apps Script paste-in + deploy-order warning in docs/admin-setup.md
-  section 8; 11 new Worker tests (#106)
+  section 8; 11 new Worker tests. Also: the home signup banner deadline pushed back to August 17 (auto-hide follows) (#106)
 
 - Admin Visits tab: a third, phone-first tab for the Sept 1-2 BLAST camp
   visits. A volunteer picks their team label once (remembered per device,
