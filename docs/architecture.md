@@ -81,10 +81,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      stays `v:2`, so every existing decoder (old browsers, the Worker OG path) ignores
      the extra key, and links minted before this change decode with `campId: null`.
      `decode` always returns `campId` (`null` for legacy v1/v2 links). A
-     **`CONTENT_VERSION`** stamp (`"2026"`) rides the same way as an additive
-     optional **`cv`** field (#82, both encode call sites since #87) — it marks
-     which year's question set a link answered, for a future year-over-year
-     overlay; `decode` returns it as `contentVersion` (`null` on older links).
+     **`cv`** (content-version) field was minted into links between #82 and #108
+     but never read by anything; the encode/decode plumbing was removed in #108.
+     Links containing `cv` still decode correctly — the envelope is key-based,
+     so an unknown extra key is simply ignored, never positionally shifted.
      The payload rides
      in the `?r=` **query** (so the Worker can read it for the per-camp OG unfurl — see below);
      `/result/` reads `?r=` first and falls back to the legacy `#<hash>` for older

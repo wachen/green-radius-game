@@ -1,6 +1,7 @@
 // Page boot for result/index.html. Compiled to dist/src/boot-result.js and
-// loaded last. ShareCard, ResultCardSVG, downloadSvgAsPng, svgToPngBlob,
-// CARD_W/H, DownloadIcon all live in src/share-card.jsx (loaded first) and are
+// loaded last. ShareCard, OffscreenResultCard, downloadSvgAsPng, cardFilename,
+// usePreRasterizedCard, shareResultCard, DownloadIcon all live in
+// src/share-card.jsx (loaded first) and are
 // reachable by bare name in the shared global scope — they are NOT window
 // properties (this mirrors how index.html mounts the game via a bare
 // <GreenRadiusGame/>). window.ResultState / window.SECTORS come from the plain
@@ -17,37 +18,18 @@ function ResultView({ sectors, fills, campName, year }) {
   const [downloadFailed, setDownloadFailed] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const total = sectors.reduce((n, s) => n + ((fills[s.id] && fills[s.id].totalYes) || 0), 0);
-  const slug = (campName || 'theme-camp').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'theme-camp';
   const resultUrl = window.location.href; // this page *is* the result link
 
-  // Pre-rasterize the card so Web Share has the file ready inside the tap gesture.
-  React.useEffect(() => {
-    if (!cardSvgRef.current) return;
-    let alive = true;
-    svgToPngBlob(cardSvgRef.current).then(b => { if (alive) cardPngRef.current = b; }).catch(() => {});
-    return () => { alive = false; };
-  }, []);
+  usePreRasterizedCard(cardSvgRef, cardPngRef, []);
 
   async function handleDownload() {
     if (!cardSvgRef.current) return;
-    try { await downloadSvgAsPng(cardSvgRef.current, `green-radius-${slug}.png`); }
+    try { await downloadSvgAsPng(cardSvgRef.current, cardFilename(campName)); }
     catch { setDownloadFailed(true); setTimeout(() => setDownloadFailed(false), 1500); }
   }
-  async function handleShare() {
-    const shareText = `Our camp reached ${total}/60. Build your camp's Green Radius:`;
-    const blob = cardPngRef.current;
-    const file = blob ? new File([blob], `green-radius-${slug}.png`, { type: 'image/png' }) : null;
-    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: 'Our Green Radius', text: shareText, url: resultUrl }); return; }
-      catch (e) { if (e && e.name === 'AbortError') return; }
-    }
-    if (navigator.share) {
-      try { await navigator.share({ title: 'Our Green Radius', text: shareText, url: resultUrl }); return; }
-      catch (e) { if (e && e.name === 'AbortError') return; }
-    }
-    try { await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }
-    catch { setCopied('error'); setTimeout(() => setCopied(false), 1500); }
-  }
+  const handleShare = () => shareResultCard({
+    pngBlob: cardPngRef.current, campName, total, url: resultUrl, setCopied,
+  });
 
   const btn = { flex: 1, padding: '14px 0', borderRadius: 12, border: 'none', color: '#fff',
     fontSize: 13, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
@@ -69,11 +51,7 @@ function ResultView({ sectors, fills, campName, year }) {
     });
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(save)); } catch (e) {}
     // Non-PII resume signal (event name only); best-effort, must never block the nav.
-    try {
-      const beacon = JSON.stringify({ event: 'result_resumed' });
-      if (navigator.sendBeacon) navigator.sendBeacon('/api/event', beacon);
-      else fetch('/api/event', { method: 'POST', body: beacon, keepalive: true }).catch(() => {});
-    } catch (e) {}
+    window.sendEvent('result_resumed');
     window.location.href = '/';
   }
   function handleContinue() {
@@ -133,10 +111,7 @@ function ResultView({ sectors, fills, campName, year }) {
           </div>
         </div>
       )}
-      {/* offscreen SVG twin of the card — serialized to PNG by handleDownload/share */}
-      <div aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: CARD_W, height: CARD_H, overflow: 'hidden', pointerEvents: 'none' }}>
-        <ResultCardSVG svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={campName} year={year}/>
-      </div>
+      <OffscreenResultCard svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={campName} year={year}/>
     </div>
   );
 }

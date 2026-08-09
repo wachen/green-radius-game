@@ -354,14 +354,7 @@ global.SECTORS = [
 // or reflective; P-less adds the RV shading example. No ids changed.
 global.SCHEMA_VERSION = 'frog-v13.1';
 
-// Content version — the question-set's year, stamped into the shared result
-// link (`?r=` payload, see result-state.js) so year-over-year comparisons
-// (e.g. the planned ghost-ring overlay) know whether two links answered the
-// same questions. Coarser than SCHEMA_VERSION on purpose: bump only when a
-// new year's question set replaces this one, not for in-year wording tweaks.
-global.CONTENT_VERSION = '2026';
-
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { SECTORS: global.SECTORS, SCHEMA_VERSION: global.SCHEMA_VERSION, CONTENT_VERSION: global.CONTENT_VERSION };
+  module.exports = { SECTORS: global.SECTORS, SCHEMA_VERSION: global.SCHEMA_VERSION };
 }
 })(typeof globalThis !== 'undefined' ? globalThis : this);

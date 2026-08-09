@@ -66,6 +66,48 @@ async function downloadSvgAsPng(svgEl, filename, scale = 2) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+// ─── shared card actions (done screen + result page) ──────────────────────────
+// green-radius.jsx's done screen and src/boot-result.jsx offer the same
+// Download / Share pair over the same offscreen SVG twin (OffscreenResultCard,
+// below); share-card.js loads before both of them on both pages.
+function cardFilename(campName) {
+  const slug = (campName || 'theme-camp').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'theme-camp';
+  return `green-radius-${slug}.png`;
+}
+
+// Pre-rasterize the card so Web Share has the file ready inside the tap gesture
+// (Safari blocks share() if the file is produced by a later async step).
+// Best-effort; no-ops until the offscreen twin is mounted.
+function usePreRasterizedCard(svgRef, pngRef, deps) {
+  useEffect(() => {
+    if (!svgRef.current) return;
+    let alive = true;
+    svgToPngBlob(svgRef.current).then(b => { if (alive) pngRef.current = b; }).catch(() => {});
+    return () => { alive = false; };
+  }, deps);
+}
+
+// Web Share cascade: PNG file → link → clipboard copy. A share rejection is
+// either the user dismissing the sheet (AbortError — leave it, do not nag with a
+// clipboard copy) or a real failure (fall through so the CTA still does
+// *something*). Each attempt gets its own try so one failing path can hand off to
+// the next. `setCopied` is the caller's own toast state: true | 'error' | false.
+async function shareResultCard({ pngBlob, campName, total, url, setCopied }) {
+  const text = `Our camp reached ${total}/60. Build your camp's Green Radius:`;
+  const file = pngBlob ? new File([pngBlob], cardFilename(campName), { type: 'image/png' }) : null;
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'Our Green Radius', text, url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Our Green Radius', text, url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(url); setCopied(true); }
+  catch { setCopied('error'); }
+  setTimeout(() => setCopied(false), 1500);
+}
+
 // Shared by the done screen's and result page's Download buttons.
 function DownloadIcon() {
   return (
@@ -273,5 +315,15 @@ function ResultCardSVG({ sectors, fills, campName, year, svgRef }) {
         GREENRADI.US
       </text>
     </svg>
+  );
+}
+
+// The offscreen SVG twin of the card, parked far off-canvas: this is what the
+// Download / Share actions serialize to PNG (the on-screen ShareCard is HTML).
+function OffscreenResultCard({ svgRef, sectors, fills, campName, year }) {
+  return (
+    <div aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: CARD_W, height: CARD_H, overflow: 'hidden', pointerEvents: 'none' }}>
+      <ResultCardSVG svgRef={svgRef} sectors={sectors} fills={fills} campName={campName} year={year}/>
+    </div>
   );
 }

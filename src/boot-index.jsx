@@ -27,7 +27,7 @@ function App() {
   return (
     <div className="grg-shell">
       <div className="grg-frame">
-        <GreenRadiusGame variant="flat-playa" palette={PALETTE}/>
+        <GreenRadiusGame palette={PALETTE}/>
       </div>
       <FxLayer/>
     </div>

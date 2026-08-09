@@ -10,6 +10,18 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Simplification sweep, no behaviour change: unified the share/download and
+  telemetry-beacon blocks that were copy-pasted between green-radius.jsx and
+  boot-result.jsx into share-card.jsx and beacon.js; dropped the dead debugFill
+  branch, the unused variant/centerLabel props (the wheel's unreachable
+  "dimensional" design direction went with them), and the write-only cv content
+  version stamp from result links; folded the 1-line boot-admin.jsx into
+  admin/admin.jsx; deduplicated admin idea-chips, question rows, the camps grid
+  template and the pin-radius formula; replaced hand-rolled list grammar with
+  Intl.ListFormat and a hand-rolled highlight scan with a split-on-capture-group.
+  Old result links containing cv still decode identically, and saves written by
+  the deployed build still resume — both now pinned by tests. (#108)
+
 - Public /city page grows four aggregate-only panels: City pulse (camp count
   plus about-N-campers), Score spread (histogram), Momentum (submissions by
   week, current week highlighted), and Where the city can grow (the five

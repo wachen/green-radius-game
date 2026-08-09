@@ -105,34 +105,25 @@ test('backward-compat: a legacy v1 (g array) link decodes with campId null', () 
   expect(decoded.campId).toBeNull();
 });
 
-// ─── contentVersion in the result payload (additive, backward-compatible) ────
+// ─── retired `cv` stamp: links minted while it existed must still decode ──────
+// The payload is a key-based JSON object, so an unknown key is inert — but these
+// are shared, persistent URLs already sitting in people's inboxes, so pin it.
 
-test('round-trip: contentVersion is carried through encode/decode when present', () => {
-  const fills = {};
-  for (const id of SECTOR_IDS) fills[id] = { levels: [[true], [true, false], [false, true, false], [true, false, false, false]] };
-  const encoded = ResultState.encode({ fills, campName: 'Dusty Camp', leadName: 'Sandy', year: 2026, contentVersion: '2026' });
-  const decoded = ResultState.decode(encoded);
+test('backward-compat: a v2 link CONTAINING the retired cv key still decodes', () => {
+  const withCv = { v: 2, c: 'Stamped Camp', l: 'Sandy', y: 2026, p: [217, 5, 0, 319, 42, 100], u: 'abc-123-uuid', cv: '2026' };
+  const decoded = ResultState.decode(toB64Url(JSON.stringify(withCv)));
   expect(decoded).not.toBeNull();
-  expect(decoded.contentVersion).toBe('2026');
-  // camp/fills still intact alongside the new field
-  expect(decoded.campName).toBe('Dusty Camp');
-});
-
-test('backward-compat: a v2 link WITHOUT contentVersion decodes with contentVersion undefined (old links)', () => {
-  const fills = {};
-  for (const id of SECTOR_IDS) fills[id] = { levels: [[true], [false, false], [false, false, false], [false, false, false, false]] };
-  const encoded = ResultState.encode({ fills, campName: 'No Version Camp', year: 2025 });
-  const decoded = ResultState.decode(encoded);
-  expect(decoded).not.toBeNull();
-  expect(decoded.contentVersion).toBeUndefined();
-});
-
-test('backward-compat: a legacy v1 (g array) link decodes with contentVersion undefined', () => {
-  const legacy = { c: 'Legacy Camp', l: 'Old Lead', y: 2019, g: [1, 2, 3, 4, 0, 2] };
-  const encoded = toB64Url(JSON.stringify(legacy));
-  const decoded = ResultState.decode(encoded);
-  expect(decoded).not.toBeNull();
-  expect(decoded.contentVersion).toBeUndefined();
+  // Every field still lands on the right key — no shifting from the dropped stamp.
+  expect(decoded.campName).toBe('Stamped Camp');
+  expect(decoded.leadName).toBe('Sandy');
+  expect(decoded.year).toBe(2026);
+  expect(decoded.campId).toBe('abc-123-uuid');
+  // 217 = fixedBits 43 (bits 0,1,3,5 -> 4 fixed Yes) * 5 + advCount 2 => totalYes 6
+  expect(decoded.fills.food.totalYes).toBe(6);
+  // ...and it decodes identically to the same link without the stamp.
+  const noCv = { ...withCv };
+  delete noCv.cv;
+  expect(decoded).toEqual(ResultState.decode(toB64Url(JSON.stringify(noCv))));
 });
 
 // ─── reconstructSave: rebuild a current-shape localStorage save from a result ──

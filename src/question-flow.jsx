@@ -38,8 +38,11 @@ function stepBack(level, idx) {
   return null;
 }
 
-function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette, variant }) {
-  const tierLabels = ['Start Here', 'Beginner', 'Intermediate', 'Advanced'];
+// Is `t` one of the sector's write-in ("Our Camp's Idea") slots? `campIds` comes
+// from campIdeaIds(sector).
+const isCampIdea = (campIds, t) => !!t && campIds.includes(t.id);
+
+function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette }) {
   const levelSizes = [1, 2, 3, 4];
   const tier4Topics = sector.tier4Topics || [];
 
@@ -77,7 +80,6 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
   // ids (see campIdeaIds). Each earns its own Level-4 point, mirroring the form.
   // The button offers the next free slot until all four are used.
   const campIds = campIdeaIds(sector);
-  const isCampIdea = (t) => !!t && campIds.includes(t.id);
   const nextCampId = campTopic ? campIds.find(id => !pickedTopicIds.includes(id)) : null;
   const campTopicOpen = isTier4 && !!nextCampId;
 
@@ -92,7 +94,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
     : questions[idx];
 
   // The write-in needs its idea described before Yes/No makes sense.
-  const needsIdeaText = isTier4 && isCampIdea(q);
+  const needsIdeaText = isTier4 && isCampIdea(campIds, q);
   const canAnswer = !needsIdeaText || customText.trim().length > 0;
 
   function answer(yes) {
@@ -115,7 +117,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
     const nextAnswers = answersByLevel.map((a, li) => li === level ? [...a, yes] : a);
     setAnswersByLevel(nextAnswers);
     const nextPicks = isTier4 ? [...pickedTopicIds, topicId] : pickedTopicIds;
-    const nextNotes = (isTier4 && isCampIdea(q) && customText.trim())
+    const nextNotes = (isTier4 && isCampIdea(campIds, q) && customText.trim())
       ? { ...notes, [q.id]: customText.trim() }
       : notes;
     if (isTier4) {
@@ -204,7 +206,7 @@ function QuestionModal({ sector, onComplete, onAnswer, existingAnswers, palette,
           marginBottom: 14,
         }}>
           <SectorIcon kind={sector.icon} size={14} color="#fff"/>
-          {sector.name} · Level {level + 1} · {tierLabels[level]}
+          {sector.name} · Level {level + 1} · {['Start Here', 'Beginner', 'Intermediate', 'Advanced'][level]}
         </div>
 
         {/* sector intro — show only on the very first question of the sector

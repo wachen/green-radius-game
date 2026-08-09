@@ -4,7 +4,7 @@
 // fills shape: see SectorFill typedef in src/core.jsx
 // Sectors render as 4 stacked rings (level 1 inner → level 4 outer).
 // Each ring cell has its own state: 'locked' | 'open' | 'green' | 'failed'.
-function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, palette, shinePaused }) {
+function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, palette, shinePaused }) {
   // Internal SVG coordinate space. Wheel outer radius is 200, so SIZE needs at
   // least 400 + headroom for the drop-shadow filter and dust-ring glow.
   const SIZE = 420;
@@ -14,7 +14,6 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
   const N = sectors.length;
   const sweep = 360 / N;
 
-  const dim = variant === 'dimensional';
   const reduceMotion = prefersReducedMotion();
 
   const svgRef = useRef(null);
@@ -71,15 +70,6 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
       width: '100%', maxWidth: 380, aspectRatio: '1 / 1',
       margin: '0 auto',
     }}>
-      {/* outer dust ring */}
-      {dim && (
-        <div style={{
-          position: 'absolute', inset: -14, borderRadius: '50%',
-          background: 'radial-gradient(circle, transparent 60%, rgba(217,136,92,0.15) 75%, transparent 100%)',
-          filter: 'blur(4px)',
-        }} />
-      )}
-
       <svg
         ref={svgRef}
         width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`}
@@ -91,7 +81,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
           transition: spinning
             ? (reduceMotion ? 'transform 0.4s ease-out' : 'transform 2.2s cubic-bezier(0.17, 0.67, 0.16, 0.99)')
             : 'none',
-          filter: dim ? 'drop-shadow(0 12px 28px rgba(40,20,10,0.35))' : 'drop-shadow(0 4px 12px rgba(40,20,10,0.18))',
+          filter: 'drop-shadow(0 4px 12px rgba(40,20,10,0.18))',
         }}
       >
         <defs>
@@ -119,7 +109,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
                     d={arcPath(cx, cy, ringRadii[li], ringOuter[li], s0, s1)}
                     fill={filled ? LEVEL_COLORS[li] : ringTint[li]}
                     stroke={palette.bg}
-                    strokeWidth={dim ? 2 : 1.5}
+                    strokeWidth={1.5}
                   />
                   {filled && (
                     <path
@@ -155,14 +145,9 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
 
         {/* center hub */}
         <circle cx={cx} cy={cy} r={56} fill={palette.hub} stroke={palette.hubStroke} strokeWidth={2} />
-        {dim && <circle cx={cx} cy={cy} r={56} fill="url(#hubGloss)" />}
 
         {/* defs continued */}
         <defs>
-          <radialGradient id="hubGloss" cx="40%" cy="35%" r="60%">
-            <stop offset="0%" stopColor="#fff" stopOpacity="0.4"/>
-            <stop offset="100%" stopColor="#fff" stopOpacity="0"/>
-          </radialGradient>
           <linearGradient id="greenShimmer" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#fff" stopOpacity="0.5"/>
             <stop offset="100%" stopColor="#fff" stopOpacity="0"/>
@@ -182,9 +167,7 @@ function Wheel({ sectors, fills, rotation, spinning, onSpin, canSpin, variant, p
           fontSize: 14, fontWeight: 800, letterSpacing: '0.12em',
           textTransform: 'uppercase',
           cursor: canSpin && !spinning ? 'pointer' : 'default',
-          boxShadow: dim
-            ? `0 6px 18px ${palette.accent}66, inset 0 -3px 0 rgba(0,0,0,0.18), inset 0 2px 0 rgba(255,255,255,0.25)`
-            : `0 3px 0 ${palette.accentDeep}`,
+          boxShadow: `0 3px 0 ${palette.accentDeep}`,
           transition: 'transform 0.15s, box-shadow 0.15s',
           zIndex: 4,
         }}

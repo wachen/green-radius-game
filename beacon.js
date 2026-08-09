@@ -1,4 +1,5 @@
-// Client-side error beacon. Log-only, nothing stored: catches silent white
+// Client-side telemetry beacons (error reporting + window.sendEvent, both
+// log-only). Log-only, nothing stored: catches silent white
 // screens on odd playa phones and POSTs a tiny report to /api/client-error
 // (Workers Logs). Loaded FIRST, without defer, in every page's <head> so the
 // handlers are installed before the deferred vendor/dist scripts run. Plain
@@ -39,6 +40,22 @@
       fetch('/api/client-error', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true }).catch(function () {});
     } catch (e) {}
   }
+
+  // Fire-and-forget funnel analytics, shared by green-radius.jsx and
+  // src/boot-result.jsx. Lives here because this script loads first, without
+  // defer, on every page, so it is defined before any deferred dist/ script
+  // runs. sendBeacon survives the page-unload that a submit or navigation can
+  // trigger; the keepalive fetch is a fallback for the rare browser without it.
+  // Fully wrapped so a telemetry hiccup can never touch gameplay. Non-PII by
+  // contract: event name + coarse props (mode, sector count) only — never camp
+  // names, emails, or free text. Sink is the Worker's POST /api/event.
+  window.sendEvent = function (event, props) {
+    try {
+      var body = JSON.stringify(Object.assign({ event: event }, props));
+      if (navigator.sendBeacon) navigator.sendBeacon('/api/event', body);
+      else fetch('/api/event', { method: 'POST', body: body, keepalive: true }).catch(function () {});
+    } catch (e) { /* analytics must never break the page */ }
+  };
 
   window.onerror = function (message, source, lineno, colno) {
     report(message, source, lineno, colno);
