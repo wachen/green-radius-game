@@ -64,7 +64,7 @@ const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
-const APP_VERSION = 'v107';
+const APP_VERSION = 'v108';
 
 // Every valid question id in the current game (Levels 1–3 by question id +
 // Tier-4 topic ids). Used to drop stale ids when salvaging an older save.
@@ -78,12 +78,12 @@ function validQidSet(sectors) {
   return set;
 }
 
+// `sectorCursor` is deliberately NOT checked: the game stopped writing it (it was
+// never read back), so requiring it would send every new save down the salvage
+// path. Saves written by older builds still carry it — an ignored extra key.
 function isCurrentShape(data, sectors) {
   return data.version === STORAGE_VERSION && data.answers && typeof data.answers === 'object' &&
-    sectors.every(s =>
-      typeof (data.sectorCursor && data.sectorCursor[s.id]) === 'number' &&
-      typeof (data.sectorClosed && data.sectorClosed[s.id]) === 'boolean'
-    );
+    sectors.every(s => typeof (data.sectorClosed && data.sectorClosed[s.id]) === 'boolean');
 }
 
 // Turn any saved blob into something usable. A current-shape save passes through.

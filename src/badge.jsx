@@ -85,7 +85,7 @@ function segAngles(a0, a1, n, gap = 0) {
 // compensation). Adjacent sectors share boundaries so the lit area still reads
 // as one silhouette.
 function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false,
-                       intensities = null, onSelectSegment = null, selected = null, centerLabel = null, fluid = false,
+                       intensities = null, onSelectSegment = null, selected = null, fluid = false,
                        revealCount = null }) {
   const cx = size / 2, cy = size / 2;
   // [hub edge, L1, L2, L3, L4] — the inner hub stays clear (total moved to the header), like the board
@@ -105,7 +105,7 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
   // aria-label; small thumbnail-only uses (admin rows, camp list icons) are
   // decorative next to their own visible label, so they're hidden from SR.
   const badgeLabel = intensities
-    ? `Citywide green radius badge${centerLabel != null ? `, overall ${centerLabel}` : ''}.`
+    ? 'Citywide green radius badge.'
     : `Green radius badge. ${sectors.map(s => `${s.name} ${(fills[s.id] && fills[s.id].totalYes) || 0} of 10`).join(', ')}.`;
 
   return (
@@ -184,18 +184,12 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
         );
       })}
 
-      {/* center: a numeric label override (aggregate mode) or the board's hand-drawn dot hub */}
+      {/* center: the board's hand-drawn dot hub */}
       {showCenter && (
-        centerLabel != null ? (
-          <text x={cx} y={cy + size * 0.045} textAnchor="middle" fontSize={size * 0.13} fontWeight="900"
-            fill={dark ? '#fff' : '#2a2620'}
-            style={{ paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.18)', strokeWidth: 0.6 }}>{centerLabel}</text>
-        ) : (
-          <g>
-            <circle cx={cx} cy={cy} r={size * 0.04} fill="#f3ece0"/>
-            <circle cx={cx} cy={cy} r={size * 0.024} fill="#2a2620"/>
-          </g>
-        )
+        <g>
+          <circle cx={cx} cy={cy} r={size * 0.04} fill="#f3ece0"/>
+          <circle cx={cx} cy={cy} r={size * 0.024} fill="#2a2620"/>
+        </g>
       )}
     </svg>
   );

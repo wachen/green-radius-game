@@ -159,6 +159,24 @@ describe('migrateSaved: unvalidated / garbage fields never leak through', () => 
   });
 });
 
+// The live build stopped writing `sectorCursor` (nothing ever read it back), so
+// isCurrentShape no longer requires it. Saves already sitting in real players'
+// localStorage DO carry it — both shapes must resume untouched, never salvaged
+// (salvage would drop phase/submittedAt/goldenSeen and flash the restored banner).
+describe('save compatibility: sectorCursor is optional', () => {
+  test('an old-build save (with sectorCursor) and a new-build save (without) both resume untouched', () => {
+    const oldBuild = currentShapeSave({ answers: { F1: 'yes', F2: 'no' } });
+    expect(oldBuild.sectorCursor).toBeDefined(); // the shape currently in production
+    expect(migrateSaved(oldBuild, SECTORS)).toBe(oldBuild);
+    expect(migrateSaved(oldBuild, SECTORS).salvaged).toBeUndefined();
+
+    const newBuild = currentShapeSave();
+    delete newBuild.sectorCursor;
+    expect(isCurrentShape(newBuild, SECTORS)).toBe(true);
+    expect(migrateSaved(newBuild, SECTORS)).toBe(newBuild);
+  });
+});
+
 describe('isCurrentShape', () => {
   test('rejects a save missing per-sector cursor/closed entries', () => {
     const bad = currentShapeSave({ sectorCursor: {}, sectorClosed: {} });

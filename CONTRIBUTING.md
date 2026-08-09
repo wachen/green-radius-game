@@ -28,7 +28,7 @@ No bundler, no npm, no `package.json` — but a tiny compile step: `bun run scri
 |--------------------|----------------------------------------------------------------------|
 | `index.html`       | Entry point; mounts `<GreenRadiusGame/>`                             |
 | `green-radius.jsx` | Main game component (`GreenRadiusGame`) — game state/phases, intro, done/email screen, Green-Up Plan; loads **last**; compiles to `dist/green-radius.js` |
-| `src/`             | The rest of the game UI, one shared global scope split by area: `core.jsx` (hooks, constants, persistence, scoring — loads **first**), `fx.jsx`, `badge.jsx`, `wheel.jsx`, `question-flow.jsx`, `share-card.jsx`, `home.jsx`, `form-mode.jsx`, plus the per-page boot entry scripts `boot-index.jsx`/`boot-result.jsx`/`boot-city.jsx`/`boot-admin.jsx`; each compiles 1:1 to `dist/src/*.js` |
+| `src/`             | The rest of the game UI, one shared global scope split by area: `core.jsx` (hooks, constants, persistence, scoring — loads **first**), `fx.jsx`, `badge.jsx`, `wheel.jsx`, `question-flow.jsx`, `share-card.jsx`, `home.jsx`, `form-mode.jsx`, plus the per-page boot entry scripts `boot-index.jsx`/`boot-result.jsx`/`boot-city.jsx` (the 1-line `boot-admin.jsx` was folded into `admin/admin.jsx` in #108); each compiles 1:1 to `dist/src/*.js` |
 | `dist/`            | Committed, compiled classic-JS artifacts (built by `scripts/build.js`, mirrors source paths) — this is what the HTML entry points actually load; never hand-edit |
 | `scripts/build.js` | The compile step: run `bun run scripts/build.js` to regenerate `dist/` from the `.jsx` sources whenever they change |
 | `game-data.js`     | `window.SECTORS` — sector / tier / question content (BLAST framework) |
@@ -41,7 +41,7 @@ No bundler, no npm, no `package.json` — but a tiny compile step: `bun run scri
 | `_headers`         | Static-asset response headers (HSTS, framing, permissions)            |
 | `vendor/`          | Pinned Preact runtime (+ React-names shim), served same-origin (see its README) |
 | `og-card.png`      | Static Open Graph share-card image (source: `scripts/og-card.html`)   |
-| `shared.css`       | Shared entry-page CSS — the vendored `@font-face` + pre-mount loading placeholder rules (linked by `index.html`, `result/index.html`, `city/index.html`; `admin/` keeps its own smaller variant) |
+| `shared.css`       | Shared entry-page CSS — the vendored `@font-face` + pre-mount loading placeholder rules (linked by all four entry pages, `admin/` included since #108) |
 | `favicon.svg`      | The six-wedge favicon, linked by all four HTML entry points           |
 | `downloads/`       | Printable board-game + how-to-play PDFs                               |
 

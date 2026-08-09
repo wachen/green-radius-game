@@ -111,7 +111,12 @@ async function handleComplete(request, env) {
   const leadName = clampField(body.leadName, 80);
   const email = clampField(body.email, 254);
   const campLocation = clampField(body.campLocation, 80);
-  const campSize = campSizeCell(body.campSize);
+  // Camp size (headcount): blank when absent/invalid, else a non-negative integer
+  // string capped at 99999 (a generous sheet-side ceiling — the intake form itself
+  // caps at 2000, this just tolerates any pre-cap/legacy value reaching the Worker).
+  const sizeNum = Math.trunc(Number(body.campSize));
+  const campSize = (body.campSize == null || body.campSize === '' || !Number.isFinite(sizeNum))
+    ? '' : String(Math.max(0, Math.min(99999, sizeNum)));
 
   const resultUrl = safeResultUrl(body.resultUrl);
   const row = {
@@ -362,15 +367,6 @@ function escAttr(s) {
 
 function clampField(s, n) {
   return String(s == null ? '' : s).slice(0, n);
-}
-
-// Camp size (headcount): blank when absent/invalid, else a non-negative integer
-// string capped at 99999 (a generous sheet-side ceiling — the intake form itself
-// caps at 2000, this just tolerates any pre-cap/legacy value reaching the Worker).
-function campSizeCell(v) {
-  if (v === undefined || v === null || v === '') return '';
-  const n = Math.trunc(Number(v));
-  return Number.isFinite(n) ? String(Math.max(0, Math.min(99999, n))) : '';
 }
 
 // Google Sheets treats a cell whose value starts with = + - @ (or a control char)

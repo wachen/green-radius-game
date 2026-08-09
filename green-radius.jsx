@@ -1,20 +1,8 @@
 // green-radius.jsx — main game component (GreenRadiusGame) + intro and Green-Up Plan.
-// Two design directions are exposed via the `variant` prop ("dimensional" | "flat-playa").
 // Loads last: the src/*.jsx modules define everything else in the same shared Babel scope.
 
-// Fire-and-forget funnel analytics. sendBeacon survives the page-unload that a
-// submit or navigation can trigger; the keepalive fetch is a fallback for the
-// rare browser without it. Fully wrapped so a telemetry hiccup can never touch
-// gameplay. Non-PII by contract: event name + coarse props (mode, sector count)
-// only — never camp names, emails, or free text. Sink is the Worker's
-// POST /api/event; see docs/architecture.md.
-function trackEvent(event, props) {
-  try {
-    const body = JSON.stringify({ event, ...props });
-    if (navigator.sendBeacon) navigator.sendBeacon('/api/event', body);
-    else fetch('/api/event', { method: 'POST', body, keepalive: true }).catch(() => {});
-  } catch (e) { /* analytics must never break the game */ }
-}
+// Funnel analytics go through window.sendEvent (beacon.js, loaded first and
+// un-deferred on every page); see docs/architecture.md.
 
 // Green-Up Plan data: every "No" answer becomes a next-year step. Levels 1–3 come
 // from sector.levels[0..2]; level 4 from sector.tier4Topics. Grouped by sector (board
@@ -112,11 +100,7 @@ function Intro({ onStart, onBack, palette, description, initial }) {
   if (!emailOk) missing.push('a valid email');
   if (!campLocationOk) missing.push('your camp location');
   if (!campSizeOk) missing.push('your camp size');
-  const missingMsg = missing.length === 1
-    ? `Please add ${missing[0]} to continue.`
-    : missing.length === 2
-      ? `Please add ${missing[0]} and ${missing[1]} to continue.`
-      : `Please add ${missing.slice(0, -1).join(', ')}, and ${missing[missing.length - 1]} to continue.`;
+  const missingMsg = `Please add ${new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(missing)} to continue.`;
 
   return (
     <div style={{ padding: '20px 24px 28px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
@@ -216,11 +200,7 @@ function Field({ label, value, onChange, onBlur, placeholder, palette, required,
         placeholder={placeholder}
         required={required}
         aria-invalid={invalid || undefined}
-        inputMode={isEmail ? 'email' : isNumber ? 'numeric' : undefined}
-        autoCapitalize={isEmail ? 'none' : undefined}
-        autoCorrect={isEmail ? 'off' : undefined}
         autoComplete={isEmail ? 'email' : undefined}
-        spellCheck={isEmail ? false : undefined}
         min={isNumber ? min : undefined}
         max={isNumber ? max : undefined}
         maxLength={maxLength}
@@ -284,7 +264,7 @@ function useResultReveal(total, active, reduceMotion) {
   return { value, done };
 }
 
-function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }) {
+function GreenRadiusGame({ palette }) {
   const sectors = window.SECTORS;
 
   // Pull any saved game once on mount. If null, fall through to defaults.
@@ -297,14 +277,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   // + handleExit). Rides to the sheet inside the answers blob for read-time dedup.
   const [campId, setCampId] = useState(() => saved?.campId || genCampId());
 
-  const [sectorCursor, setSectorCursor] = useState(() => {
-    if (saved?.sectorCursor) return saved.sectorCursor;
-    const o = {}; sectors.forEach(s => o[s.id] = 0); return o; // next level index
-  });
-  const [sectorClosed, setSectorClosed] = useState(() => {
-    if (saved?.sectorClosed) return saved.sectorClosed;
-    const o = {}; sectors.forEach(s => o[s.id] = false); return o;
-  });
+  const [sectorClosed, setSectorClosed] = useState(() =>
+    saved?.sectorClosed || Object.fromEntries(sectors.map(s => [s.id, false])));
   // Per-question answers, keyed by question id (Tier-4 keyed by picked topic id).
   // Both modes write this map; it drives scoring AND the backend-only granular record.
   const [answers, setAnswers] = useState(saved?.answers || {});
@@ -345,6 +319,11 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   const rankRef = useRef(null);         // the finished-screen rank word, for the closing leaf burst
   const revealReduceMotion = prefersReducedMotion();
   const totalYesAll = sectors.reduce((n, s) => n + (fills[s.id] ? fills[s.id].totalYes : 0), 0);
+  // The shareable card link. One source for both the done screen (share/copy)
+  // and the submission POST, so the emailed link always matches what's on screen.
+  const resultUrl = useMemo(() => window.location.origin + '/result/?r=' +
+    window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year: new Date().getFullYear(), fills, campId }),
+    [camp.campName, camp.leadName, fills, campId]);
   const revealActive = phase === 'done' && revealArmedRef.current && mode === 'board';
   const { value: revealValue, done: revealDone } = useResultReveal(totalYesAll, revealActive, revealReduceMotion);
   // Fire the closing leaf burst from the rank once the count-up finishes.
@@ -430,18 +409,15 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     if (nonce !== submitNonce) setSubmitNonce(nonce);
     fontEmbedCss(); // warm the font cache so the Download button is snappy
     (async () => {
-      const greens = {};
-      sectors.forEach(s => { greens[s.id] = sectorFill(s, answers).totalYes; });
+      const greens = Object.fromEntries(sectors.map(s => [s.id, fills[s.id].totalYes]));
       const year = new Date().getFullYear();
-      const resultUrl = window.location.origin + '/result/?r=' +
-        window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills, campId, contentVersion: window.CONTENT_VERSION });
       // overrideEmail (from the done-screen "edit & resend") wins over camp.email,
       // which may not have flushed through setCamp yet when resend fires.
       const email = (overrideEmail != null ? overrideEmail : (camp.email || '')).trim();
       if (!isValidEmail(email)) { if (gen === submitGenRef.current) setSubmitState('error'); return; }
       setSubmitState('sending');
       const evMode = mode === 'form' ? 'form' : 'board';
-      trackEvent('submit_attempted', { mode: evMode, sectors: Object.values(greens).filter(v => v > 0).length });
+      window.sendEvent('submit_attempted', { mode: evMode, sectors: Object.values(greens).filter(v => v > 0).length });
       // Write-in idea text rides the same answers map as `X-camp-note` entries
       // (only when its topic was answered), landing in the sheet's Answers JSON.
       const noteEntries = {};
@@ -469,14 +445,14 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
         setSubmitResult({ sheet: j.sheet, email: j.email });
         // "done" = at least one channel landed, so we stop auto-retrying on reload.
         // The per-channel copy + the Try-again button surface any partial failure.
-        if (j.sheet === 'ok' || j.email === 'sent') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); trackEvent('submit_succeeded', { mode: evMode }); }
-        else { setSubmitState('error'); trackEvent('submit_failed', { mode: evMode }); }
+        if (j.sheet === 'ok' || j.email === 'sent') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); window.sendEvent('submit_succeeded', { mode: evMode }); }
+        else { setSubmitState('error'); window.sendEvent('submit_failed', { mode: evMode }); }
       } catch {
         if (gen === submitGenRef.current) setSubmitState('error');
-        trackEvent('submit_failed', { mode: evMode });
+        window.sendEvent('submit_failed', { mode: evMode });
       }
     })();
-  }, [sectors, answers, customNotes, camp, fills, mode, campId, submitNonce]);
+  }, [sectors, answers, customNotes, camp, fills, mode, campId, submitNonce, resultUrl]);
 
   // Fire the submit once when the done screen first appears. submittedAt (persisted)
   // prevents re-sending across reloads; autoSentRef guards a double-fire in-session.
@@ -487,14 +463,8 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     runSubmit();
   }, [phase, submittedAt, runSubmit]);
 
-  // Pre-rasterize the card so Web Share has the file ready inside the tap gesture
-  // (Safari blocks share() if the file is produced by a later async step). Best-effort.
-  useEffect(() => {
-    if (phase !== 'done' || !cardSvgRef.current) return;
-    let alive = true;
-    svgToPngBlob(cardSvgRef.current).then(b => { if (alive) cardPngRef.current = b; }).catch(() => {});
-    return () => { alive = false; };
-  }, [phase, fills]);
+  // The offscreen twin only mounts on the done screen, so this no-ops elsewhere.
+  usePreRasterizedCard(cardSvgRef, cardPngRef, [phase, fills]);
 
   // Persist only on the in-progress phases (playing / form / done). On the
   // navigation screens (pick-mode / intro / form-intro) we do NOTHING — neither
@@ -506,12 +476,12 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         version: STORAGE_VERSION,
-        phase, camp, campId, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce,
+        phase, camp, campId, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce,
         goldenSeen,
         activeSectorId: (activeQuestion && activeQuestion.sector && activeQuestion.sector.id) || null,
       }));
     } catch {}
-  }, [phase, camp, sectorCursor, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce, goldenSeen, activeQuestion]);
+  }, [phase, camp, sectorClosed, answers, customNotes, mode, submittedAt, submitNonce, goldenSeen, activeQuestion]);
 
   function setFormAnswer(qid, value) {
     setAnswers(prev => ({ ...prev, [qid]: value }));
@@ -529,8 +499,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     });
   }
 
-  function submitForm({ sectorCursor: sc, sectorClosed: scl }) {
-    setSectorCursor(sc);
+  function submitForm({ sectorClosed: scl }) {
     setSectorClosed(scl);
     setPhase('done');
   }
@@ -594,7 +563,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
 
     const merged = { ...answers, ...sectorAns };
     setAnswers(merged);
-    setSectorCursor({ ...sectorCursor, [sector.id]: 4 });
     setSectorClosed({ ...sectorClosed, [sector.id]: true });
     setActiveQuestion(null);
 
@@ -613,8 +581,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     setActiveQuestion(null);
     setAnswers({});
     setCustomNotes({});
-    setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
-    setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
+    setSectorClosed(Object.fromEntries(sectors.map(s => [s.id, false])));
     setSubmittedAt(null);
     setSubmitNonce(null);
     setSubmitState('idle');
@@ -632,43 +599,39 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     if (mode !== 'board') freshProgress();
     setCamp(info);
     setMode('board');
-    trackEvent('mode_chosen', { mode: 'board' });
+    window.sendEvent('mode_chosen', { mode: 'board' });
     setPhase('playing');
-    if (debugFill) {
-      // demo: pre-fill a varied answer pattern for screenshotting
-      const demo = {};
-      sectors.forEach((s, i) => {
-        [].concat(...s.levels.slice(0, 3)).forEach((q, qi) => { demo[q.id] = qi <= i ? 'yes' : 'no'; });
-        (s.tier4Topics || []).slice(0, i % 4).forEach(t => { demo[t.id] = 'yes'; });
-      });
-      setAnswers(demo);
-    }
   }
 
   function startForm(info) {
     if (mode !== 'form') freshProgress();
     setCamp(info);
     setMode('form');
-    trackEvent('mode_chosen', { mode: 'form' });
+    window.sendEvent('mode_chosen', { mode: 'form' });
     setPhase('form');
   }
 
   if (phase === 'pick-mode') {
     return (
       <ModePicker
-        onPick={(mode) => { trackEvent('game_started'); setPhase(mode === 'board' ? 'intro' : 'form-intro'); }}
+        onPick={(mode) => { window.sendEvent('game_started'); setPhase(mode === 'board' ? 'intro' : 'form-intro'); }}
         palette={palette}
       />
     );
   }
 
-  if (phase === 'form-intro') {
+  // Both modes share one intake screen; only the start handler and the one-line
+  // description differ (the board game mentions the wheel).
+  if (phase === 'intro' || phase === 'form-intro') {
+    const board = phase === 'intro';
     return (
       <Intro
-        onStart={startForm}
+        onStart={board ? startGame : startForm}
         onBack={() => setPhase('pick-mode')}
         palette={palette}
-        description="Answer as best you can. Progress autosaves unless you reset."
+        description={board
+          ? "Spin the wheel and answer as best you can. Progress autosaves unless you reset."
+          : "Answer as best you can. Progress autosaves unless you reset."}
         initial={camp}
       />
     );
@@ -693,53 +656,17 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
     );
   }
 
-  if (phase === 'intro') {
-    return (
-      <Intro
-        onStart={startGame}
-        onBack={() => setPhase('pick-mode')}
-        palette={palette}
-        description="Spin the wheel and answer as best you can. Progress autosaves unless you reset."
-        initial={camp}
-      />
-    );
-  }
-
   if (phase === 'done') {
     const year = new Date().getFullYear();
-    const total = sectors.reduce((n, s) => n + (fills[s.id] ? fills[s.id].totalYes : 0), 0);
-    const resultUrl = window.location.origin + '/result/?r=' +
-      window.ResultState.encode({ campName: camp.campName, leadName: camp.leadName, year, fills, campId, contentVersion: window.CONTENT_VERSION });
     const email = (camp.email || '').trim();
-    const slug = (camp.campName || 'theme-camp').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'theme-camp';
     const needsRetry = submitState === 'error' || (submitResult && submitResult.email !== 'sent');
 
-    async function handleShare() {
-      const shareText = `Our camp reached ${total}/60. Build your camp's Green Radius:`;
-      const blob = cardPngRef.current;
-      const file = blob ? new File([blob], `green-radius-${slug}.png`, { type: 'image/png' }) : null;
-      // A share rejection is either the user dismissing the sheet (AbortError —
-      // leave it, do not nag with a clipboard copy) or a real failure (fall
-      // through so the CTA still does *something*). Each attempt gets its own
-      // try so one failing path can hand off to the next.
-      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: 'Our Green Radius', text: shareText, url: resultUrl });
-          return;
-        } catch (e) { if (e && e.name === 'AbortError') return; }
-      }
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: 'Our Green Radius', text: shareText, url: resultUrl });
-          return;
-        } catch (e) { if (e && e.name === 'AbortError') return; }
-      }
-      try { await navigator.clipboard.writeText(resultUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }
-      catch { setCopied('error'); setTimeout(() => setCopied(false), 1500); }
-    }
+    const handleShare = () => shareResultCard({
+      pngBlob: cardPngRef.current, campName: camp.campName, total: totalYesAll, url: resultUrl, setCopied,
+    });
     async function handleDownload() {
       if (!cardSvgRef.current) return;
-      try { await downloadSvgAsPng(cardSvgRef.current, `green-radius-${slug}.png`); } catch {}
+      try { await downloadSvgAsPng(cardSvgRef.current, cardFilename(camp.campName)); } catch {}
     }
     function handleRetry() {
       setSubmitResult(null);
@@ -759,24 +686,13 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       // confirm first so a stray tap can't destroy the only copy of the result.
       const safe = submitState === 'done' || !!submittedAt;
       if (!safe && !confirm("Your results haven't been emailed yet. Exit and discard them?")) return;
-      submitGenRef.current++; // void any in-flight POST so it can't write back after reset
+      // freshProgress covers the whole in-progress wipe (answers, sector state,
+      // submit/golden state, a new campId). Exit adds what it alone does: drop
+      // the autosave, forget the mode + camp details, and go back to the picker.
+      freshProgress();
       clearSaved();
-      autoSentRef.current = false;
-      revealArmedRef.current = false;
-      setSectorCursor(() => { const o = {}; sectors.forEach(s => o[s.id] = 0); return o; });
-      setSectorClosed(() => { const o = {}; sectors.forEach(s => o[s.id] = false); return o; });
-      setAnswers({});
-      setCustomNotes({});
       setMode(null);
       setCamp({ campName: '', leadName: '', email: '', campLocation: '', campSize: '' });
-      setCampId(genCampId()); // next game is a new camp identity
-      setSubmittedAt(null);
-      setSubmitNonce(null);
-      setSubmitState('idle');
-      setSubmitResult(null);
-      setEditingEmail(false);
-      setGoldenSeen(false); // next game is a new camp identity, so the golden moment can fire again
-      setShowGolden(false);
       setPhase('pick-mode');
     }
 
@@ -794,16 +710,13 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             display: 'inline-block',
             animation: (revealActive && revealDone && !revealReduceMotion)
               ? 'grg-rankslam 0.7s cubic-bezier(.22,1,.36,1) both' : 'none',
-          }}>{total}/60 · Thanks for playing!</span>
+          }}>{totalYesAll}/60 · Thanks for playing!</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
           <ShareCard sectors={sectors} fills={fills} campName={camp.campName} year={year} reveal={revealActive ? revealValue : null}/>
         </div>
 
-        {/* offscreen SVG twin of the card — serialized to PNG by handleDownload */}
-        <div aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: CARD_W, height: CARD_H, overflow: 'hidden', pointerEvents: 'none' }}>
-          <ResultCardSVG svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={camp.campName} year={year}/>
-        </div>
+        <OffscreenResultCard svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={camp.campName} year={year}/>
 
         <div role="status" aria-live="polite" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
           {submitState === 'sending'
@@ -900,7 +813,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
   }
 
   // PLAYING
-  const totalGreens = sectors.reduce((acc, s) => acc + (fills[s.id].totalYes || 0), 0);
   const totalAttempted = sectors.reduce((acc, s) => acc + (sectorClosed[s.id] ? 1 : 0), 0);
 
   return (
@@ -908,10 +820,9 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       {restored && <div style={{ margin: '0 0 12px' }}><RestoredBanner onDismiss={() => setRestored(false)} /></div>}
       {/* back to intake (fix a typo'd detail, or step further back to home) + brand
           title, on one compact row. Progress is safe — the autosave persists and
-          startGame only resets when the mode actually changes. The title column is
-          balanced by an invisible spacer button matching the real Back button's
-          width, so the title stays truly centered regardless of that width. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          startGame only resets when the mode actually changes. The equal 1fr side
+          columns keep the title centered regardless of the Back button's width. */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <button
           onClick={() => setPhase('intro')}
           aria-label="Back to your camp details"
@@ -931,12 +842,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
             {camp.campName}
           </div>
         </div>
-
-        <button
-          aria-hidden="true"
-          tabIndex={-1}
-          style={{ ...BACK_BTN_STYLE, visibility: 'hidden', justifySelf: 'end' }}
-        >← Back</button>
       </div>
 
       {/* wheel (+ sector-done toast anchored above the center hub) */}
@@ -948,7 +853,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           spinning={spinning}
           canSpin={!allDone}
           onSpin={onSpin}
-          variant={variant}
           palette={palette}
           shinePaused={!!activeQuestion}
         />
@@ -960,7 +864,7 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
       {/* score, in the gap between wheel and status bar */}
       <div style={{ textAlign: 'center', marginTop: 8 }}>
         <div style={{ fontSize: 36, fontWeight: 900, color: palette.accentDark, lineHeight: 1 }}>
-          {totalGreens}<span style={{ fontSize: 18, opacity: 0.5 }}>/60</span>
+          {totalYesAll}<span style={{ fontSize: 18, opacity: 0.5 }}>/60</span>
         </div>
       </div>
 
@@ -1053,7 +957,6 @@ function GreenRadiusGame({ variant = 'dimensional', palette, debugFill = false }
           })}
           existingAnswers={answers}
           palette={palette}
-          variant={variant}
         />
       )}
       {celebration && (

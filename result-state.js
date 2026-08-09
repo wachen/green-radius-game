@@ -67,11 +67,6 @@
     // the card. Omitted when absent to keep legacy-style links byte-identical.
     var o = { v: 2, c: payload.campName || '', l: payload.leadName || '', y: payload.year | 0, p: p };
     if (payload.campId) o.u = String(payload.campId);
-    // `cv` (content/question-set version, e.g. game-data.js CONTENT_VERSION)
-    // is additive and optional too, same reasoning as `u`: lets a future
-    // year-over-year comparison (ghost ring) tell whether two result links
-    // answered the same question set. Omitted when the caller doesn't pass it.
-    if (payload.contentVersion) o.cv = String(payload.contentVersion);
     return toB64Url(JSON.stringify(o));
   }
 
@@ -93,10 +88,10 @@
       // campId is present only on newer v2 links (see encode). Legacy v1/v2
       // links have none, so it decodes to null — every caller must treat null
       // as "unknown camp" and mint a fresh id.
-      // contentVersion (cv) is likewise optional: absent on every link minted
-      // before this field existed, so it decodes to `undefined` — callers
-      // must treat that as "unknown content version", not as a real value.
-      return { campName: o.c || '', leadName: o.l || '', year: o.y | 0, fills: fills, campId: o.u || null, contentVersion: o.cv };
+      // Unknown keys (e.g. the retired `cv` content-version stamp on links
+      // minted while it existed) are read by name, never positionally, so
+      // extras are simply ignored and those links keep decoding.
+      return { campName: o.c || '', leadName: o.l || '', year: o.y | 0, fills: fills, campId: o.u || null };
     } catch (e) { return null; }
   }
 

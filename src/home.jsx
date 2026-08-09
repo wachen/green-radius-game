@@ -7,6 +7,14 @@
 // Light-to-dark green ramp for the six-wedge wheel mark (FAQ medallion and
 // the "Play the Game" tile share it).
 const WEDGE_COLORS = ['#A3D178', '#86C169', '#68B05C', '#56A85C', '#439F5B', '#31975B'];
+// One wedge of that mark, in the shared 0 0 64 64 viewBox: slice `i` of six,
+// clockwise from the pointer at 12 o'clock.
+const wedgePath = (i) => {
+  const r = 23;
+  const a0 = (i * 60 - 90) * Math.PI / 180;
+  const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
+  return `M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`;
+};
 
 const SECTOR_ONE_LINERS = {
   food: 'Purchase mindfully, share cooking, cut food waste.',
@@ -200,15 +208,9 @@ function FaqModal({ onClose, palette }) {
               cream card the way it does on the tile's solid green. */}
           <svg viewBox="0 0 64 64" width="26" height="26" aria-hidden="true" style={{ display: 'block', margin: '0 auto 6px' }}>
             <circle cx="32" cy="33" r="26" fill={palette.accent}/>
-            {WEDGE_COLORS.map((c, i) => {
-              const a0 = (i * 60 - 90) * Math.PI / 180;
-              const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
-              const r = 23;
-              return (
-                <path key={i} fill={c} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round"
-                  d={`M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`}/>
-              );
-            })}
+            {WEDGE_COLORS.map((c, i) => (
+              <path key={i} fill={c} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" d={wedgePath(i)}/>
+            ))}
             <circle cx="32" cy="33" r="23" fill="none" stroke="#fff" strokeWidth="2"/>
             <circle cx="32" cy="33" r="3.4" fill={palette.text}/>
           </svg>
@@ -407,15 +409,9 @@ function ModePicker({ onPick, palette }) {
               ramp clockwise from the pointer with white seams and a plain dark
               hub dot — no light/dark alternation, no pale center disc, no dark
               spokes, the three cues that made it read as the radiation trefoil. */}
-          {WEDGE_COLORS.map((c, i) => {
-            const a0 = (i * 60 - 90) * Math.PI / 180;
-            const a1 = ((i + 1) * 60 - 90) * Math.PI / 180;
-            const r = 23;
-            return (
-              <path key={i} fill={c} stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"
-                d={`M32 33 L${32 + r * Math.cos(a0)} ${33 + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${32 + r * Math.cos(a1)} ${33 + r * Math.sin(a1)} Z`}/>
-            );
-          })}
+          {WEDGE_COLORS.map((c, i) => (
+            <path key={i} fill={c} stroke="#fff" strokeWidth="1.5" strokeLinejoin="round" d={wedgePath(i)}/>
+          ))}
           <circle cx="32" cy="33" r="23" fill="none" stroke={palette.text} strokeWidth="2.8"/>
           <circle cx="32" cy="33" r="3.4" fill={palette.text}/>
           <polygon points="32,12 26.8,3 37.2,3" fill={palette.text}/>
@@ -475,24 +471,19 @@ function ModePicker({ onPick, palette }) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
-        {[
-          { href: BOARD_GAME_PDF_URL, download: true, label: 'Board Game PDF Download ↓' },
-        ].map(l => (
-          <a
-            key={l.href}
-            href={l.href}
-            {...(l.download ? { download: true } : {})}
-            className="grg-hit44"
-            style={{
-              display: 'inline-block', padding: '8px 4px',
-              color: palette.text + '80', fontSize: 10.5, fontWeight: 600,
-              letterSpacing: '0.1em', textTransform: 'uppercase',
-              textDecoration: 'underline',
-              textUnderlineOffset: '3px',
-              textDecorationColor: palette.text + '33',
-            }}
-          >{l.label}</a>
-        ))}
+        <a
+          href={BOARD_GAME_PDF_URL}
+          download
+          className="grg-hit44"
+          style={{
+            display: 'inline-block', padding: '8px 4px',
+            color: palette.text + '80', fontSize: 10.5, fontWeight: 600,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            textDecoration: 'underline',
+            textUnderlineOffset: '3px',
+            textDecorationColor: palette.text + '33',
+          }}
+        >Board Game PDF Download ↓</a>
       </div>
 
       <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid ' + palette.text + '14' }}>

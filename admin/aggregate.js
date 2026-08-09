@@ -9,9 +9,6 @@
       topics: (sector.tier4Topics || []).map(t => t.id),
     };
   }
-  function advYesCount(sector, answers) {
-    return Math.min(4, (sector.tier4Topics || []).filter(t => answers[t.id] === 'yes').length);
-  }
   // Only yes/no entries make a row "answered" — `X-camp-note` write-in strings
   // may share the answers map and must not inflate denominators.
   function rowsWithAnswers(rows) {
@@ -47,9 +44,6 @@
   // Winner per group: highest numeric timestamp; on a tie the later array
   // position wins (sheet rows are appended chronologically, so that is the
   // more recent submission).
-  function normCampName(name) {
-    return typeof name === 'string' ? name.trim().toLowerCase().replace(/\s+/g, ' ') : '';
-  }
   function yearScope(row) {
     var y = row && row.year;
     return (y === undefined || y === null || y === '') ? '' : String(y);
@@ -62,7 +56,7 @@
     var cid = (row.answers && row.answers.campId) || row.campId;
     var hasCampId = typeof cid === 'string' && !!cid.trim();
     if (hasCampId) keys.push(y + ':id:' + cid.trim());
-    var name = normCampName(row.campName);
+    var name = typeof row.campName === 'string' ? row.campName.trim().toLowerCase().replace(/\s+/g, ' ') : '';
     if (name) keys.push(y + ':nm:' + name);
     if (!hasCampId) {
       var email = typeof row.email === 'string' ? row.email.trim().toLowerCase() : '';
@@ -179,7 +173,7 @@
     const out = {};
     sectors.forEach(sector => {
       const levels = [0, 1, 2].map(li => (sector.levels[li] || []).map(q => pq[q.id].rate));
-      const adv = ans.map(r => advYesCount(sector, r.answers));
+      const adv = ans.map(r => Math.min(4, (sector.tier4Topics || []).filter(t => r.answers[t.id] === 'yes').length));
       levels[3] = [0, 1, 2, 3].map(i => adv.filter(c => c >= i + 1).length / ans.length);
       out[sector.id] = { levels };
     });

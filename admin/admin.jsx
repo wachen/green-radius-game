@@ -9,6 +9,11 @@ const useMQ = (q) => {
   return m;
 };
 
+// Inline-style fragments used all over this file: one-line truncation, and the
+// fixed-width digits every number gets so columns don't jitter.
+const ELLIPSIS = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+const TABNUM = { fontVariantNumeric: 'tabular-nums' };
+
 // Last good payload, cached for instant paint on the next visit (the page is
 // Cloudflare-Access-gated and this is the admin's own browser, so holding the
 // rows in localStorage is fine). Bump the key if the row shape changes.
@@ -194,8 +199,8 @@ const Centered = ({ children }) => <div style={{ textAlign: 'center', padding: '
 // Spinning six-wedge wheel for cold loads — same art as the favicon and the
 // static placeholder in index.html (which also owns the .grg-spin keyframes).
 // The shade ramp around the circle is what makes the rotation visible.
-const LoadingWheel = ({ size = 44 }) => (
-  <svg className="grg-spin" width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+const LoadingWheel = () => (
+  <svg className="grg-spin" width="44" height="44" viewBox="0 0 32 32" aria-hidden="true">
     <g stroke="#0e1712" strokeWidth="1">
       <path d="M16 16 L16 2 A14 14 0 0 1 28.12 9 Z" fill="#A3D178"/>
       <path d="M16 16 L28.12 9 A14 14 0 0 1 28.12 23 Z" fill="#86C169"/>
@@ -227,7 +232,7 @@ function campFills(sectors, camp) {
 function StatTile({ value, suffix, label }) {
   return (
     <div style={{ ...panelStyle, textAlign: 'center', padding: '12px 8px' }}>
-      <div style={{ fontSize: 26, fontWeight: 900, color: '#7fc46a', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
+      <div style={{ fontSize: 26, fontWeight: 900, color: '#7fc46a', ...TABNUM, letterSpacing: '-0.01em' }}>
         {value}{suffix && <span style={{ fontSize: 14, fontWeight: 700, color: '#93a89b' }}>{suffix}</span>}
       </div>
       <div style={{ fontSize: 9.5, letterSpacing: '.14em', color: '#93a89b', fontWeight: 800, marginTop: 2 }}>{label.toUpperCase()}</div>
@@ -240,7 +245,7 @@ function Superlative({ label, value, detail }) {
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '6px 0', borderBottom: '1px dashed #21332a', fontSize: 13 }}>
       <span style={{ fontSize: 9.5, letterSpacing: '.12em', color: '#93a89b', fontWeight: 800, flexShrink: 0, width: 118 }}>{label.toUpperCase()}</span>
       <span style={{ flex: 1, color: '#eaf2ec', minWidth: 0 }}>{value}</span>
-      <b style={{ fontVariantNumeric: 'tabular-nums', color: '#7fc46a', flexShrink: 0 }}>{detail}</b>
+      <b style={{ ...TABNUM, color: '#7fc46a', flexShrink: 0 }}>{detail}</b>
     </div>
   );
 }
@@ -293,7 +298,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
         </div>
         <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.12 }}>Black Rock City</div>
         <div style={{ margin: '4px 0 8px' }}>
-          <span style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{agg.hasAnswers ? `${pct}%` : agg.totalYes}</span>
+          <span style={{ fontSize: 34, fontWeight: 900, color: '#7fc46a', letterSpacing: '-0.01em', ...TABNUM }}>{agg.hasAnswers ? `${pct}%` : agg.totalYes}</span>
           {agg.hasAnswers && <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}> achieved</span>}
         </div>
         {/* Centering wrapper: the badge's <svg> renders display:block, so it
@@ -382,15 +387,15 @@ function CommunityTally({ sectors, rows, onCampClick }) {
           onKeyDown={e => { if (e.key === 'Enter' && onCampClick) onCampClick(c.campName); }}
           onMouseEnter={() => setPeek(c)} onMouseLeave={() => setPeek(null)}
           style={{ ...rowStyle, gap: 10, cursor: 'pointer' }}>
-          <span style={{ width: 18, color: '#93a89b', fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
+          <span style={{ width: 18, color: '#93a89b', ...TABNUM }}>{i + 1}</span>
           <span aria-hidden="true" title="Camp's green radius shape" style={{ flexShrink: 0, display: 'inline-flex' }}>
             <RadialBadge sectors={sectors} fills={campFills(sectors, c).fills} size={30} dark showLabels={false} showCenter={false}/>
           </span>
-          <span style={{ flex: 1, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ flex: 1, fontWeight: 600, minWidth: 0, ...ELLIPSIS }}>
             {c.campName} {i === 0 && <span title="Highest score right now" style={{ color: '#e8c15a' }}>★</span>}
             {c.timestamp && c.timestamp >= A.weekStartMs(now) ? <span title="New this week" style={{ color: '#7fc46a', marginLeft: 4 }}>●</span> : null}
           </span>
-          <b style={{ fontVariantNumeric: 'tabular-nums' }}>{c.total}/60</b>
+          <b style={TABNUM}>{c.total}/60</b>
         </div>
       ))}
     </div>
@@ -406,7 +411,7 @@ function CommunityTally({ sectors, rows, onCampClick }) {
               <SectorIcon kind={(sectors.find(x => x.id === s.id) || {}).icon} size={13} color="#7f988a"/>
             </span>
             <span style={{ flex: 1, color: '#cdebd8' }}>{s.name}</span>
-            <b style={{ fontVariantNumeric: 'tabular-nums' }}>{s.avg.toFixed(1)}</b>
+            <b style={TABNUM}>{s.avg.toFixed(1)}</b>
           </div>
         ))}
       </div>
@@ -479,11 +484,11 @@ function BarChart({ data, max, highlightLast, barTitle, testId }) {
         const h = max ? Math.max(d.count ? 3 : 1, Math.round((d.count / max) * H)) : 1;
         return (
           <div key={i} title={barTitle(d)} style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-            <div style={{ fontSize: 10, color: d.count ? '#cdebd8' : '#42574a', fontVariantNumeric: 'tabular-nums' }}>{d.count || ''}</div>
+            <div style={{ fontSize: 10, color: d.count ? '#cdebd8' : '#42574a', ...TABNUM }}>{d.count || ''}</div>
             <div data-bar style={{ height: h, borderRadius: '3px 3px 0 0', margin: '1px auto 0',
               background: d.count ? (hot ? '#7fc46a' : '#3f7a53') : '#1d2c24' }} />
             <div style={{ fontSize: 8.5, color: hot ? '#7fc46a' : '#5d7367', fontWeight: 700, marginTop: 3,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</div>
+              ...ELLIPSIS }}>{d.label}</div>
           </div>
         );
       })}
@@ -515,7 +520,7 @@ function AnalyticsPanel({ rows, agg, sectors }) {
           {opps.map(o => (
             <div key={o.id} data-opportunity style={rowStyle}>
               <span style={{ flex: 1, color: '#eaf2ec', minWidth: 0 }}>{o.title} <span style={{ color: '#7f988a' }}>({o.sector})</span></span>
-              <b style={{ fontVariantNumeric: 'tabular-nums', color: '#e8c15a', flexShrink: 0 }}>{Math.round(o.rate * 100)}%</b>
+              <b style={{ ...TABNUM, color: '#e8c15a', flexShrink: 0 }}>{Math.round(o.rate * 100)}%</b>
               <span style={{ color: '#7f988a', fontSize: 11, flexShrink: 0 }}>of {o.asked}</span>
             </div>
           ))}
@@ -539,6 +544,8 @@ const PIN_STYLE = {
   assigned: { fill: '#e8c15a', stroke: '#b3923a' },
   done: { fill: '#45c483', stroke: '#2e5b43' },
 };
+// Pin radius from camp size (sqrt so a 500-person camp doesn't swamp the map).
+const pinR = (campSize) => Math.max(4, Math.min(10, 4 + Math.sqrt(+campSize || 0) * 0.35));
 // The assignee filter is uncontrolled by default (the City tab's dropdown);
 // the Visits tab passes `assignee` to drive it from its own team picker, which
 // also hides the dropdown and the inline route line (the tab's cards own both).
@@ -547,11 +554,14 @@ function PlayaMap({ rows, onCampClick, assignee: forced }) {
   const [ownAssignee, setOwnAssignee] = React.useState('');
   const assignee = controlled ? forced : ownAssignee;
   const [tip, setTip] = React.useState(null); // hover tooltip, in viewBox coords
-  // Unit space -> px: Man at (CX,CY), Esplanade r=0.40..K r=0.95 times S.
+  // Unit space -> px: Man at (CX,CY), Esplanade (ring 0) r=0.40..K (ring 11)
+  // r=0.95 times S. aggregate.js owns the clock/ring polar math; this only
+  // scales its unit coordinates into the viewBox. Fractional rings are fine —
+  // the hour labels sit at ring 12.3, just outside K.
   const S = 330, CX = 360, CY = 180;
-  const polar = (hour, r) => {
-    const th = (hour / 12) * 2 * Math.PI;
-    return { x: CX + r * S * Math.sin(th), y: CY - r * S * Math.cos(th) };
+  const at = (hour, ring) => {
+    const u = A.playaXY({ hour, ring });
+    return { x: CX + u.x * S, y: CY + u.y * S };
   };
 
   const camps = React.useMemo(() => rows.map(r => ({
@@ -586,8 +596,7 @@ function PlayaMap({ rows, onCampClick, assignee: forced }) {
   // (fan pins only) rides inside the same <g>, so it dims, clicks, and
   // tooltips exactly like its pin.
   const renderPin = (c, x, y, key, label) => {
-    const size = +c.row.campSize || 0;
-    const pr = Math.max(4, Math.min(10, 4 + Math.sqrt(size) * 0.35));
+    const pr = pinR(c.row.campSize);
     const dimmed = assignee && c.who !== assignee;
     const n = stopNo.get(c.row);
     const stateText = c.state === 'none' ? 'needs visit' : (c.state === 'done' ? 'visited' : `assigned: ${c.who}`);
@@ -628,9 +637,8 @@ function PlayaMap({ rows, onCampClick, assignee: forced }) {
   // hover tooltip. Width is estimated (no DOM measuring in SVG pre-render);
   // the 0.62em/char heuristic is generous for Space Grotesk at this size.
   const fanPins = mapped.map(c => {
-    const p = polar(c.addr.hour, A.playaRingRadius(c.addr.ring));
-    const size = +c.row.campSize || 0;
-    return { c, x: p.x, y: p.y, pr: Math.max(4, Math.min(10, 4 + Math.sqrt(size) * 0.35)) };
+    const p = at(c.addr.hour, c.addr.ring);
+    return { c, x: p.x, y: p.y, pr: pinR(c.row.campSize) };
   });
   const labels = (() => {
     const obstacles = fanPins.map(p => ({ x0: p.x - p.pr - 1, y0: p.y - p.pr - 1, x1: p.x + p.pr + 1, y1: p.y + p.pr + 1 }));
@@ -692,20 +700,20 @@ function PlayaMap({ rows, onCampClick, assignee: forced }) {
         role="img" aria-label="Map of camps across the Black Rock City street grid">
         {/* radial streets: whole hours solid, half hours fainter */}
         {Array.from({ length: 17 }, (_, i) => 2 + i * 0.5).map(h => {
-          const a = polar(h, 0.40), b = polar(h, 0.95);
+          const a = at(h, 0), b = at(h, 11);
           return <line key={h} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
             stroke={h % 1 ? '#1a281f' : '#26382e'} strokeWidth="1"/>;
         })}
         {/* ring arcs, Esplanade (0) through K (11), 2:00 -> 10:00 via 6:00 */}
         {Array.from({ length: 12 }, (_, ring) => {
           const r = A.playaRingRadius(ring) * S;
-          const a = polar(2, A.playaRingRadius(ring)), b = polar(10, A.playaRingRadius(ring));
+          const a = at(2, ring), b = at(10, ring);
           return <path key={ring} d={`M ${a.x} ${a.y} A ${r} ${r} 0 1 1 ${b.x} ${b.y}`}
             fill="none" stroke={ring === 0 ? '#2e4436' : '#26382e'} strokeWidth="1"/>;
         })}
         {/* street labels: clock hours outside the fan, ring letters down 6:00 */}
         {Array.from({ length: 9 }, (_, i) => 2 + i).map(h => {
-          const p = polar(h, 1.015);
+          const p = at(h, 12.3);
           return <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle"
             fontSize="11" fill="#5d7367" fontWeight="700">{h}:00</text>;
         })}
@@ -897,9 +905,9 @@ function VisitsView({ sectors, rows, onCampClick, reload }) {
           <div key={i} data-visit-card style={{ ...panelStyle, marginTop: 10,
             borderLeft: `3px solid ${done ? '#45c483' : '#e8c15a'}`, opacity: done ? 0.72 : 1 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <b style={{ color: '#7fc46a', fontSize: 15, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</b>
+              <b style={{ color: '#7fc46a', fontSize: 15, ...TABNUM }}>{i + 1}.</b>
               <b style={{ fontSize: 15, flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{r.campName}</b>
-              <b style={{ fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{r.total}/60</b>
+              <b style={{ ...TABNUM, flexShrink: 0 }}>{r.total}/60</b>
             </div>
             <div style={{ fontSize: 12.5, color: '#cdebd8', marginTop: 3 }}>
               {String(r.campLocation || '').trim() || 'no address, see the Open camping box on the map'}
@@ -962,24 +970,15 @@ function VisitsView({ sectors, rows, onCampClick, reload }) {
 
 // Wrap case-insensitive matches of the search query in a highlight mark so
 // the eye lands on WHY a row matched (name, lead, email, or an idea note).
+// Splitting on a capturing group keeps the matches, so the odd indices are
+// exactly the hits (in their original casing) and the even ones the gaps.
 function Hi({ text, q }) {
   const t = String(text == null ? '' : text);
   if (!q || !t) return t;
-  const lt = t.toLowerCase(), lq = q.toLowerCase();
-  const parts = [];
-  let i = 0, j;
-  while ((j = lt.indexOf(lq, i)) !== -1) {
-    if (j > i) parts.push(t.slice(i, j));
-    parts.push(
-      <mark key={j} style={{ background: '#e8c15a', color: '#06140c', borderRadius: 3, padding: '0 1px' }}>
-        {t.slice(j, j + q.length)}
-      </mark>
-    );
-    i = j + q.length;
-  }
-  if (!parts.length) return t;
-  parts.push(t.slice(i));
-  return parts;
+  const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'i');
+  return t.split(re).map((s, i) => i % 2
+    ? <mark key={i} style={{ background: '#e8c15a', color: '#06140c', borderRadius: 3, padding: '0 1px' }}>{s}</mark>
+    : s);
 }
 
 // Small pill badge, shared by CampRow and CampDetail. Tones: neutral gray
@@ -995,6 +994,21 @@ function Badge({ text, title, tone = 'gray' }) {
   return (
     <span title={title} style={{ ...BADGE_TONES[tone], fontSize: 9, borderRadius: 99,
       padding: '1px 6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{text}</span>
+  );
+}
+
+// One write-in idea, in the camp's own words: green-toned when they answered
+// yes to it, neutral when they didn't. CampRow flows these inline and prefixes
+// the sector name (with search highlighting); CampDetail stacks them inside
+// the sector card (style={{ display: 'block' }}).
+function IdeaChip({ idea, name, hi, style }) {
+  return (
+    <span data-camp-note style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 6, fontStyle: 'italic',
+      border: '1px solid ' + (idea.yes ? '#2e5b43' : '#26382e'),
+      background: idea.yes ? '#15291e' : 'transparent',
+      color: idea.yes ? '#8fd4ae' : '#93a89b', ...style }}>
+      {idea.yes ? '✓' : '✕'} {name ? `${name} · ` : ''}“<Hi text={idea.note} q={hi}/>”
+    </span>
   );
 }
 
@@ -1054,7 +1068,7 @@ function SectorDigits({ sector, fill, answers, hasAnswers, legacy }) {
     return lines.join('\n') || 'no advanced picks';
   };
   return (
-    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, fontVariantNumeric: 'tabular-nums',
+    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, ...TABNUM,
       opacity: hasAnswers || legacy ? 1 : 0.45, cursor: 'default' }}>
       {[0, 1, 2, 3].map(li => (
         <React.Fragment key={li}>
@@ -1067,6 +1081,10 @@ function SectorDigits({ sector, fill, answers, hasAnswers, legacy }) {
     </div>
   );
 }
+
+// Column tracks for the wide Camps table: the sticky header row and every camp
+// row share this one string, which is what keeps the columns aligned.
+const CAMPS_GRID = 'minmax(230px, 1.4fr) repeat(6, minmax(72px, 1fr)) 88px';
 
 function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
   const hidden = !!camp.hidden;
@@ -1105,7 +1123,7 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
           <Hi text={camp.leadName} q={hi}/><br/>
           <a data-email href={`mailto:${camp.email}`} style={{ color: '#8fd4ae', textDecoration: 'none' }}><Hi text={camp.email} q={hi}/></a>
         </div>
-        <div data-submitted style={{ fontSize: 11, color: '#7f988a', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+        <div data-submitted style={{ fontSize: 11, color: '#7f988a', marginTop: 2, ...TABNUM }}>
           {fmtWhen(camp.timestamp)}
         </div>
       </div>
@@ -1118,7 +1136,7 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
         <div aria-hidden="true" style={{ display: 'flex', justifyContent: 'center', marginBottom: 2 }}>
           <SectorIcon kind={s.icon} size={13} color="#7f988a"/>
         </div>
-        <div style={{ fontSize: 12.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+        <div style={{ fontSize: 12.5, fontWeight: 700, ...TABNUM,
           color: n === denom ? '#e8c15a' : '#eaf2ec', marginBottom: 2 }}>
           {n}<span style={{ color: '#5d7367', fontWeight: 600 }}>/{denom}</span>
         </div>
@@ -1128,7 +1146,7 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
   });
   const Total = (
     <div style={{ textAlign: 'right', alignSelf: 'center' }}>
-      <div style={{ fontVariantNumeric: 'tabular-nums' }}>
+      <div style={TABNUM}>
         <b style={{ fontSize: 19, color: '#fff' }}>{camp.total}</b>
         <span style={{ color: '#5d7367', fontSize: 12 }}>/{legacy ? 24 : 60}</span>
       </div>
@@ -1145,14 +1163,7 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
     <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center',
       borderTop: '1px dashed #1d2c24', paddingTop: 5, marginTop: 2 }}>
       <span style={{ color: '#45c483', fontWeight: 800, fontSize: 9.5, letterSpacing: '.12em' }}>IDEAS</span>
-      {ideas.map(i => (
-        <span key={i.id} data-camp-note style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 6, fontStyle: 'italic',
-          border: '1px solid ' + (i.yes ? '#2e5b43' : '#26382e'),
-          background: i.yes ? '#15291e' : 'transparent',
-          color: i.yes ? '#8fd4ae' : '#93a89b' }}>
-          {i.yes ? '✓' : '✕'} {i.name} · “<Hi text={i.note} q={hi}/>”
-        </span>
-      ))}
+      {ideas.map(i => <IdeaChip key={i.id} idea={i} name={i.name} hi={hi} />)}
     </div>
   );
 
@@ -1166,7 +1177,7 @@ function CampRow({ sectors, camp, wide, hi, dupCount, superseded, suspect }) {
     contentVisibility: 'auto', containIntrinsicSize: 'auto 84px', opacity: hidden ? 0.5 : (superseded ? 0.72 : 1) };
   return wide ? (
     <div data-camp-row style={{ ...rowBase, display: 'grid', alignItems: 'center', columnGap: 10,
-      gridTemplateColumns: 'minmax(230px, 1.4fr) repeat(6, minmax(72px, 1fr)) 88px' }}>
+      gridTemplateColumns: CAMPS_GRID }}>
       {Identity}{SectorCells}{Total}{IdeasLine}
     </div>
   ) : (
@@ -1235,8 +1246,15 @@ function CampDetail({ sectors, camp, onClose, dupCount, superseded }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const mark = (yes, li) => (
-    <span aria-hidden="true" style={{ color: yes ? LEVEL_COLORS[li] : '#5d7367', fontWeight: 700, flexShrink: 0 }}>{yes ? '✓' : '✕'}</span>
+  // One question line: ✓/✕ in the level's ramp color, then the short title
+  // (the full prompt rides on hover; ellipsis handles the long ones). Level 4
+  // rows read a shade dimmer than the L1-3 ones.
+  const qRow = (key, title, yes, li, text) => (
+    <div key={key} title={title} style={{ display: 'flex', gap: 6, fontSize: 11.5, lineHeight: 1.4,
+      padding: '1px 0', color: li < 3 ? '#cdebd8' : '#b9d3c2' }}>
+      <span aria-hidden="true" style={{ color: yes ? LEVEL_COLORS[li] : '#5d7367', fontWeight: 700, flexShrink: 0 }}>{yes ? '✓' : '✕'}</span>
+      <span style={{ minWidth: 0, ...ELLIPSIS }}>{text}</span>
+    </div>
   );
 
   return (
@@ -1264,13 +1282,13 @@ function CampDetail({ sectors, camp, onClose, dupCount, superseded }) {
             <div style={{ fontSize: 12.5, color: '#93a89b', marginTop: 3, overflowWrap: 'anywhere' }}>
               {camp.leadName} · <a href={`mailto:${camp.email}`} style={{ color: '#8fd4ae' }}>{camp.email}</a>
             </div>
-            <div style={{ fontSize: 12, color: '#7f988a', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ fontSize: 12, color: '#7f988a', marginTop: 2, ...TABNUM }}>
               {fmtWhen(camp.timestamp)} · {camp.source}{camp.year ? ` · ${camp.year}` : ''}
               {legacy ? ' · old 0-4 scale' : ''}{camp.hidden ? ' · flagged hidden' : ''}
               {A.visitState(camp.visit) === 'assigned' ? ` · visit: ${A.visitAssignee(camp.visit) || 'assigned'}` : ''}
               {A.visitState(camp.visit) === 'done' ? ' · visited ✓' : ''}
             </div>
-            <div style={{ marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ marginTop: 6, ...TABNUM }}>
               <b style={{ fontSize: 26, color: '#fff' }}>{camp.total}</b>
               <span style={{ color: '#5d7367', fontSize: 14 }}>/{legacy ? 24 : 60}</span>
               {camp.resultUrl && (
@@ -1296,35 +1314,18 @@ function CampDetail({ sectors, camp, onClose, dupCount, superseded }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
                     <SectorIcon kind={s.icon} size={14} color="#7f988a"/>
                     <b style={{ fontSize: 13 }}>{s.name}</b>
-                    <span style={{ marginLeft: 'auto', fontVariantNumeric: 'tabular-nums', fontSize: 12.5 }}>
+                    <span style={{ marginLeft: 'auto', ...TABNUM, fontSize: 12.5 }}>
                       <b style={{ color: ((camp.greens && camp.greens[s.id]) || 0) === denom ? '#e8c15a' : '#eaf2ec' }}>{(camp.greens && camp.greens[s.id]) || 0}</b>
                       <span style={{ color: '#5d7367' }}>/{denom}</span>
                     </span>
                   </div>
-                  {/* Short titles keep each question to one line; the full
-                      prompt rides on hover. Ellipsis handles the long ones. */}
-                  {[0, 1, 2].map(li => (s.levels[li] || []).map(q => (
-                    <div key={q.id} title={q.prompt || q.title}
-                      style={{ display: 'flex', gap: 6, fontSize: 11.5, lineHeight: 1.4, padding: '1px 0', color: '#cdebd8' }}>
-                      {mark(camp.answers[q.id] === 'yes', li)}
-                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.title || q.prompt}</span>
-                    </div>
-                  )))}
+                  {[0, 1, 2].map(li => (s.levels[li] || []).map(q =>
+                    qRow(q.id, q.prompt || q.title, camp.answers[q.id] === 'yes', li, q.title || q.prompt)))}
                   {(s.tier4Topics || [])
                     .filter(t => (camp.answers[t.id] === 'yes' || camp.answers[t.id] === 'no') && !noted.has(t.id))
-                    .map(t => (
-                      <div key={t.id} title={`Level 4 · ${t.title}`}
-                        style={{ display: 'flex', gap: 6, fontSize: 11.5, lineHeight: 1.4, padding: '1px 0', color: '#b9d3c2' }}>
-                        {mark(camp.answers[t.id] === 'yes', 3)}
-                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>L4 · {t.title}</span>
-                      </div>
-                    ))}
+                    .map(t => qRow(t.id, `Level 4 · ${t.title}`, camp.answers[t.id] === 'yes', 3, `L4 · ${t.title}`))}
                   {sl4 && sl4.ideas.map(i => (
-                    <div key={i.id} style={{ fontSize: 11, fontStyle: 'italic', marginTop: 3, padding: '2px 8px', borderRadius: 6,
-                      border: '1px solid ' + (i.yes ? '#2e5b43' : '#26382e'), background: i.yes ? '#15291e' : 'transparent',
-                      color: i.yes ? '#8fd4ae' : '#93a89b' }}>
-                      {i.yes ? '✓' : '✕'} “{i.note}”
-                    </div>
+                    <IdeaChip key={i.id} idea={i} style={{ display: 'block', fontSize: 11, marginTop: 3 }} />
                   ))}
                 </div>
               );
@@ -1340,10 +1341,7 @@ function CampDetail({ sectors, camp, onClose, dupCount, superseded }) {
   );
 }
 
-const EMPTY_DEDUPE_INFO = new Map();
-
 function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighlight, dedupeInfo }) {
-  const dInfo = dedupeInfo || EMPTY_DEDUPE_INFO;
   const wide = useMQ('(min-width: 900px)');
   const [q, setQ] = React.useState('');
   // The input echoes q instantly; filtering runs on the 120ms-trailing dq so
@@ -1378,9 +1376,9 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
   const anyVisit = React.useMemo(() => rows.some(r => String(r.visit || '').trim()), [rows]);
   const dupsCount = React.useMemo(() => {
     let n = 0;
-    rows.forEach(r => { const info = dInfo.get(r); if (info && (info.dup > 1 || info.suspect)) n++; });
+    rows.forEach(r => { const info = dedupeInfo.get(r); if (info && (info.dup > 1 || info.suspect)) n++; });
     return n;
-  }, [rows, dInfo]);
+  }, [rows, dedupeInfo]);
   // City-tab clickthrough target: scroll the highlighted camp into view once.
   const hlRef = React.useRef(null);
   React.useEffect(() => {
@@ -1414,7 +1412,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
     const ql = dq.trim().toLowerCase();
     let xs = ql ? rows.filter(r => hay.get(r).includes(ql)) : rows;
     if (hideFlagged) xs = xs.filter(r => !r.hidden);
-    if (dupsOnly) xs = xs.filter(r => { const info = dInfo.get(r); return !!(info && (info.dup > 1 || info.suspect)); });
+    if (dupsOnly) xs = xs.filter(r => { const info = dedupeInfo.get(r); return !!(info && (info.dup > 1 || info.suspect)); });
     if (visitSel !== 'all') xs = xs.filter(r => A.visitState(r.visit) === visitSel);
     // Primary key ascending; `dir` flips only the primary so the name-A→Z
     // tiebreak stays stable in either direction.
@@ -1425,9 +1423,9 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
         : bySector ? (a, b) => (((a.greens && a.greens[sort]) || 0) - ((b.greens && b.greens[sort]) || 0)) || (a.total - b.total)
         : (a, b) => (a.timestamp || 0) - (b.timestamp || 0);
     const flip = dir === 'asc' ? key : (a, b) => key(b, a);
-    xs = xs.slice().sort((a, b) => flip(a, b) || a.campName.localeCompare(b.campName));
+    xs = xs.toSorted((a, b) => flip(a, b) || a.campName.localeCompare(b.campName));
     return xs;
-  }, [rows, hay, dq, sort, dir, sectors, hideFlagged, dupsOnly, visitSel, dInfo]);
+  }, [rows, hay, dq, sort, dir, sectors, hideFlagged, dupsOnly, visitSel, dedupeInfo]);
 
   const headBtn = (id, label, align) => (
     <button key={id} type="button" onClick={() => pickSort(id)}
@@ -1532,7 +1530,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
       {wide && (
         <div style={{ display: 'grid', columnGap: 10, padding: '4px 12px', position: 'sticky', top: 0,
           background: '#0e1712f2', backdropFilter: 'blur(2px)', zIndex: 1, borderBottom: '1px solid #26382e',
-          gridTemplateColumns: 'minmax(230px, 1.4fr) repeat(6, minmax(72px, 1fr)) 88px' }}>
+          gridTemplateColumns: CAMPS_GRID }}>
           <div style={{ display: 'flex', gap: 12 }}>
             {headBtn('name', 'Camp', 'left')}
             {headBtn('date', 'Submitted', 'left')}
@@ -1543,7 +1541,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
       )}
       {list.map(r => {
         const hl = highlight && r.campName === highlight;
-        const info = dInfo.get(r);
+        const info = dedupeInfo.get(r);
         return (
           <div key={`${r.campName}|${r.timestamp}`} ref={hl ? hlRef : null}
             role="button" tabIndex={0} aria-label={`View full details for ${r.campName}`}
@@ -1562,7 +1560,7 @@ function CampsView({ sectors, rows, filters, refreshBtn, highlight, onClearHighl
         );
       })}
       {detail && (() => {
-        const info = dInfo.get(detail);
+        const info = dedupeInfo.get(detail);
         return <CampDetail sectors={sectors} camp={detail} onClose={() => setDetail(null)}
           dupCount={info ? info.dup : 1} superseded={!!(info && info.superseded)} />;
       })()}
@@ -1593,3 +1591,6 @@ function approxFills(sectors, greens) {
   });
   return out;
 }
+
+// Page boot — this script is loaded last by admin/index.html. window.SECTORS comes from game-data.js.
+ReactDOM.createRoot(document.getElementById('root')).render(<AdminApp sectors={window.SECTORS} />);

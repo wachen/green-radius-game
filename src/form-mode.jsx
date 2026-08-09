@@ -9,6 +9,17 @@
 // Scoring is per-question and identical to the board game (see sectorFill):
 // each level's ring fills per question, in its level color; Level 4 shows the
 // count of advanced Yeses (capped at 4). totalYes (0–10) feeds the sheet.
+
+// A question counts as answered once it holds either Yes/No verdict.
+const isAnswered = (answers, id) => answers[id] === 'yes' || answers[id] === 'no';
+
+// Left rail + inset shown on a row that still needs an answer.
+const missingRail = (missing) => ({
+  borderLeft: `3px solid ${missing ? '#C9821E' : 'transparent'}`,
+  paddingLeft: missing ? 10 : 0,
+  transition: 'border-color .2s ease, padding-left .2s ease',
+});
+
 function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onBack, onClear, palette }) {
   const [page, setPage] = useState(0);
   const [highlightMissing, setHighlightMissing] = useState(false);
@@ -18,23 +29,16 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
   // A sector is "complete" once every Tier 1-3 question is answered. Tier 4 is
   // optional, with one exception: a write-in with typed text needs its Yes/No,
   // otherwise runSubmit would silently drop the idea from the submission.
-  const isAns = (id) => answers[id] === 'yes' || answers[id] === 'no';
   const requiredAnswered = (s) =>
-    s.levels.slice(0, 3).every(lvl => lvl.every(qq => isAns(qq.id))) &&
-    campIdeaIds(s).every(id => !((notes && notes[id]) || '').trim() || isAns(id));
+    s.levels.slice(0, 3).every(lvl => lvl.every(qq => isAnswered(answers, qq.id))) &&
+    campIdeaIds(s).every(id => !((notes && notes[id]) || '').trim() || isAnswered(answers, id));
   const incompleteSectors = sectors.filter(s => !requiredAnswered(s));
   const allComplete = incompleteSectors.length === 0;
   const firstIncompleteIndex = sectors.findIndex(s => !requiredAnswered(s));
 
   // Submission just marks every sector closed; scoring/fill derive from `answers`.
   function handleSubmit() {
-    const sectorCursor = {};
-    const sectorClosed = {};
-    sectors.forEach(s => {
-      sectorCursor[s.id] = 4;
-      sectorClosed[s.id] = true;
-    });
-    onSubmit({ sectorCursor, sectorClosed });
+    onSubmit({ sectorClosed: Object.fromEntries(sectors.map(s => [s.id, true])) });
   }
 
   const totalAnswered = Object.values(answers).filter(a => a === 'yes' || a === 'no').length;
@@ -216,7 +220,7 @@ function LinearForm({ sectors, answers, setAnswer, notes, setNote, onSubmit, onB
 // data on mount so a reload restores every idea the camp filled in.
 function CampIdeasBlock({ sector, answers, setAnswer, notes, setNote, palette, highlightMissing }) {
   const ids = campIdeaIds(sector);
-  const hasData = (id) => !!((notes && notes[id]) || '').trim() || answers[id] === 'yes' || answers[id] === 'no';
+  const hasData = (id) => !!((notes && notes[id]) || '').trim() || isAnswered(answers, id);
   const [shown, setShown] = useState(() => Math.min(4, Math.max(1, ids.filter(hasData).length)));
   if (!ids.length) return null;
   const visible = ids.slice(0, shown);
@@ -227,15 +231,12 @@ function CampIdeasBlock({ sector, answers, setAnswer, notes, setNote, palette, h
         List up to four of your own {sector.name.toLowerCase()} ideas and whether your camp pulled each one off. Every yes is a Level 4 point.
       </div>
       {visible.map((id, i) => {
-        const answered = answers[id] === 'yes' || answers[id] === 'no';
-        const missing = highlightMissing && !!((notes && notes[id]) || '').trim() && !answered;
+        const missing = highlightMissing && !!((notes && notes[id]) || '').trim() && !isAnswered(answers, id);
         return (
           <div key={id} style={{
             padding: '10px 0',
             borderTop: `1px solid ${palette.text}${i === 0 ? '11' : '0d'}`,
-            borderLeft: `3px solid ${missing ? '#C9821E' : 'transparent'}`,
-            paddingLeft: missing ? 10 : 0,
-            transition: 'border-color .2s ease, padding-left .2s ease',
+            ...missingRail(missing),
           }}>
             <input
               value={(notes && notes[id]) || ''}
@@ -280,9 +281,8 @@ function CampIdeasBlock({ sector, answers, setAnswer, notes, setNote, palette, h
 }
 
 function FormSectorBlock({ sector, answers, setAnswer, notes, setNote, palette, highlightMissing }) {
-  const fixedQs = [].concat(...sector.levels.slice(0, 3));
+  const fixedQs = sector.levels.slice(0, 3).flat();
   const t4 = sector.tier4Topics || [];
-  const isAnswered = (id) => answers[id] === 'yes' || answers[id] === 'no';
   return (
     <section style={{
       margin: '20px 0', padding: '18px 16px',
@@ -313,7 +313,7 @@ function FormSectorBlock({ sector, answers, setAnswer, notes, setNote, palette, 
           key={q.id} qid={q.id}
           text={q.prompt}
           answer={answers[q.id]} setAnswer={setAnswer} palette={palette}
-          missing={highlightMissing && !isAnswered(q.id)}
+          missing={highlightMissing && !isAnswered(answers, q.id)}
         />
       ))}
 
@@ -400,9 +400,7 @@ function YesNoRow({ qid, text, subtext, answer, setAnswer, palette, missing }) {
     <div style={{
       padding: '12px 0',
       borderTop: `1px solid ${palette.text}11`,
-      borderLeft: `3px solid ${missing ? '#C9821E' : 'transparent'}`,
-      paddingLeft: missing ? 10 : 0,
-      transition: 'border-color .2s ease, padding-left .2s ease',
+      ...missingRail(missing),
     }}>
       <div style={{ fontSize: 13, lineHeight: 1.4, color: palette.text, marginBottom: subtext ? 4 : 8 }}>
         {text}{missing && <span style={{ color: '#C9821E', fontWeight: 700, fontSize: 11, marginLeft: 6 }}>Needs an answer</span>}
