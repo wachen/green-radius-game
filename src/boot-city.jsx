@@ -52,8 +52,11 @@ function BackLink() {
 }
 
 function CityShell({ children }) {
+  // margin auto (not the container's align-items) does the centering:
+  // Safari centers flex children against #root's min-height, shoving tall
+  // content off the top; auto margins clamp to 0 on overflow.
   return (
-    <div style={{ width: 'min(400px, 100%)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ width: 'min(400px, 100%)', display: 'flex', flexDirection: 'column', gap: 6, margin: 'auto' }}>
       <div style={{ textAlign: 'left' }}><BackLink/></div>
       {children}
     </div>
@@ -289,7 +292,7 @@ function CityPage({ sectors }) {
       .catch(() => setState({ status: 'error', data: null }));
   }, []);
   if (state.status === 'loading') return (
-    <div className="grg-loading">
+    <div className="grg-loading" style={{ margin: 'auto' }}>
       <svg width="46" height="46" viewBox="0 0 64 64" aria-hidden="true">
         <g className="grg-loading-wheel">
           <path fill="#A3D178" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round" d="M32 33 L32 10 A23 23 0 0 1 51.92 21.5 Z"/>

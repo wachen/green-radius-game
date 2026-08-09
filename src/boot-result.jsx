@@ -86,8 +86,10 @@ function ResultView({ sectors, fills, campName, year }) {
     doImport();
   }
 
+  // margin auto, not the container's align-items: see city/index.html
+  // (Safari min-height flex centering pushes tall content off the top).
   return (
-    <div style={{ width: 'min(360px, 100%)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ width: 'min(360px, 100%)', display: 'flex', flexDirection: 'column', gap: 14, margin: 'auto' }}>
       <ShareCard sectors={sectors} fills={fills} campName={campName} year={year} />
       <div style={{ display: 'flex', gap: 10 }}>
         <button onClick={handleDownload} style={{ ...btn, background: '#558040', boxShadow: '0 3px 0 #38542b' }}>
