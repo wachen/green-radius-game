@@ -530,7 +530,7 @@ function cityJson(body) {
 export async function computeCityBody(env) {
   const read = await fetchSheetRows(env);
   if (!read.rows) return null;
-  let agg;
+  let agg, stats;
   try {
     let rows = shapeAdminRows(read.rows);
     // Scope the public tally to the current season only. Once a season rolls
@@ -545,6 +545,26 @@ export async function computeCityBody(env) {
     const maxYear = eligible.reduce((m, r) => Math.max(m, r.year | 0), 0);
     if (maxYear) rows = rows.filter(r => (r.year | 0) === maxYear);
     agg = AdminAggregate.computeAggregates(rows, GameData.SECTORS, Date.now());
+    // Same season-scoped `rows` feeds these City-tab analytics helpers, which
+    // apply the identical hidden/legacy/dedup filtering internally
+    // (AdminAggregate.activeRows) that computeAggregates just applied above —
+    // so stats.* always describes the exact population behind count/tallyPct/etc.
+    const active = AdminAggregate.activeRows(rows);
+    const histogram = AdminAggregate.scoreHistogram(rows);
+    const weekly = AdminAggregate.weeklyCounts(rows, Date.now());
+    const opportunities = AdminAggregate.opportunities(agg, GameData.SECTORS, 5);
+    stats = {
+      campers: active.reduce((n, r) => n + (Number(r.campSize) || 0), 0) | 0,
+      histogram: {
+        bins: histogram.bins.map(b => ({ label: String(b.label), count: b.count | 0 })),
+        max: histogram.max | 0,
+      },
+      weekly: weekly.map(w => ({ start: +w.start || 0, count: w.count | 0 })),
+      opportunities: opportunities.map(o => ({
+        id: String(o.id), title: String(o.title || ''), sector: String(o.sector || ''),
+        rate: +o.rate || 0, asked: o.asked | 0,
+      })),
+    };
   } catch { return null; }
   return {
     generatedAt: Date.now(),
@@ -558,6 +578,7 @@ export async function computeCityBody(env) {
     intensities: agg.intensities ? Object.fromEntries(SECTOR_IDS.map(id => [id, {
       levels: ((agg.intensities[id] && agg.intensities[id].levels) || []).map(l => l.map(v => +v || 0)),
     }])) : null,
+    stats,
   };
 }
 

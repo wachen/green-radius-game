@@ -10,6 +10,25 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Public /city page grows four aggregate-only panels: City pulse (camp count
+  plus about-N-campers), Score spread (histogram), Momentum (submissions by
+  week, current week highlighted), and Where the city can grow (the five
+  lowest citywide yes-rate questions). GET /api/city now returns a computed
+  `stats` key (campers sum, histogram bins, weekly counts, top opportunities)
+  built from the same isomorphic aggregate.js population as the existing
+  tally, so the numbers always agree; every field is an aggregate and the
+  camp-identifying-fields allowlist rule stands (tests regex-sweep the
+  serialized response to prove it). The page guards every field, so a stale
+  cached old-shape response renders exactly as before. Also fixes the
+  long-standing iPhone layout bug on /city/ and /result/ where the loading
+  spinner and content sat too low with dead space up top: Safari centers
+  flex children against the container's min-height instead of its grown
+  height, so tall content overflowed upward; centering now rides on the
+  child's margin auto (clamps to zero on overflow) and the pages use 100dvh
+  so the visible-viewport center is the real center. And the result page's
+  Download button goes keepsake terracotta so Continue improving is the only
+  green button (#107)
+
 - Mark visited from the Visits tab: the one write in the admin system. A
   pending route card gains a full-width "Mark visited" button with an inline
   are-you-sure step (no native dialogs); confirming POSTs to the new

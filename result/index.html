@@ -48,8 +48,11 @@
 <link rel="stylesheet" href="/shared.css"/>
 </head>
 <body style="margin:0;padding:0;background:#D8CBB6;font-family:'Space Grotesk',system-ui,-apple-system,sans-serif;">
-<div id="root" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#D8CBB6;padding:24px">
-  <div class="grg-loading">
+<!-- Children carry margin:auto for centering: Safari aligns flex children
+     against min-height (not the grown height), so align-items:center alone
+     pushes tall content off the top; auto margins clamp to 0 instead. -->
+<div id="root" style="min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#D8CBB6;padding:24px;box-sizing:border-box">
+  <div class="grg-loading" style="margin:auto">
     <svg width="46" height="46" viewBox="0 0 64 64" aria-hidden="true">
       <g class="grg-loading-wheel">
         <path fill="#A3D178" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" d="M32 33 L32 10 A23 23 0 0 1 51.92 21.5 Z"/>

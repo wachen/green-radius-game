@@ -52,8 +52,11 @@ function BackLink() {
 }
 
 function CityShell({ children }) {
+  // margin auto (not the container's align-items) does the centering:
+  // Safari centers flex children against #root's min-height, shoving tall
+  // content off the top; auto margins clamp to 0 on overflow.
   return (
-    <div style={{ width: 'min(400px, 100%)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ width: 'min(400px, 100%)', display: 'flex', flexDirection: 'column', gap: 6, margin: 'auto' }}>
       <div style={{ textAlign: 'left' }}><BackLink/></div>
       {children}
     </div>
@@ -109,6 +112,154 @@ function CityStats({ sectors, data }) {
   );
 }
 
+// ── Extra public stats panels (Score Spread / Momentum / opportunities) ─────
+// Fed by the optional data.stats block on GET /api/city. The whole block is
+// new and additive, so every field is guarded: a stale edge cache can still
+// serve the old response shape (no `stats` key) for up to 5 minutes after a
+// deploy, and any panel whose data doesn't check out just doesn't render
+// rather than showing an empty or broken card.
+const subPanelStyle = {
+  background: CARD_BG, borderRadius: 20, color: '#fff', padding: '20px 20px 22px',
+  width: 'min(400px, 100%)', boxSizing: 'border-box', textAlign: 'left',
+  boxShadow: '0 16px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.05)',
+  position: 'relative', overflow: 'hidden',
+};
+const subPanelGlow = { position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 0%, rgba(217,136,92,0.14), transparent 60%)', pointerEvents: 'none' };
+const subPanelLabel = { fontSize: 10, letterSpacing: '0.22em', fontWeight: 700, opacity: 0.6, marginBottom: 10 };
+const subPanelHint = { fontSize: 11.5, lineHeight: 1.55, opacity: 0.72, margin: '0 0 12px' };
+
+function normalizeBins(histogram) {
+  if (!histogram || !Array.isArray(histogram.bins)) return [];
+  return histogram.bins
+    .filter(b => b && typeof b.label === 'string' && Number.isFinite(Number(b.count)))
+    .map(b => ({ label: b.label, count: Number(b.count) }));
+}
+function normalizeWeekly(weekly) {
+  if (!Array.isArray(weekly)) return [];
+  return weekly
+    .filter(w => w && Number.isFinite(Number(w.start)) && Number.isFinite(Number(w.count)))
+    .map(w => ({ start: Number(w.start), count: Number(w.count) }));
+}
+function normalizeOpportunities(opportunities) {
+  if (!Array.isArray(opportunities)) return [];
+  return opportunities
+    .filter(o => o && typeof o.title === 'string' && typeof o.sector === 'string'
+      && Number.isFinite(Number(o.rate)) && Number.isFinite(Number(o.asked)))
+    .map(o => ({ id: o.id != null ? o.id : o.title, title: o.title, sector: o.sector, rate: Number(o.rate), asked: Number(o.asked) }))
+    .slice(0, 5);
+}
+
+// Inline-block bars on a shared baseline; height scales to the busiest bar.
+function CityBarChart({ data, max, highlightLast, barTitle }) {
+  const H = 50;
+  const m = max > 0 ? max : 1;
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: H + 28, marginTop: 4 }}>
+      {data.map((d, i) => {
+        const hot = highlightLast && i === data.length - 1;
+        const h = Math.max(d.count ? 3 : 1, Math.round((d.count / m) * H));
+        return (
+          <div key={i} title={barTitle(d)} style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+            <div style={{ fontSize: 9, color: d.count ? '#cdebd8' : 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums' }}>{d.count || ''}</div>
+            <div style={{ height: h, borderRadius: '3px 3px 0 0', margin: '1px auto 0',
+              background: d.count ? (hot ? '#7fc46a' : 'rgba(255,255,255,0.3)') : 'rgba(255,255,255,0.08)' }} />
+            <div style={{ fontSize: 8, color: hot ? '#7fc46a' : 'rgba(255,255,255,0.55)', fontWeight: 700, marginTop: 3,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CityPulsePanel({ count, campers }) {
+  return (
+    <div data-city-pulse style={subPanelStyle}>
+      <div style={subPanelGlow}/>
+      <div style={{ position: 'relative' }}>
+        <div style={subPanelLabel}>CITY PULSE</div>
+        <div style={{ fontSize: 15, lineHeight: 1.5 }}>
+          <b style={{ color: '#7fc46a' }}>{count}</b> {count === 1 ? 'camp is' : 'camps are'} in the tally
+        </div>
+        {campers > 0 && (
+          <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>
+            About {campers.toLocaleString()} campers represented
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CityHistogramPanel({ bins, max }) {
+  const m = Number.isFinite(max) && max > 0 ? max : bins.reduce((mm, b) => Math.max(mm, b.count), 0);
+  return (
+    <div data-city-histogram style={subPanelStyle}>
+      <div style={subPanelGlow}/>
+      <div style={{ position: 'relative' }}>
+        <div style={subPanelLabel}>SCORE SPREAD</div>
+        <div style={subPanelHint}>How camps' final scores are spread across the city so far.</div>
+        <CityBarChart data={bins} max={m} highlightLast={false}
+          barTitle={d => `${d.count} ${d.count === 1 ? 'camp' : 'camps'} scoring ${d.label}`}/>
+      </div>
+    </div>
+  );
+}
+
+function CityWeeklyPanel({ weeks }) {
+  const fmtWk = ms => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const data = weeks.map(w => ({ ...w, label: fmtWk(w.start) }));
+  const max = weeks.reduce((m, w) => Math.max(m, w.count), 0);
+  return (
+    <div data-city-weekly style={subPanelStyle}>
+      <div style={subPanelGlow}/>
+      <div style={{ position: 'relative' }}>
+        <div style={subPanelLabel}>MOMENTUM</div>
+        <div style={subPanelHint}>New camps joining the tally, week by week. This week is highlighted.</div>
+        <CityBarChart data={data} max={max} highlightLast
+          barTitle={d => `Week of ${fmtWk(d.start)}: ${d.count} ${d.count === 1 ? 'camp' : 'camps'}`}/>
+      </div>
+    </div>
+  );
+}
+
+function CityOppsPanel({ opps }) {
+  return (
+    <div data-city-opps style={subPanelStyle}>
+      <div style={subPanelGlow}/>
+      <div style={{ position: 'relative' }}>
+        <div style={subPanelLabel}>WHERE THE CITY CAN GROW</div>
+        <div style={subPanelHint}>These are the questions the fewest camps have said yes to, citywide. A little effort here goes a long way.</div>
+        {opps.map(o => (
+          <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#f2ece1' }}>{o.title} <span style={{ opacity: 0.6 }}>({o.sector})</span></span>
+            <b style={{ fontVariantNumeric: 'tabular-nums', color: '#e0b25c', flexShrink: 0, fontSize: 13 }}>{Math.round(o.rate * 100)}%</b>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Single guarded entry point: renders nothing at all if `stats` is missing or
+// not an object (old cached /api/city shape), and each sub-panel only if its
+// own slice of data survives normalization.
+function CityStatsExtras({ stats, count }) {
+  if (!stats || typeof stats !== 'object') return null;
+  const campers = Number(stats.campers);
+  const bins = normalizeBins(stats.histogram);
+  const weeks = normalizeWeekly(stats.weekly);
+  const opps = normalizeOpportunities(stats.opportunities);
+  return (
+    <React.Fragment>
+      <CityPulsePanel count={count} campers={campers}/>
+      {bins.length > 0 && <CityHistogramPanel bins={bins} max={stats.histogram && Number(stats.histogram.max)}/>}
+      {weeks.length > 0 && <CityWeeklyPanel weeks={weeks}/>}
+      {opps.length > 0 && <CityOppsPanel opps={opps}/>}
+    </React.Fragment>
+  );
+}
+
 function CityEmpty() {
   return (
     <CityCard>
@@ -141,7 +292,7 @@ function CityPage({ sectors }) {
       .catch(() => setState({ status: 'error', data: null }));
   }, []);
   if (state.status === 'loading') return (
-    <div className="grg-loading">
+    <div className="grg-loading" style={{ margin: 'auto' }}>
       <svg width="46" height="46" viewBox="0 0 64 64" aria-hidden="true">
         <g className="grg-loading-wheel">
           <path fill="#A3D178" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round" d="M32 33 L32 10 A23 23 0 0 1 51.92 21.5 Z"/>
@@ -160,7 +311,12 @@ function CityPage({ sectors }) {
   );
   if (state.status === 'error') return <CityShell><CityDegraded/></CityShell>;
   if (!state.data.count) return <CityShell><CityEmpty/></CityShell>;
-  return <CityShell><CityStats sectors={sectors} data={state.data}/></CityShell>;
+  return (
+    <CityShell>
+      <CityStats sectors={sectors} data={state.data}/>
+      <CityStatsExtras stats={state.data.stats} count={state.data.count}/>
+    </CityShell>
+  );
 }
 
 // React mounts immediately and renders its own spinner during the fetch, so the

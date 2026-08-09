@@ -317,6 +317,11 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   structurally cannot leak, even if `computeAggregates` grows new fields.
   Rows are pre-filtered to the maximum year present before computing, so a future
   2027 season will not blend with 2026 results.
+  A `stats` key rides in the same body with the same aggregate-only guarantee: total
+  campers (summed, never per-camp), a score histogram, per-week submission counts, and
+  the top-5 lowest-yes-rate questions (public game copy, not camp data) — computed via
+  `admin/aggregate.js`'s `activeRows`/`scoreHistogram`/`weeklyCounts`/`opportunities`
+  over the same season-scoped, deduped, hidden-excluded rows the tally above already uses.
   Cached in the colo cache (`caches.default`) with freshness checked in code
   (5 min via the body's `generatedAt`; the stored entry lives a day) so the
   sheet sees at most ~1 hit per colo per 5 minutes and an Apps Script outage
