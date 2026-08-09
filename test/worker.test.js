@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
-import worker, { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, shapeAdminRows, computeCityBody } from '../worker/index.js';
+import worker, { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, accessJwtEmail, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, shapeAdminRows, computeCityBody } from '../worker/index.js';
 import GameData from '../game-data.js';
 
 function b64url(data) {
@@ -445,5 +445,139 @@ describe('computeCityBody season scoping', () => {
       sheetRow({ campName: 'Junk Camp', year: 2027, hidden: 'x' }),
     ]);
     expect(body.count).toBe(1);
+  });
+});
+
+describe('accessJwtEmail', () => {
+  test('extracts the email claim from a token payload', async () => {
+    const header = b64url(JSON.stringify({ alg: 'RS256', kid: 'x' }));
+    const payload = b64url(JSON.stringify({ email: 'volunteer@example.com', aud: 'a' }));
+    const token = `${header}.${payload}.sig`;
+    expect(accessJwtEmail(token)).toBe('volunteer@example.com');
+  });
+
+  test('falls back to "unknown" for a malformed or email-less token', () => {
+    expect(accessJwtEmail('not-a-jwt')).toBe('unknown');
+    expect(accessJwtEmail(null)).toBe('unknown');
+    const header = b64url(JSON.stringify({ alg: 'RS256', kid: 'x' }));
+    const payload = b64url(JSON.stringify({ aud: 'a' }));
+    expect(accessJwtEmail(`${header}.${payload}.sig`)).toBe('unknown');
+  });
+});
+
+describe('POST /api/admin/visit', () => {
+  let privateKey;
+  let jwk;
+  const AUD = 'visit-aud';
+  const TEAM_DOMAIN = 'visit-example.cloudflareaccess.com';
+  const originalFetch = globalThis.fetch;
+  const KID = 'visit-kid';
+
+  beforeAll(async () => {
+    const keyPair = await crypto.subtle.generateKey(
+      { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+      true,
+      ['sign', 'verify']
+    );
+    privateKey = keyPair.privateKey;
+    jwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+    jwk.kid = KID;
+    jwk.alg = 'RS256';
+  });
+
+  afterAll(() => { globalThis.fetch = originalFetch; });
+
+  async function makeToken({ email = 'volunteer@example.com', aud = AUD, exp = Math.floor(Date.now() / 1000) + 3600, kid = KID, tamper = false } = {}) {
+    const header = { alg: 'RS256', kid };
+    const payload = { aud, exp, email };
+    const headerB64 = b64url(JSON.stringify(header));
+    const payloadB64 = b64url(JSON.stringify(payload));
+    const signingInput = `${headerB64}.${payloadB64}`;
+    const sigBuf = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', privateKey, new TextEncoder().encode(signingInput));
+    let sigB64 = b64url(sigBuf);
+    if (tamper) {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      sigB64 = chars[(chars.indexOf(sigB64[0]) + 1) % chars.length] + sigB64.slice(1);
+    }
+    return `${signingInput}.${sigB64}`;
+  }
+
+  // Routes certs requests to the JWKS stub and everything else to `sheetStub`
+  // (or errors if no sheet call is expected in that test).
+  function mockFetch(sheetStub) {
+    return async (url, opts) => {
+      if (String(url).includes('/cdn-cgi/access/certs')) return new Response(JSON.stringify({ keys: [jwk] }), { status: 200 });
+      return sheetStub(url, opts);
+    };
+  }
+
+  const env = { CF_ACCESS_AUD: AUD, CF_ACCESS_TEAM_DOMAIN: TEAM_DOMAIN, SHEETS_WEBAPP_URL: 'https://script.google.com/fake', SHEETS_SHARED_SECRET: 'shh' };
+
+  function req({ token, body }) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Cf-Access-Jwt-Assertion'] = token;
+    return new Request('https://greenradi.us/api/admin/visit', { method: 'POST', headers, body: JSON.stringify(body) });
+  }
+
+  test('missing JWT -> 403, no upstream call', async () => {
+    let sheetCalled = false;
+    const res = await withMockFetch(mockFetch(() => { sheetCalled = true; return new Response(JSON.stringify({ ok: true }), { status: 200 }); }),
+      () => worker.fetch(req({ body: { campName: 'Dusty Camp', year: 2026, team: 'Team 1' } }), env, {}));
+    expect(res.status).toBe(403);
+    expect((await res.json()).ok).toBe(false);
+    expect(sheetCalled).toBe(false);
+  });
+
+  test('invalid (tampered) JWT -> 403, no upstream call', async () => {
+    const token = await makeToken({ tamper: true });
+    let sheetCalled = false;
+    const res = await withMockFetch(mockFetch(() => { sheetCalled = true; return new Response(JSON.stringify({ ok: true }), { status: 200 }); }),
+      () => worker.fetch(req({ token, body: { campName: 'Dusty Camp', year: 2026, team: 'Team 1' } }), env, {}));
+    expect(res.status).toBe(403);
+    expect((await res.json()).ok).toBe(false);
+    expect(sheetCalled).toBe(false);
+  });
+
+  test('valid JWT + bad body (blank team) -> 400, no upstream call', async () => {
+    const token = await makeToken();
+    let sheetCalled = false;
+    const res = await withMockFetch(mockFetch(() => { sheetCalled = true; return new Response(JSON.stringify({ ok: true }), { status: 200 }); }),
+      () => worker.fetch(req({ token, body: { campName: 'Dusty Camp', year: 2026, team: '' } }), env, {}));
+    expect(res.status).toBe(400);
+    expect((await res.json()).ok).toBe(false);
+    expect(sheetCalled).toBe(false);
+  });
+
+  test('valid JWT + valid body forwards the correct payload and returns ok', async () => {
+    const token = await makeToken({ email: 'admin@gtcc.org' });
+    let sentBody;
+    const res = await withMockFetch(mockFetch((url, opts) => { sentBody = JSON.parse(opts.body); return new Response(JSON.stringify({ ok: true }), { status: 200 }); }),
+      () => worker.fetch(req({ token, body: { campId: 'abc12345', campName: 'Dusty Camp', year: 2026, team: 'Team 1' } }), env, {}));
+    expect(res.status).toBe(200);
+    expect((await res.json()).ok).toBe(true);
+    expect(sentBody.secret).toBe('shh');
+    expect(sentBody.action).toBe('visit');
+    expect(sentBody.team).toBe('Team 1');
+    expect(sentBody.campName).toBe('Dusty Camp');
+    expect(sentBody.campId).toBe('abc12345');
+    expect(sentBody.year).toBe(2026);
+  });
+
+  test('upstream failure -> 502', async () => {
+    const token = await makeToken();
+    const res = await withMockFetch(mockFetch(() => new Response('boom', { status: 500 })),
+      () => worker.fetch(req({ token, body: { campName: 'Dusty Camp', year: 2026, team: 'Team 1' } }), env, {}));
+    expect(res.status).toBe(502);
+    expect((await res.json()).ok).toBe(false);
+  });
+
+  test('missing SHEETS_WEBAPP_URL degrades to 503, no upstream call', async () => {
+    const token = await makeToken();
+    let sheetCalled = false;
+    const noBackendEnv = { CF_ACCESS_AUD: AUD, CF_ACCESS_TEAM_DOMAIN: TEAM_DOMAIN };
+    const res = await withMockFetch(mockFetch(() => { sheetCalled = true; return new Response(JSON.stringify({ ok: true }), { status: 200 }); }),
+      () => worker.fetch(req({ token, body: { campName: 'Dusty Camp', year: 2026, team: 'Team 1' } }), noBackendEnv, {}));
+    expect(res.status).toBe(503);
+    expect(sheetCalled).toBe(false);
   });
 });

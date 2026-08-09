@@ -23,6 +23,7 @@ export default {
     if (url.pathname === '/api/event' && request.method === 'POST') return handleEvent(request);
     if (url.pathname === '/api/client-error' && request.method === 'POST') return handleClientError(request);
     if (url.pathname === '/api/admin/responses' && request.method === 'GET') return handleAdminResponses(request, env);
+    if (url.pathname === '/api/admin/visit' && request.method === 'POST') return handleAdminVisit(request, env);
     if (url.pathname === '/api/city' && request.method === 'GET') return handleCity(env, ctx);
     // Liveness probe for the external uptime monitor (Cloudflare Free has no
     // Worker-error alerting): proves routing + Worker execution, touches no
@@ -398,6 +399,50 @@ async function handleAdminResponses(request, env) {
   });
 }
 
+// ── Admin write path: mark a camp visited from the Visits tab (one cell write) ──
+// Re-validates the same Access JWT as the read path, then forwards a small
+// action-discriminated payload to the Apps Script web app, which locates the
+// row (campId if present, else exact campName+year) and writes "✓ " + team
+// into the owner-typed Visit column (docs/admin-setup.md §8). Degrades the
+// same way as the rest of the Worker: no SHEETS_WEBAPP_URL -> 503, upstream
+// failure -> 502, never throws past this handler.
+async function handleAdminVisit(request, env) {
+  const token = request.headers.get('Cf-Access-Jwt-Assertion');
+  const authorized = await verifyAccessJwt(token, env);
+  if (!authorized) return json({ ok: false }, 403);
+  const actor = accessJwtEmail(token);
+
+  const raw = await request.text();
+  if (raw.length > 2048) return json({ ok: false }, 400);
+  let body;
+  try { body = JSON.parse(raw); } catch { return json({ ok: false }, 400); }
+  if (!body || typeof body !== 'object') return json({ ok: false }, 400);
+
+  const team = typeof body.team === 'string' ? body.team.trim() : '';
+  const campName = typeof body.campName === 'string' ? body.campName.trim() : '';
+  const year = Number(body.year);
+  const campId = typeof body.campId === 'string' && /^[0-9a-fA-F-]{8,64}$/.test(body.campId) ? body.campId : '';
+  if (!team || team.length > 80) return json({ ok: false }, 400);
+  if (!campName || campName.length > 120) return json({ ok: false }, 400);
+  if (!Number.isFinite(year) || year < 2000 || year > 2100) return json({ ok: false }, 400);
+
+  const result = await writeVisit(env, { campId, campName, year, team });
+  console.log(JSON.stringify({ type: 'visit_write', actor, campName, ok: result.ok }));
+  if (result.reason === 'no_backend') return json({ ok: false }, 503);
+  return json({ ok: result.ok }, result.ok ? 200 : 502);
+}
+
+async function writeVisit(env, { campId, campName, year, team }) {
+  if (!env.SHEETS_WEBAPP_URL) return { ok: false, reason: 'no_backend' };
+  const payload = { secret: env.SHEETS_SHARED_SECRET, action: 'visit', campId, campName, year, team };
+  try {
+    const r = await fetch(env.SHEETS_WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+    if (!r.ok) return { ok: false };
+    const j = await r.json().catch(() => ({}));
+    return { ok: j.ok === true };
+  } catch { return { ok: false }; }
+}
+
 // `hidden` reflects the owner-typed "Hidden" sheet column (junk/test rows) —
 // any truthy cell value flags the row. The doGet proxy omits the key entirely
 // until the owner adds the column (see docs/admin-setup.md), so `r.hidden` is
@@ -558,4 +603,16 @@ export async function verifyAccessJwt(token, env) {
     const data = new TextEncoder().encode(parts[0] + '.' + parts[1]);
     return await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64urlToBytes(parts[2]), data);
   } catch { return false; }
+}
+
+// Pulls the caller's email out of an Access JWT for logging. Call only after
+// verifyAccessJwt has confirmed the token's signature/claims — this just
+// re-reads the already-trusted payload, it doesn't verify anything itself.
+export function accessJwtEmail(token) {
+  try {
+    const parts = String(token).split('.');
+    if (parts.length !== 3) return 'unknown';
+    const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[1])));
+    return typeof payload.email === 'string' && payload.email ? payload.email : 'unknown';
+  } catch { return 'unknown'; }
 }

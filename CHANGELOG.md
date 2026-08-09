@@ -10,6 +10,17 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Mark visited from the Visits tab: the one write in the admin system. A
+  pending route card gains a full-width "Mark visited" button with an inline
+  are-you-sure step (no native dialogs); confirming POSTs to the new
+  Access-JWT-gated Worker route POST /api/admin/visit, which forwards an
+  action-discriminated payload to the Apps Script web app to write "✓ team"
+  into that row's Visit cell (campId match first, exact camp+year fallback)
+  and logs the caller's Access email per attempt. The card flips green
+  optimistically and a failed save restores the button with a gentle retry
+  note. Apps Script paste-in + deploy-order warning in docs/admin-setup.md
+  section 8; 11 new Worker tests. Also: the home signup banner deadline pushed back to August 17 (auto-hide follows) (#106)
+
 - Admin Visits tab: a third, phone-first tab for the Sept 1-2 BLAST camp
   visits. A volunteer picks their team label once (remembered per device,
   free-type fallback), then sees their camps in a numbered walking order with

@@ -20,11 +20,14 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
   precompiled **`dist/*.js`** game scripts — classic-runtime JS built from the
   `.jsx` sources by `scripts/build.js` (`bun run scripts/build.js`, using
   `Bun.Transpiler`) — then mounts `<GreenRadiusGame/>`. No in-browser Babel.
-- **One small Cloudflare Worker.** `worker/index.js` handles seven dynamic routes —
+- **One small Cloudflare Worker.** `worker/index.js` handles eight dynamic routes —
   `POST /api/complete` (result capture), `POST /api/event` (fail-closed funnel
   telemetry sink — see Analytics below), `POST /api/client-error` (client-side
   error beacon sink — see Analytics below), the Access-gated
-  `GET /api/admin/responses` (admin viewer read path),
+  `GET /api/admin/responses` (admin viewer read path), the Access-gated
+  `POST /api/admin/visit` (re-validates the same Access JWT, then writes a
+  single Visit-column cell via the Apps Script web app and logs one
+  `visit_write` line with the caller's email as actor — see `docs/admin-setup.md` §8),
   `GET /api/health` (liveness probe for the external uptime monitor — returns
   `{ok:true}`, no secrets/upstreams, `no-store`),
   `GET /api/city` (public aggregate tally, colo-cached — see below), and

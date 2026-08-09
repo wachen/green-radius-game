@@ -340,7 +340,7 @@ function FaqModal({ onClose, palette }) {
 // Pacific time (Aug 11 00:00 PDT), so no removal deploy is needed and a stale
 // banner can't linger. Purely presentational: no state, no storage, safe to
 // roll out mid-season.
-const SIGNUP_DEADLINE_END_MS = Date.UTC(2026, 7, 11, 7); // end of Aug 10 2026, PDT
+const SIGNUP_DEADLINE_END_MS = Date.UTC(2026, 7, 18, 7); // end of Aug 17 2026, PDT
 function DeadlineBanner() {
   if (Date.now() >= SIGNUP_DEADLINE_END_MS) return null;
   return (
@@ -349,7 +349,7 @@ function DeadlineBanner() {
       padding: '9px 16px', textAlign: 'center',
       fontSize: 13, lineHeight: 1.4, fontWeight: 600, textWrap: 'pretty',
     }}>
-      Sign up by <b>August 10</b> to be included on printed signage!
+      Sign up by <b>August 17</b> to be included on printed signage!
     </div>
   );
 }

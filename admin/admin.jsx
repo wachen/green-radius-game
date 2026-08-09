@@ -137,7 +137,7 @@ function AdminApp({ sectors }) {
             tab === 'city'
               ? <CommunityTally sectors={sectors} rows={filtered} onCampClick={name => { setHighlightCamp(name); setTab('camps'); }} />
               : tab === 'visits'
-                ? <VisitsView sectors={sectors} rows={filtered} onCampClick={name => { setHighlightCamp(name); setTab('camps'); }} />
+                ? <VisitsView sectors={sectors} rows={filtered} reload={reload} onCampClick={name => { setHighlightCamp(name); setTab('camps'); }} />
                 : <CampsView sectors={sectors} rows={filtered} filters={filterSelects} refreshBtn={refreshBtn}
                     highlight={highlightCamp} onClearHighlight={() => setHighlightCamp(null)} dedupeInfo={dedupeInfo} />
           )}
@@ -779,7 +779,14 @@ const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 
 // (docs/admin-setup.md sections 6-7). The team labels are whatever the owner
 // types into that column; teams of 2-3 share one label.
 const TEAM_KEY = 'grg-admin-visit-team/v1';
-function VisitsView({ sectors, rows, onCampClick }) {
+// Stable identity for one row across a reload: campId when the row has one
+// (rides inside the answers blob, same field dedupeInfo keys on), else the
+// camp name — matches the /api/admin/visit contract's { campId, campName }.
+function visitRowKey(r) {
+  const cid = r.answers && r.answers.campId;
+  return (typeof cid === 'string' && cid.trim()) ? cid.trim() : r.campName;
+}
+function VisitsView({ sectors, rows, onCampClick, reload }) {
   // Same population as the City tab's map and tallies: deduped winners,
   // hidden rows excluded.
   const mapRows = React.useMemo(() => A.dedupeRows(rows.filter(r => !A.isHidden(r))), [rows]);
@@ -788,9 +795,45 @@ function VisitsView({ sectors, rows, onCampClick }) {
   const [team, setTeam] = React.useState(() => { try { return localStorage.getItem(TEAM_KEY) || ''; } catch { return ''; } });
   const [other, setOther] = React.useState('');
   const pick = (t) => { setTeam(t); try { localStorage.setItem(TEAM_KEY, t); } catch {} };
+  // Mark-visited write path: which card's confirm row is open (one at a
+  // time), which key is mid-save, which key just failed, and the set of
+  // rows flipped to done locally so the card updates instantly instead of
+  // waiting on the next sheet reload. An optimistic flag is never cleared
+  // by an incoming reload that still says pending (Apps Script lag) — only
+  // fresh data that itself says done makes it redundant.
+  const [confirmKey, setConfirmKey] = React.useState(null);
+  const [savingKey, setSavingKey] = React.useState(null);
+  const [errorKey, setErrorKey] = React.useState(null);
+  const [optimisticDone, setOptimisticDone] = React.useState(() => new Set());
+  const markVisited = async (r, key) => {
+    setSavingKey(key);
+    try {
+      const res = await fetch('/api/admin/visit', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campId: (r.answers && r.answers.campId) || '', campName: r.campName, year: r.year, team }),
+      });
+      let data = null;
+      try { data = await res.json(); } catch {}
+      if (res.ok && data && data.ok) {
+        setOptimisticDone(s => { const next = new Set(s); next.add(key); return next; });
+        setConfirmKey(null);
+        setErrorKey(null);
+        reload && reload();
+      } else {
+        setConfirmKey(null);
+        setErrorKey(key);
+      }
+    } catch {
+      setConfirmKey(null);
+      setErrorKey(key);
+    } finally {
+      setSavingKey(null);
+    }
+  };
   const mine = React.useMemo(() => team
     ? A.visitOrder(mapRows.filter(r => A.visitAssignee(r.visit) === team)) : [], [mapRows, team]);
-  const doneCount = mine.filter(r => A.visitState(r.visit) === 'done').length;
+  const doneCount = mine.filter(r => A.visitState(r.visit) === 'done' || optimisticDone.has(visitRowKey(r))).length;
   const unassigned = mapRows.filter(r => A.visitState(r.visit) === 'none').length;
   // A remembered label that no longer appears in the sheet still renders as a
   // chip (active), so the volunteer sees their pick instead of a mystery blank.
@@ -846,8 +889,10 @@ function VisitsView({ sectors, rows, onCampClick }) {
         </div>
       )}
       {mine.map((r, i) => {
-        const done = A.visitState(r.visit) === 'done';
+        const key = visitRowKey(r);
+        const done = A.visitState(r.visit) === 'done' || optimisticDone.has(key);
         const wk = weakest(r);
+        const saving = savingKey === key;
         return (
           <div key={i} data-visit-card style={{ ...panelStyle, marginTop: 10,
             borderLeft: `3px solid ${done ? '#45c483' : '#e8c15a'}`, opacity: done ? 0.72 : 1 }}>
@@ -863,6 +908,36 @@ function VisitsView({ sectors, rows, onCampClick }) {
             <div style={{ fontSize: 12, fontWeight: 700, marginTop: 5, color: done ? '#45c483' : '#e8c15a' }}>
               {done ? '✓ visited' : 'not visited yet'}
             </div>
+            {!done && (
+              confirmKey === key ? (
+                <div data-confirm-visit style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #21332a' }}>
+                  <div style={{ fontSize: 12.5, color: '#eaf2ec', marginBottom: 7 }}>Mark {r.campName} visited?</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button data-confirm-yes type="button" disabled={saving} onClick={() => markVisited(r, key)}
+                      style={{ ...btnStyle, flex: 1, minHeight: 44, fontSize: 13,
+                        opacity: saving ? 0.7 : 1, cursor: saving ? 'wait' : 'pointer' }}>
+                      {saving ? 'Saving…' : 'Yes, visited'}
+                    </button>
+                    <button data-confirm-no type="button" disabled={saving} onClick={() => setConfirmKey(null)}
+                      style={{ flex: 1, minHeight: 44, fontSize: 13, fontWeight: 700, borderRadius: 8,
+                        background: 'transparent', color: '#93a89b', border: '1px solid #26382e',
+                        cursor: saving ? 'wait' : 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button data-mark-visited type="button" onClick={() => { setConfirmKey(key); setErrorKey(null); }}
+                  style={{ ...btnStyle, marginTop: 8, width: '100%', minHeight: 44, fontSize: 13 }}>
+                  Mark visited
+                </button>
+              )
+            )}
+            {errorKey === key && (
+              <div data-visit-error style={{ color: '#e8c15a', fontSize: 12, marginTop: 6 }}>
+                Didn't save. Check signal and try again.
+              </div>
+            )}
             {!done && wk.length > 0 && (
               <div data-talking-points style={{ fontSize: 12, color: '#7f988a', marginTop: 6, borderTop: '1px dashed #21332a', paddingTop: 6 }}>
                 Talking points: {wk.map((s, j) => (
