@@ -92,7 +92,10 @@ function ResultView({ sectors, fills, campName, year }) {
     <div style={{ width: 'min(360px, 100%)', display: 'flex', flexDirection: 'column', gap: 14, margin: 'auto' }}>
       <ShareCard sectors={sectors} fills={fills} campName={campName} year={year} />
       <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={handleDownload} style={{ ...btn, background: '#558040', boxShadow: '0 3px 0 #38542b' }}>
+        {/* Terracotta, the keepsake card's own dust accent: keeps green for
+            the primary play action (Continue improving) so no two buttons
+            compete in the brand color. */}
+        <button onClick={handleDownload} style={{ ...btn, background: '#B06A3B', boxShadow: '0 3px 0 #86502c' }}>
           <DownloadIcon />
           {downloadFailed ? "Couldn't download" : 'Download'}
         </button>
