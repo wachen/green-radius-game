@@ -1,0 +1,33 @@
+# The Green Radius Game
+
+> A self-ranking sustainability game for Burning Man theme camps, made by the Green
+> Theme Camp Community. A camp answers up to 60 Yes/No questions across six sectors
+> (food, water, waste, transport, shelter, power), gets a radial badge showing how far
+> its "green radius" reaches, and receives a Green-Up Plan built from every No answer.
+
+Playing is free and needs no account. A camp enters its
+name, sustainability lead, email, playa address, and camp size, then answers questions in
+one of two modes: a spinning wheel (pick a sector at a time) or a single linear form.
+Results are emailed as a permanent share link and are also tallied into an anonymous
+city-wide view.
+
+Scoring is self-reported and deliberately non-competitive. There are no ranks, titles, or
+leaderboards, and camps are never compared to each other by name. The public city page
+shows aggregate numbers only.
+
+## Pages
+
+- [Play the game](https://greenradi.us/): the game itself, and an FAQ covering scoring, privacy, and the two play modes.
+- [The City's Green Radius](https://greenradi.us/city/): anonymous city-wide tally. Aggregate counts, sector spread, momentum, and the biggest shared opportunities. No camp is identifiable here.
+- [Your result](https://greenradi.us/result/): renders one camp's badge and Green-Up Plan from the payload in the link. Needs the `?r=` parameter from that camp's own result link, so there is nothing to read at the bare path.
+
+## Downloads
+
+- [Board game, coloring wheel, and matrix (PDF)](https://greenradi.us/downloads/2026.05.19%20Green%20Radius%20Game%20--%20Download%20for%20Players%20--%20Board%20Game%20-%20Coloring%20Wheel%20-%20Matrix%20--%20v%2026%20FINAL%20.pdf): print-and-play version for camps without connectivity on playa.
+- [How to play, with matrix detail (PDF)](https://greenradi.us/downloads/2026.05.19%20Green%20Radius%20Game%20--%20Download%20for%20Players%20--%20How-to-Play%20-%20Board%20Game%20-%20Matrix%20-%20Detail%20--%20v%2026%20FINAL%20.pdf): full rules and the question matrix.
+
+## Notes for agents
+
+- Camp submissions are private. Camp names, emails, and answers are never exposed by any public endpoint. `GET /api/city` returns an allowlisted set of aggregate fields only.
+- `/admin/` is gated behind Cloudflare Access and is not public.
+- The site is a static app fronted by one Cloudflare Worker. Result links are self-contained: `/result/?r=...` decodes entirely in the browser and keeps working if the backend is down.

@@ -324,8 +324,23 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   over the same season-scoped, deduped, hidden-excluded rows the tally above already uses.
   Cached in the colo cache (`caches.default`) with freshness checked in code
   (5 min via the body's `generatedAt`; the stored entry lives a day) so the
-  sheet sees at most ~1 hit per colo per 5 minutes and an Apps Script outage
-  serves the stale entry flagged `stale:true` (the page shows "as of <time>").
+  sheet sees at most ~1 hit per colo per 5 minutes.
+  **Stale-while-revalidate (#109).** Past that 5-minute window the cached entry
+  is returned **immediately** and refreshed in the background via
+  `ctx.waitUntil(refreshCity(...))`; only a cold cache (first hit per colo per
+  day) waits on the sheet. Before this, a request past the window discarded the
+  cached entry and blocked on the Apps Script round-trip, which measured 2.5–8 s
+  and produced two 8.3 s `502`s in the Aug 3–10 window while a usable entry sat
+  unused. `refreshCity` is written so it can never reject — an unhandled
+  rejection under `waitUntil` is an invocation error on a request the visitor has
+  already been served.
+  **`stale:true` means "upstream is down", not "slightly behind."** The flag
+  drives a user-facing *"Live tally unavailable right now"* banner in
+  `src/boot-city.jsx`, so it is set only past `CITY_STALE_MS` (30 min) — long
+  enough that background refreshes must actually be failing, since healthy
+  operation re-refreshes every 5 min and never reaches it. Setting it on every
+  entry older than `CITY_FRESH_MS` (the obvious reading of "stale") would show
+  that outage banner during entirely normal operation.
   No cache + no upstream → 503 `{error:'unavailable'}` → `/city/` shows a
   degraded panel with the play CTA.
   **Duplicate-proof aggregates (year-scoped union dedup).** `computeAggregates`
@@ -410,7 +425,13 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
 Two independent, privacy-conscious layers. Neither is load-bearing for gameplay.
 
 - **Cloudflare Web Analytics (CWA).** A `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"..."}'>` beacon in the `<head>` of the three **public** pages only — `index.html`, `result/index.html`, `city/index.html` (**not** `admin/`, which is Access-gated and internal). It reports pageviews + Web Vitals to the Cloudflare dashboard; no cookies, no PII. The beacon token is **public by design** and committed to the repo (swap it via the CWA site in the Cloudflare dashboard). The CWA site is created out-of-band in the dashboard/API, not by this repo. The beacon has no Subresource Integrity hash on purpose — that matches Cloudflare's official snippet (Cloudflare rotates the file). No CSP change was needed: `_headers` only sets `frame-ancestors 'none'`, so there is no `script-src`/`connect-src` to widen for `cloudflareinsights.com`.
-- **Funnel events → `POST /api/event` (Worker).** `green-radius.jsx`'s `trackEvent(event, props)` helper fires a fire-and-forget `navigator.sendBeacon` (keepalive `fetch` fallback), fully wrapped so a telemetry failure can never touch gameplay. It is called at exactly five funnel points: `game_started` (first interaction past the pick-mode landing), `mode_chosen` (`{mode:'board'|'form'}`), `submit_attempted` (`{mode, sectors}` = count of sectors with any Yes), `submit_succeeded`, `submit_failed` (both `{mode}`). A sixth event, `result_resumed` (event name only), is fired by `result/index.html` — which does not load `green-radius.jsx`, so it inlines its own `sendBeacon` — when a camp imports a result via "Continue improving". The Worker route mirrors `/api/complete`'s **fail-closed Origin check** (must be `https://greenradi.us` or `http://localhost:*`, absent Origin rejected → 403), caps the body at 1 KB, drops any event name not in the `ALLOWED_EVENTS` allowlist, then writes **one structured `console.log` line** (`{type:'funnel_event', event, mode?, sectors?}`) to Workers Logs and returns **204**. **No PII by contract:** event name + coarse props only — never emails, camp names, or free text. Every non-forbidden outcome returns 204 so a beacon never surfaces an error to the player.
+- **Funnel events → `POST /api/event` (Worker).** The transport is `window.sendEvent(event, props)`, installed by `beacon.js`: a fire-and-forget `navigator.sendBeacon` (keepalive `fetch` fallback), internally wrapped so a telemetry failure can never touch gameplay.
+
+  **Always call it through `trackEvent(event, props)` (`src/core.jsx`), never `window.sendEvent` directly.** `beacon.js` is not guaranteed to be there — a network blip, or an ad blocker matching its filename, which is a common filter-list target. Unguarded calls then throw *from click and keystroke handlers*: #108 called `window.sendEvent` directly from the mode picker, so with `beacon.js` blocked the very first click threw `window.sendEvent is not a function` and the game could not be started at all. It was invisible, because the client-error beacon below lives in that same blocked file. `trackEvent` no-ops when the transport is absent (#109), and `test/boot-smoke.mjs` has a dedicated `beacon.js`-blocked case that fails if this regresses. **Naming trap:** the helper must *not* be called `sendEvent` — top-level bindings in these classic scripts land on `window` (see CLAUDE.md), so a `sendEvent` wrapper would overwrite `window.sendEvent` with itself and recurse forever.
+
+  Called at these funnel points: `game_started` (a mode was picked on the landing screen), `intro_engaged` (first keystroke in any intro field — **once per page load**, deliberately not per mount, since `Intro` unmounts on Back and a per-mount flag counted one player twice), `intro_blocked` (`{mode, missing}` — Start pressed but validation refused), `mode_chosen` (`{mode:'board'|'form'}` — cleared the intro gate; note this fires *after* `game_started` despite the names), `submit_attempted` (`{mode, sectors}` = count of sectors with any Yes), `submit_succeeded`, `submit_failed` (both `{mode}`), and `result_resumed` (event name only, from `src/boot-result.jsx`) when a camp imports a result via "Continue improving".
+
+  The Worker route mirrors `/api/complete`'s **fail-closed Origin check** (must be `https://greenradi.us` or `http://localhost:*`, absent Origin rejected → 403), caps the body at 1 KB, drops any event name not in the `ALLOWED_EVENTS` allowlist, then writes **one structured `console.log` line** (`{type:'funnel_event', event, mode?, sectors?, missing?}`) to Workers Logs and returns **204**. **No PII by contract:** event name + coarse props only — never emails, camp names, or free text. `intro_blocked`'s `missing` is the sharpest edge here, since it describes fields a player was typing into: it carries **field names only**, and the Worker *re-derives* the list by filtering the fixed `INTRO_FIELDS` allowlist (`camp`, `lead`, `email`, `location`, `size`) rather than echoing what was sent, so a forged or malformed beacon can only ever produce a subset of those five in a fixed order. Every non-forbidden outcome returns 204 so a beacon never surfaces an error to the player.
 - **Client errors → `POST /api/client-error` (Worker).** `beacon.js` (a tiny plain script — no JSX, not built by `scripts/build.js` — loaded **first and un-deferred** in every page's `<head>` so its handlers exist before the deferred vendor/dist scripts run) catches `window.onerror` and unhandled rejections and POSTs a small report: clamped fields, max 3 beacons per page, deduped by message. The Worker route mirrors the fail-closed Origin check, caps the body at 4 KB, writes one structured `console.log` line (`{type:'client_error', …}`) to Workers Logs, and returns 204 for every non-forbidden outcome. Log-only by design: nothing is stored, it exists to catch silent white screens on odd playa phones.
 
 ## Gotchas (hard-won)

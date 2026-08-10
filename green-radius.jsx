@@ -1,8 +1,8 @@
 // green-radius.jsx — main game component (GreenRadiusGame) + intro and Green-Up Plan.
 // Loads last: the src/*.jsx modules define everything else in the same shared Babel scope.
 
-// Funnel analytics go through window.sendEvent (beacon.js, loaded first and
-// un-deferred on every page); see docs/architecture.md.
+// Funnel analytics go through trackEvent (src/core.jsx), which guards the
+// window.sendEvent that beacon.js installs; see docs/architecture.md.
 
 // Green-Up Plan data: every "No" answer becomes a next-year step. Levels 1–3 come
 // from sector.levels[0..2]; level 4 from sector.tier4Topics. Grouped by sector (board
@@ -63,10 +63,15 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
   );
 }
 
+// Once per page load, not per mount: Intro unmounts on Back and on entering the
+// board, so a per-mount ref made a player who stepped back and returned look like
+// two engaged players in the funnel.
+let introEngagedSent = false;
+
 // ─── intro / camp setup ───────────────────────────────────────────────────────
 // `initial` prefills the fields from the running game's camp info, so stepping
 // back from the board/form lets the player fix a typo'd detail and continue.
-function Intro({ onStart, onBack, palette, description, initial }) {
+function Intro({ onStart, onBack, palette, description, initial, mode }) {
   const [campName, setCampName] = useState((initial && initial.campName) || '');
   const [leadName, setLeadName] = useState((initial && initial.leadName) || '');
   const [email, setEmail] = useState((initial && initial.email) || '');
@@ -88,9 +93,30 @@ function Intro({ onStart, onBack, palette, description, initial }) {
   const campSizeNum = Number(campSizeTrim);
   const campSizeOk = campSizeTrim !== '' && Number.isInteger(campSizeNum) && campSizeNum > 0 && campSizeNum <= 2000;
   const canStart = campOk && leadOk && emailOk && campLocationOk && campSizeOk;
+  const missingKeys = [
+    !campOk && 'camp', !leadOk && 'lead', !emailOk && 'email',
+    !campLocationOk && 'location', !campSizeOk && 'size',
+  ].filter(Boolean);
+
+  // Two funnel signals for this screen, because it is where the funnel actually
+  // leaks: 74 mode picks produced 15 starts over Aug 3-10, and nothing recorded
+  // said whether those 59 bounced on sight or gave up partway through a
+  // five-field gate. intro_engaged fires once on the first keystroke in any
+  // field; intro_blocked fires when Start was pressed but validation refused,
+  // carrying the field NAMES that were missing (never their values).
+  function markEngaged() {
+    if (introEngagedSent) return;
+    introEngagedSent = true;
+    trackEvent('intro_engaged', { mode });
+  }
+  const edit = (set) => (v) => { markEngaged(); set(v); };
 
   function handleStart() {
-    if (!canStart) { setTried(true); return; }
+    if (!canStart) {
+      setTried(true);
+      trackEvent('intro_blocked', { mode, missing: missingKeys.join(',') });
+      return;
+    }
     onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim(), campLocation: campLocation.trim(), campSize: campSizeTrim });
   }
 
@@ -123,13 +149,13 @@ function Intro({ onStart, onBack, palette, description, initial }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28, textAlign: 'left' }}>
-        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
-        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
-        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk} type="email"/>
-        <Field label="Camp location" value={campLocation} onChange={setCampLocation} placeholder="4:20 & D" palette={palette} required invalid={tried && !campLocationOk} maxLength={80}
+        <Field label="Camp name" value={campName} onChange={edit(setCampName)} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
+        <Field label="Sustainability lead" value={leadName} onChange={edit(setLeadName)} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
+        <Field label="Email address" value={email} onChange={edit(setEmail)} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk} type="email"/>
+        <Field label="Camp location" value={campLocation} onChange={edit(setCampLocation)} placeholder="4:20 & D" palette={palette} required invalid={tried && !campLocationOk} maxLength={80}
           onBlur={() => setLocTouched(true)}
           hint={locationLooksOff ? "Hmm, that doesn't look like a playa address (like 7:30 & E). Totally fine if your camp is somewhere else, just double-check." : null}/>
-        <Field label="Camp size" value={campSize} onChange={setCampSize} placeholder="Number of campers" palette={palette} required invalid={tried && !campSizeOk} type="number" min={1} max={2000}/>
+        <Field label="Camp size" value={campSize} onChange={edit(setCampSize)} placeholder="Number of campers" palette={palette} required invalid={tried && !campSizeOk} type="number" min={1} max={2000}/>
       </div>
 
       <button
@@ -417,7 +443,7 @@ function GreenRadiusGame({ palette }) {
       if (!isValidEmail(email)) { if (gen === submitGenRef.current) setSubmitState('error'); return; }
       setSubmitState('sending');
       const evMode = mode === 'form' ? 'form' : 'board';
-      window.sendEvent('submit_attempted', { mode: evMode, sectors: Object.values(greens).filter(v => v > 0).length });
+      trackEvent('submit_attempted', { mode: evMode, sectors: Object.values(greens).filter(v => v > 0).length });
       // Write-in idea text rides the same answers map as `X-camp-note` entries
       // (only when its topic was answered), landing in the sheet's Answers JSON.
       const noteEntries = {};
@@ -445,11 +471,11 @@ function GreenRadiusGame({ palette }) {
         setSubmitResult({ sheet: j.sheet, email: j.email });
         // "done" = at least one channel landed, so we stop auto-retrying on reload.
         // The per-channel copy + the Try-again button surface any partial failure.
-        if (j.sheet === 'ok' || j.email === 'sent') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); window.sendEvent('submit_succeeded', { mode: evMode }); }
-        else { setSubmitState('error'); window.sendEvent('submit_failed', { mode: evMode }); }
+        if (j.sheet === 'ok' || j.email === 'sent') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); trackEvent('submit_succeeded', { mode: evMode }); }
+        else { setSubmitState('error'); trackEvent('submit_failed', { mode: evMode }); }
       } catch {
         if (gen === submitGenRef.current) setSubmitState('error');
-        window.sendEvent('submit_failed', { mode: evMode });
+        trackEvent('submit_failed', { mode: evMode });
       }
     })();
   }, [sectors, answers, customNotes, camp, fills, mode, campId, submitNonce, resultUrl]);
@@ -599,7 +625,7 @@ function GreenRadiusGame({ palette }) {
     if (mode !== 'board') freshProgress();
     setCamp(info);
     setMode('board');
-    window.sendEvent('mode_chosen', { mode: 'board' });
+    trackEvent('mode_chosen', { mode: 'board' });
     setPhase('playing');
   }
 
@@ -607,14 +633,14 @@ function GreenRadiusGame({ palette }) {
     if (mode !== 'form') freshProgress();
     setCamp(info);
     setMode('form');
-    window.sendEvent('mode_chosen', { mode: 'form' });
+    trackEvent('mode_chosen', { mode: 'form' });
     setPhase('form');
   }
 
   if (phase === 'pick-mode') {
     return (
       <ModePicker
-        onPick={(mode) => { window.sendEvent('game_started'); setPhase(mode === 'board' ? 'intro' : 'form-intro'); }}
+        onPick={(mode) => { trackEvent('game_started'); setPhase(mode === 'board' ? 'intro' : 'form-intro'); }}
         palette={palette}
       />
     );
@@ -633,6 +659,7 @@ function GreenRadiusGame({ palette }) {
           ? "Spin the wheel and answer as best you can. Progress autosaves unless you reset."
           : "Answer as best you can. Progress autosaves unless you reset."}
         initial={camp}
+        mode={board ? 'board' : 'form'}
       />
     );
   }

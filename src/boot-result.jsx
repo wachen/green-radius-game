@@ -51,7 +51,7 @@ function ResultView({ sectors, fills, campName, year }) {
     });
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(save)); } catch (e) {}
     // Non-PII resume signal (event name only); best-effort, must never block the nav.
-    window.sendEvent('result_resumed');
+    trackEvent('result_resumed');
     window.location.href = '/';
   }
   function handleContinue() {

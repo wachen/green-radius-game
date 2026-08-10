@@ -10,6 +10,31 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- GET /api/city serves stale-while-revalidate: past the 5-minute freshness
+  window the cached tally is returned immediately and refreshed in the
+  background, so a visitor never waits on the sheet round-trip. Cloudflare
+  analytics for Aug 3-10 showed /api/city averaging 2.7s and twice dying at
+  8.3s with a 502 while a usable cached entry sat unused. Only a cold cache
+  still blocks. The "Live tally unavailable" banner now needs 30 minutes of
+  failed refreshes (CITY_STALE_MS) rather than firing the moment data passes 5
+  minutes, so it again means "upstream is down" and not "a few minutes behind".
+  Two new funnel events, intro_engaged and intro_blocked, split the intro
+  screen's drop-off (74 mode picks produced 15 starts over the same window)
+  into bounced-on-sight versus refused-by-validation, the latter recording
+  which required fields were missing (names only, never values). Adds
+  favicon.ico, apple-touch-icon-precomposed.png, sitemap.xml, and llms.txt,
+  all of which had been 404ing into the Worker.
+  Also fixes a live outage class found while reviewing the above: funnel calls
+  invoked beacon.js's window.sendEvent unguarded, so a beacon.js that failed to
+  load (network blip, or an ad blocker matching its filename) threw from the
+  mode picker's click handler and the game could not be started at all — and
+  reported nothing, because the client-error beacon lives in that same blocked
+  file. All ten call sites now route through a guarded trackEvent (src/core.jsx,
+  loaded first on every page), and test/boot-smoke.mjs gains a beacon.js-blocked
+  case that fails if it regresses. intro_engaged is once per page load rather
+  than per mount, so stepping Back and returning no longer counts one player
+  twice. (#109)
+
 - Simplification sweep, no behaviour change: unified the share/download and
   telemetry-beacon blocks that were copy-pasted between green-radius.jsx and
   boot-result.jsx into share-card.jsx and beacon.js; dropped the dead debugFill

@@ -655,3 +655,61 @@ describe('POST /api/admin/visit', () => {
     expect(sheetCalled).toBe(false);
   });
 });
+
+describe('GET /api/city stale-while-revalidate', () => {
+  const CITY_ENV = { SHEETS_WEBAPP_URL: 'https://script.google.com/fake', SHEETS_SHARED_SECRET: 's' };
+
+  // Stand in for caches.default with a single pre-seeded entry, recording puts.
+  function mockCaches(cachedBody) {
+    const puts = [];
+    globalThis.caches = {
+      default: {
+        match: async () => (cachedBody ? new Response(JSON.stringify(cachedBody)) : undefined),
+        put: async (_k, res) => { puts.push(await res.json()); },
+      },
+    };
+    return puts;
+  }
+
+  // Age a cached entry by backdating generatedAt, then serve GET /api/city with
+  // an upstream that NEVER resolves. Anything that comes back therefore proves
+  // the handler did not wait on the sheet. waitUntil promises are collected but
+  // deliberately not awaited (the hanging fetch would never settle).
+  async function cityGet(ageMinutes) {
+    const cached = { count: 7, generatedAt: Date.now() - ageMinutes * 60 * 1000 };
+    const puts = mockCaches(cached);
+    const waits = [];
+    try {
+      const res = await withMockFetch(
+        () => new Promise(() => {}),
+        () => worker.fetch(new Request('https://greenradi.us/api/city'), CITY_ENV,
+          { waitUntil: (p) => waits.push(p) }),
+      );
+      return { res, body: await res.json(), waits, puts };
+    } finally { delete globalThis.caches; }
+  }
+
+  test('a fresh entry is served without touching the sheet', async () => {
+    const { res, body, waits } = await cityGet(1);
+    expect(res.status).toBe(200);
+    expect(body.count).toBe(7);
+    expect(waits.length).toBe(0);
+  });
+
+  test('a stale entry is served immediately and refreshed in the background', async () => {
+    const { res, body, waits } = await cityGet(10);
+    expect(res.status).toBe(200);
+    expect(body.count).toBe(7);
+    expect(waits.length).toBe(1); // the background refresh, not the visitor's wait
+  });
+
+  test('a merely stale entry is NOT flagged stale (that banner means upstream is down)', async () => {
+    const { body } = await cityGet(10);
+    expect(body.stale).toBeUndefined();
+  });
+
+  test('an entry old enough to mean failing refreshes is flagged stale', async () => {
+    const { body } = await cityGet(45);
+    expect(body.stale).toBe(true);
+  });
+});

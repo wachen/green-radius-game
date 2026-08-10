@@ -127,12 +127,52 @@ async function checkPage(browser, path) {
   return { path, ok: issues.length === 0, issues };
 }
 
+// Regression check for a bug that actually shipped: beacon.js installs
+// window.sendEvent, the funnel calls used it unguarded, and beacon.js is not
+// guaranteed to load (a network blip, or an ad blocker matching its name — a
+// common filter-list target). The mode picker's click handler then threw and
+// the game could not be started AT ALL, silently: the client-error beacon lives
+// in that same blocked file, so nothing was ever reported. Funnel calls now go
+// through trackEvent (src/core.jsx), which no-ops when window.sendEvent is
+// missing. Asserts the intro screen is still reachable with beacon.js blocked.
+async function checkPlayableWithoutBeacon(browser) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const issues = [];
+
+  page.on('pageerror', err => issues.push(`uncaught page error: ${err.message || err}`));
+  await page.route('**/beacon.js', route => route.abort());
+  await page.route('https://static.cloudflareinsights.com/**', route =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: '' })
+  );
+
+  try {
+    await page.goto(BASE_URL + '/', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
+    await page.waitForLoadState('networkidle', { timeout: SETTLE_TIMEOUT_MS }).catch(() => {});
+    // A saved game would resume past the mode picker, which is the screen under test.
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
+    await page.waitForLoadState('networkidle', { timeout: SETTLE_TIMEOUT_MS }).catch(() => {});
+
+    await page.locator('button').filter({ hasText: /Play the Game/ }).click({ timeout: NAV_TIMEOUT_MS });
+    // The intro screen is the five required camp-info fields.
+    await page.waitForFunction(() => document.querySelectorAll('#root input').length === 5,
+      null, { timeout: SETTLE_TIMEOUT_MS });
+  } catch (e) {
+    issues.push(`could not start the game with beacon.js blocked: ${e.message}`);
+  }
+
+  await context.close();
+  return { path: '/ (beacon.js blocked)', ok: issues.length === 0, issues };
+}
+
 async function main() {
   const browser = await chromium.launch();
   const results = [];
   for (const path of PAGES) {
     results.push(await checkPage(browser, path));
   }
+  results.push(await checkPlayableWithoutBeacon(browser));
   await browser.close();
 
   let allOk = true;

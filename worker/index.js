@@ -14,7 +14,12 @@ const ALLOWED_ORIGIN = 'https://greenradi.us';
 
 // Funnel analytics: the only event names POST /api/event will record. Anything
 // else is silently dropped so a stray/forged name can't stuff Workers Logs.
-const ALLOWED_EVENTS = new Set(['game_started', 'mode_chosen', 'submit_attempted', 'submit_succeeded', 'submit_failed', 'result_resumed']);
+const ALLOWED_EVENTS = new Set(['game_started', 'mode_chosen', 'submit_attempted', 'submit_succeeded', 'submit_failed', 'result_resumed', 'intro_engaged', 'intro_blocked']);
+
+// The only values intro_blocked may report in `missing`: names of the required
+// intro fields that were empty or invalid. Field NAMES only, never the values a
+// player typed — same non-PII contract as every other funnel prop.
+const INTRO_FIELDS = ['camp', 'lead', 'email', 'location', 'size'];
 
 export default {
   async fetch(request, env, ctx) {
@@ -160,6 +165,13 @@ function handleEvent(request) {
     const evt = { type: 'funnel_event', event: body.event };
     if (body.mode === 'board' || body.mode === 'form') evt.mode = body.mode;
     if (Number.isFinite(body.sectors)) evt.sectors = Math.max(0, Math.min(6, body.sectors | 0));
+    // Re-derived from the allowlist rather than echoed, so a forged beacon can
+    // only ever produce a subset of INTRO_FIELDS in a fixed order.
+    if (typeof body.missing === 'string') {
+      const sent = new Set(body.missing.split(','));
+      const missing = INTRO_FIELDS.filter(f => sent.has(f));
+      if (missing.length) evt.missing = missing.join(',');
+    }
     console.log(JSON.stringify(evt));
     return new Response(null, { status: 204 });
   });
@@ -492,9 +504,14 @@ async function fetchSheetRows(env) {
 //     colo cache for a day but treated as fresh for only 5 minutes (checked
 //     in code via generatedAt — the Cache API can't serve entries past their
 //     max-age, so freshness lives in the body). Result: at most ~1 sheet hit
-//     per colo per 5 minutes, and an Apps Script outage serves the stale
-//     entry (marked stale:true, client shows "as of <time>") instead of 503.
+//     per colo per 5 minutes, and an Apps Script outage serves the last good
+//     entry instead of 503 — marked stale:true only once it is old enough to
+//     mean the refreshes are actually failing (CITY_STALE_MS).
 const CITY_FRESH_MS = 5 * 60 * 1000;
+// Past this, a cached entry is no longer "a few minutes behind" but evidence
+// that background refreshes have been failing, so the client gets stale:true
+// and says so. Normal operation refreshes every 5 min and never reaches this.
+const CITY_STALE_MS = 30 * 60 * 1000;
 const CITY_CACHE_KEY = 'https://greenradi.us/api/city';
 
 async function handleCity(env, ctx) {
@@ -502,17 +519,40 @@ async function handleCity(env, ctx) {
   const cacheKey = new Request(CITY_CACHE_KEY);
   const hit = await cache.match(cacheKey).catch(() => null);
   const cached = hit ? await hit.json().catch(() => null) : null;
-  if (cached && Date.now() - cached.generatedAt < CITY_FRESH_MS) return cityJson(cached);
+  const age = cached ? Date.now() - cached.generatedAt : Infinity;
+  if (age < CITY_FRESH_MS) return cityJson(cached);
+
+  // Stale-while-revalidate. Past the freshness window we serve the entry we
+  // already hold and refresh it in the background, instead of making the
+  // visitor wait on the sheet round-trip (2.5-8s observed). That wait is what
+  // produced two 8.3s 502s in the Aug 3-10 window — a usable cached entry was
+  // in hand both times and went unused. Only a cold cache (first hit per colo
+  // per day) still blocks.
+  if (cached) {
+    ctx.waitUntil(refreshCity(env, cache, cacheKey));
+    return cityJson(age > CITY_STALE_MS ? { ...cached, stale: true } : cached);
+  }
 
   const fresh = await computeCityBody(env);
   if (fresh) {
-    ctx.waitUntil(cache.put(cacheKey, new Response(JSON.stringify(fresh), {
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
-    })));
+    ctx.waitUntil(putCity(cache, cacheKey, fresh));
     return cityJson(fresh);
   }
-  if (cached) return cityJson({ ...cached, stale: true });
   return json({ error: 'unavailable' }, 503);
+}
+
+// Background refresh for the stale-while-revalidate path above. Must never
+// reject: it runs under waitUntil, where an unhandled rejection is an
+// invocation error on a request the visitor has already been served.
+async function refreshCity(env, cache, cacheKey) {
+  const fresh = await computeCityBody(env).catch(() => null);
+  if (fresh) await putCity(cache, cacheKey, fresh).catch(() => {});
+}
+
+function putCity(cache, cacheKey, body) {
+  return cache.put(cacheKey, new Response(JSON.stringify(body), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
+  }));
 }
 
 function cityJson(body) {

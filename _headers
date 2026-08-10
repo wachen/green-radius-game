@@ -38,6 +38,22 @@
 /favicon.svg
   Cache-Control: public, max-age=300, stale-while-revalidate=86400
 
+# Icons and crawler files: requested repeatedly by browsers, bots, and link
+# unfurlers, and they change about never, so a day of cache saves a conditional
+# request per visit. favicon.ico and apple-touch-icon-precomposed.png exist only
+# because clients request those exact paths whether or not the HTML points at
+# them — both were 404ing into the Worker.
+/favicon.ico
+  Cache-Control: public, max-age=86400
+/apple-touch-icon.png
+  Cache-Control: public, max-age=86400
+/apple-touch-icon-precomposed.png
+  Cache-Control: public, max-age=86400
+/sitemap.xml
+  Cache-Control: public, max-age=86400
+/llms.txt
+  Cache-Control: public, max-age=86400
+
 # Wrangler infers text/jsx for .jsx, which is not on Cloudflare's compressible
 # MIME list, so this file was shipping uncompressed (~144KB raw vs ~40KB).
 # (The matching /green-radius.jsx entry was removed once .assetsignore stopped
