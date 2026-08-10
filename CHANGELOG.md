@@ -10,6 +10,21 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- GET /api/city serves stale-while-revalidate: past the 5-minute freshness
+  window the cached tally is returned immediately and refreshed in the
+  background, so a visitor never waits on the sheet round-trip. Cloudflare
+  analytics for Aug 3-10 showed /api/city averaging 2.7s and twice dying at
+  8.3s with a 502 while a usable cached entry sat unused. Only a cold cache
+  still blocks. The "Live tally unavailable" banner now needs 30 minutes of
+  failed refreshes (CITY_STALE_MS) rather than firing the moment data passes 5
+  minutes, so it again means "upstream is down" and not "a few minutes behind".
+  Two new funnel events, intro_engaged and intro_blocked, split the intro
+  screen's drop-off (74 mode picks produced 15 starts over the same window)
+  into bounced-on-sight versus refused-by-validation, the latter recording
+  which required fields were missing (names only, never values). Adds
+  favicon.ico, apple-touch-icon-precomposed.png, sitemap.xml, and llms.txt,
+  all of which had been 404ing into the Worker. (#109)
+
 - Simplification sweep, no behaviour change: unified the share/download and
   telemetry-beacon blocks that were copy-pasted between green-radius.jsx and
   boot-result.jsx into share-card.jsx and beacon.js; dropped the dead debugFill

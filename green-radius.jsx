@@ -66,7 +66,7 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
 // ─── intro / camp setup ───────────────────────────────────────────────────────
 // `initial` prefills the fields from the running game's camp info, so stepping
 // back from the board/form lets the player fix a typo'd detail and continue.
-function Intro({ onStart, onBack, palette, description, initial }) {
+function Intro({ onStart, onBack, palette, description, initial, mode }) {
   const [campName, setCampName] = useState((initial && initial.campName) || '');
   const [leadName, setLeadName] = useState((initial && initial.leadName) || '');
   const [email, setEmail] = useState((initial && initial.email) || '');
@@ -88,9 +88,31 @@ function Intro({ onStart, onBack, palette, description, initial }) {
   const campSizeNum = Number(campSizeTrim);
   const campSizeOk = campSizeTrim !== '' && Number.isInteger(campSizeNum) && campSizeNum > 0 && campSizeNum <= 2000;
   const canStart = campOk && leadOk && emailOk && campLocationOk && campSizeOk;
+  const missingKeys = [
+    !campOk && 'camp', !leadOk && 'lead', !emailOk && 'email',
+    !campLocationOk && 'location', !campSizeOk && 'size',
+  ].filter(Boolean);
+
+  // Two funnel signals for this screen, because it is where the funnel actually
+  // leaks: 74 mode picks produced 15 starts over Aug 3-10, and nothing recorded
+  // said whether those 59 bounced on sight or gave up partway through a
+  // five-field gate. intro_engaged fires once on the first keystroke in any
+  // field; intro_blocked fires when Start was pressed but validation refused,
+  // carrying the field NAMES that were missing (never their values).
+  const engagedRef = useRef(false);
+  function markEngaged() {
+    if (engagedRef.current) return;
+    engagedRef.current = true;
+    window.sendEvent('intro_engaged', { mode });
+  }
+  const edit = (set) => (v) => { markEngaged(); set(v); };
 
   function handleStart() {
-    if (!canStart) { setTried(true); return; }
+    if (!canStart) {
+      setTried(true);
+      window.sendEvent('intro_blocked', { mode, missing: missingKeys.join(',') });
+      return;
+    }
     onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim(), campLocation: campLocation.trim(), campSize: campSizeTrim });
   }
 
@@ -123,13 +145,13 @@ function Intro({ onStart, onBack, palette, description, initial }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28, textAlign: 'left' }}>
-        <Field label="Camp name" value={campName} onChange={setCampName} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
-        <Field label="Sustainability lead" value={leadName} onChange={setLeadName} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
-        <Field label="Email address" value={email} onChange={setEmail} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk} type="email"/>
-        <Field label="Camp location" value={campLocation} onChange={setCampLocation} placeholder="4:20 & D" palette={palette} required invalid={tried && !campLocationOk} maxLength={80}
+        <Field label="Camp name" value={campName} onChange={edit(setCampName)} placeholder="Your Theme Camp" palette={palette} required invalid={tried && !campOk}/>
+        <Field label="Sustainability lead" value={leadName} onChange={edit(setLeadName)} placeholder="Your (Playa) Name" palette={palette} required invalid={tried && !leadOk}/>
+        <Field label="Email address" value={email} onChange={edit(setEmail)} placeholder="you@your.camp" palette={palette} required invalid={tried && !emailOk} type="email"/>
+        <Field label="Camp location" value={campLocation} onChange={edit(setCampLocation)} placeholder="4:20 & D" palette={palette} required invalid={tried && !campLocationOk} maxLength={80}
           onBlur={() => setLocTouched(true)}
           hint={locationLooksOff ? "Hmm, that doesn't look like a playa address (like 7:30 & E). Totally fine if your camp is somewhere else, just double-check." : null}/>
-        <Field label="Camp size" value={campSize} onChange={setCampSize} placeholder="Number of campers" palette={palette} required invalid={tried && !campSizeOk} type="number" min={1} max={2000}/>
+        <Field label="Camp size" value={campSize} onChange={edit(setCampSize)} placeholder="Number of campers" palette={palette} required invalid={tried && !campSizeOk} type="number" min={1} max={2000}/>
       </div>
 
       <button
@@ -633,6 +655,7 @@ function GreenRadiusGame({ palette }) {
           ? "Spin the wheel and answer as best you can. Progress autosaves unless you reset."
           : "Answer as best you can. Progress autosaves unless you reset."}
         initial={camp}
+        mode={board ? 'board' : 'form'}
       />
     );
   }
