@@ -1,8 +1,8 @@
 // green-radius.jsx — main game component (GreenRadiusGame) + intro and Green-Up Plan.
 // Loads last: the src/*.jsx modules define everything else in the same shared Babel scope.
 
-// Funnel analytics go through window.sendEvent (beacon.js, loaded first and
-// un-deferred on every page); see docs/architecture.md.
+// Funnel analytics go through trackEvent (src/core.jsx), which guards the
+// window.sendEvent that beacon.js installs; see docs/architecture.md.
 
 // Green-Up Plan data: every "No" answer becomes a next-year step. Levels 1–3 come
 // from sector.levels[0..2]; level 4 from sector.tier4Topics. Grouped by sector (board
@@ -63,6 +63,11 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
   );
 }
 
+// Once per page load, not per mount: Intro unmounts on Back and on entering the
+// board, so a per-mount ref made a player who stepped back and returned look like
+// two engaged players in the funnel.
+let introEngagedSent = false;
+
 // ─── intro / camp setup ───────────────────────────────────────────────────────
 // `initial` prefills the fields from the running game's camp info, so stepping
 // back from the board/form lets the player fix a typo'd detail and continue.
@@ -99,18 +104,17 @@ function Intro({ onStart, onBack, palette, description, initial, mode }) {
   // five-field gate. intro_engaged fires once on the first keystroke in any
   // field; intro_blocked fires when Start was pressed but validation refused,
   // carrying the field NAMES that were missing (never their values).
-  const engagedRef = useRef(false);
   function markEngaged() {
-    if (engagedRef.current) return;
-    engagedRef.current = true;
-    window.sendEvent('intro_engaged', { mode });
+    if (introEngagedSent) return;
+    introEngagedSent = true;
+    trackEvent('intro_engaged', { mode });
   }
   const edit = (set) => (v) => { markEngaged(); set(v); };
 
   function handleStart() {
     if (!canStart) {
       setTried(true);
-      window.sendEvent('intro_blocked', { mode, missing: missingKeys.join(',') });
+      trackEvent('intro_blocked', { mode, missing: missingKeys.join(',') });
       return;
     }
     onStart({ campName: campName.trim(), leadName: leadName.trim(), email: email.trim(), campLocation: campLocation.trim(), campSize: campSizeTrim });
@@ -439,7 +443,7 @@ function GreenRadiusGame({ palette }) {
       if (!isValidEmail(email)) { if (gen === submitGenRef.current) setSubmitState('error'); return; }
       setSubmitState('sending');
       const evMode = mode === 'form' ? 'form' : 'board';
-      window.sendEvent('submit_attempted', { mode: evMode, sectors: Object.values(greens).filter(v => v > 0).length });
+      trackEvent('submit_attempted', { mode: evMode, sectors: Object.values(greens).filter(v => v > 0).length });
       // Write-in idea text rides the same answers map as `X-camp-note` entries
       // (only when its topic was answered), landing in the sheet's Answers JSON.
       const noteEntries = {};
@@ -467,11 +471,11 @@ function GreenRadiusGame({ palette }) {
         setSubmitResult({ sheet: j.sheet, email: j.email });
         // "done" = at least one channel landed, so we stop auto-retrying on reload.
         // The per-channel copy + the Try-again button surface any partial failure.
-        if (j.sheet === 'ok' || j.email === 'sent') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); window.sendEvent('submit_succeeded', { mode: evMode }); }
-        else { setSubmitState('error'); window.sendEvent('submit_failed', { mode: evMode }); }
+        if (j.sheet === 'ok' || j.email === 'sent') { setSubmittedAt(new Date().toISOString()); setSubmitState('done'); trackEvent('submit_succeeded', { mode: evMode }); }
+        else { setSubmitState('error'); trackEvent('submit_failed', { mode: evMode }); }
       } catch {
         if (gen === submitGenRef.current) setSubmitState('error');
-        window.sendEvent('submit_failed', { mode: evMode });
+        trackEvent('submit_failed', { mode: evMode });
       }
     })();
   }, [sectors, answers, customNotes, camp, fills, mode, campId, submitNonce, resultUrl]);
@@ -621,7 +625,7 @@ function GreenRadiusGame({ palette }) {
     if (mode !== 'board') freshProgress();
     setCamp(info);
     setMode('board');
-    window.sendEvent('mode_chosen', { mode: 'board' });
+    trackEvent('mode_chosen', { mode: 'board' });
     setPhase('playing');
   }
 
@@ -629,14 +633,14 @@ function GreenRadiusGame({ palette }) {
     if (mode !== 'form') freshProgress();
     setCamp(info);
     setMode('form');
-    window.sendEvent('mode_chosen', { mode: 'form' });
+    trackEvent('mode_chosen', { mode: 'form' });
     setPhase('form');
   }
 
   if (phase === 'pick-mode') {
     return (
       <ModePicker
-        onPick={(mode) => { window.sendEvent('game_started'); setPhase(mode === 'board' ? 'intro' : 'form-intro'); }}
+        onPick={(mode) => { trackEvent('game_started'); setPhase(mode === 'board' ? 'intro' : 'form-intro'); }}
         palette={palette}
       />
     );

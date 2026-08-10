@@ -5,7 +5,7 @@
 > (food, water, waste, transport, shelter, power), gets a radial badge showing how far
 > its "green radius" reaches, and receives a Green-Up Plan built from every No answer.
 
-Playing is free, takes about 10 to 20 minutes, and needs no account. A camp enters its
+Playing is free and needs no account. A camp enters its
 name, sustainability lead, email, playa address, and camp size, then answers questions in
 one of two modes: a spinning wheel (pick a sector at a time) or a single linear form.
 Results are emailed as a permanent share link and are also tallied into an anonymous

@@ -61,6 +61,19 @@ const BOARD_GAME_PDF_URL = '/downloads/' + encodeURIComponent('2026.05.19 Green 
 const RESOURCE_GUIDE_URL = 'https://www.greenthemecampcommunity.org/resource-guide';
 const REPORT_EMAIL = 'greenthemecamps@burningman.org';
 
+// Funnel beacons reach the Worker through beacon.js's window.sendEvent. That
+// script can be absent — a network blip, or an ad blocker matching its name,
+// which is a common filter-list target. Calling it unguarded then throws from
+// click and keystroke handlers and takes the whole game down (a blocked
+// beacon.js made the mode picker dead on click, and because the client-error
+// beacon lives in that same file, nothing was reported). Every funnel call goes
+// through here instead, so telemetry stays strictly fire-and-forget.
+function trackEvent(event, props) {
+  try {
+    if (window.sendEvent) window.sendEvent(event, props);
+  } catch (e) { /* telemetry must never break the game */ }
+}
+
 // Deploy stamp shown (tiny) at the bottom of the home screen so anyone can
 // tell at a glance which release is live. No build step = no git SHA to
 // inject, so the convention is manual: bump to the PR number in every PR.
