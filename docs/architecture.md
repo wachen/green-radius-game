@@ -291,7 +291,25 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   also sends `X-Frame-Options`/`frame-ancestors 'none'` and a minimal
   `Permissions-Policy`; a script CSP is still deliberately absent — the boot
   scripts are external `dist/src/boot-*.js` files now (no eval needed), but this
-  change didn't add a CSP either.
+  change didn't add a CSP either. The crawler/icon files are grouped together at
+  the end of `_headers` on a flat one-day cache (`robots.txt`, `sitemap.xml`,
+  `llms.txt`, `favicon.ico`, `apple-touch-icon*.png`): clients and bots re-request
+  those paths whether or not the HTML points at them, and they change about never.
+  Remember `_headers` does **not** reach `/result/` — see the Per-camp OG entry.
+- **Crawler surface (`robots.txt`, `sitemap.xml`, `llms.txt`).** `robots.txt` is a
+  static asset (#110) declaring `Content-Signal: search=yes,ai-train=no,use=reference`,
+  `Allow: /`, and the `sitemap.xml` location; `sitemap.xml` lists `/`, `/city/`, and the
+  two `/downloads/*.pdf` files (not `/result/`, which is per-camp and `noindex`, nor
+  `/admin/`, which is Access-gated). **Two owner-side Cloudflare zone settings interact
+  with this file and are deliberately OFF** (Security Settings → Bot traffic): *Manage your
+  robots.txt* and *Block AI training bots*. Cloudflare injects or merges robots.txt content
+  only when the origin has **no** file of its own, so with *Manage your robots.txt* back on
+  it would merge its managed block in and its `User-agent: *` group would collide with
+  ours; with it off while this file exists, nothing is injected, which is the intent. Before
+  #110 there was no file here, so Cloudflare probed the origin on every crawler hit and the
+  Worker answered 404 about 26/day — the single largest source of invocations after the WAF
+  scanner rule. Don't restate AI-crawler `Disallow` rules in the file: enforcement is that
+  separate dashboard setting, and a hand-copied list drifts from it.
 - **Admin viewer read path.** `GET /api/admin/responses` (Worker) is gated by
   **Cloudflare Access** (edge, email allowlist on `/admin*` + `/api/admin*`) and
   additionally validates the Access JWT (`Cf-Access-Jwt-Assertion`, RS256 vs. the
@@ -406,7 +424,18 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   rewrite is dead code. `wrangler.jsonc` sets `assets.run_worker_first: ["/result/"]` so
   the Worker runs first for that one route (and just proxies `env.ASSETS.fetch` when there
   is no `?r=`). Do not remove it. `/api/*` needs no such entry — those paths match no
-  asset, so the Worker already runs for them. (HTMLRewriter `setAttribute` HTML-escapes
+  asset, so the Worker already runs for them. **The flag cuts both ways, and this bites
+  silently:** because the Worker (not the asset layer) produces the response, `/result/`
+  bypasses everything the asset layer applies — including **`_headers`**. Any
+  `Cache-Control`, `X-Robots-Tag`, or other header declared there for `/result/` is simply
+  never sent, with no error. #110 shipped an `X-Robots-Tag: noindex` for `/result/` in
+  `_headers` and it did nothing in production; the directive now lives as a
+  `<meta name="robots" content="noindex">` in `result/index.html` (#111), which works
+  whichever layer serves the page and survives the `HTMLRewriter` (it only touches the two
+  `og:` metas). Same mechanism, useful in the other direction: Cloudflare's HTML rewriters
+  (Rocket Loader, email obfuscation) are also skipped for Worker-served responses, which is
+  why Rocket Loader being enabled on the zone never reordered the load-bearing script order
+  (it was turned off anyway, 2026-08-12, as it offered nothing here). (HTMLRewriter `setAttribute` HTML-escapes
   the value, so an attacker-supplied camp name cannot break out of the meta attribute —
   verified with a quote/`<script>` payload.) **Privacy:** `?r=` makes the result readable by
   the Worker (we don't log it, but Cloudflare may record request URLs); the same data

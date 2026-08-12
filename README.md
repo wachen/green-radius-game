@@ -63,8 +63,10 @@ this implementation began from a Claude Design handoff bundle.
 | `result/`          | Stateless shareable result page                                 |
 | `city/`            | Public community-progress page (`/city/`), rendered from `GET /api/city` |
 | `admin/`           | Internal Cloudflare Access–gated response viewer (City + Camps), read-only |
-| `worker/`          | Cloudflare Worker (`/api/complete` + `/api/admin/responses` + `/api/city` + `/result/?r=` OG unfurl + `/api/health`) |
+| `worker/`          | Cloudflare Worker — eight routes: `/api/complete`, `/api/event`, `/api/client-error`, `/api/admin/responses`, `/api/admin/visit`, `/api/city`, `/api/health`, and the `/result/?r=` OG unfurl |
 | `vendor/`          | Pinned Preact runtime (+ React-names shim), served same-origin   |
+| `robots.txt`, `sitemap.xml`, `llms.txt` | Crawler surface: rules + sitemap pointer + content signal, the indexable URL list, and a plain-language summary for LLM consumers |
+| `favicon.ico`, `favicon.svg`, `apple-touch-icon*.png` | Icons, including the exact paths clients request whether or not the HTML links them |
 | `downloads/`       | Printable board-game + how-to-play PDFs                          |
 
 ## Architecture

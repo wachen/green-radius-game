@@ -43,6 +43,11 @@ No bundler, no npm, no `package.json` — but a tiny compile step: `bun run scri
 | `og-card.png`      | Static Open Graph share-card image (source: `scripts/og-card.html`)   |
 | `shared.css`       | Shared entry-page CSS — the vendored `@font-face` + pre-mount loading placeholder rules (linked by all four entry pages, `admin/` included since #108) |
 | `favicon.svg`      | The six-wedge favicon, linked by all four HTML entry points           |
+| `favicon.ico`      | Multi-size ICO for clients that request `/favicon.ico` regardless of the HTML |
+| `apple-touch-icon.png`, `apple-touch-icon-precomposed.png` | iOS home-screen icons; the `-precomposed` copy exists because older iOS asks for that exact path |
+| `robots.txt`       | Crawler rules + the `sitemap.xml` pointer + the `Content-Signal` stance (read its comments before editing — two Cloudflare zone settings interact with it) |
+| `sitemap.xml`      | `/`, `/city/`, and the two download PDFs. Not `/result/` (per-camp, `noindex`) or `/admin/` (Access-gated) |
+| `llms.txt`         | Plain-language site summary for LLM/agent consumers                   |
 | `downloads/`       | Printable board-game + how-to-play PDFs                               |
 
 ### One JSX gotcha worth knowing
