@@ -10,6 +10,21 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Docs accuracy pass, no behaviour change. CLAUDE.md said the Worker had seven
+  dynamic routes and listed seven, but there are eight: POST /api/admin/visit was
+  missing (drift since #106); README.md's layout table listed five of the eight.
+  Both now list all eight, matching docs/architecture.md. Documents the
+  run_worker_first trap that made #110 ship a no-op: opting /result/ into the
+  Worker also opts it OUT of the asset layer, so _headers never applies there and
+  fails silently, and Cloudflare's HTML rewriters (Rocket Loader, email
+  obfuscation) are skipped for the same reason. Adds a crawler-surface section
+  covering robots.txt, sitemap.xml and llms.txt, including the two owner-side zone
+  settings that interact with robots.txt and why both are off. CONTRIBUTING.md and
+  README.md layout tables gained the five crawler/icon files added in #109 and
+  #110 that neither had listed. Rocket Loader was turned off and 0-RTT on at the
+  zone (2026-08-12); Rocket Loader had been enabled but was verified inert,
+  because Worker-served responses skip it. (#112)
+
 - Fixes the /result/ noindex shipped in #110, which silently did nothing. The
   X-Robots-Tag went into _headers, but wrangler.jsonc sets
   assets.run_worker_first:["/result/"], so that one route is served by the Worker
