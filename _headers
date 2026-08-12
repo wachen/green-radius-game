@@ -53,6 +53,8 @@
   Cache-Control: public, max-age=86400
 /llms.txt
   Cache-Control: public, max-age=86400
+/robots.txt
+  Cache-Control: public, max-age=86400
 
 # Wrangler infers text/jsx for .jsx, which is not on Cloudflare's compressible
 # MIME list, so this file was shipping uncompressed (~144KB raw vs ~40KB).

@@ -10,6 +10,19 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Adds robots.txt, which had become the Worker's largest single source of
+  invocations. With no file at that path, Cloudflare probed the origin to decide
+  whether to merge with or create one, and the Worker answered 404 roughly 26
+  times a day: 26 of the 42 404s still reaching it in the 24h after the scanner
+  WAF rule landed (that rule cut total invocations 175 to 106 and 404s 150 to
+  42). Crawlers never saw those 404s, because Cloudflare's managed robots.txt
+  feature synthesized a file for them, but the synthesized file carries no
+  Sitemap line, so the sitemap.xml added in #109 had no discovery path. The new
+  file is deliberately minimal: Cloudflare merges its AI-crawler block in at the
+  edge, so restating those rules here would only let them drift from the
+  dashboard. Also refreshes the sitemap lastmod dates and caches /robots.txt for
+  a day alongside the other crawler files. (#110)
+
 - GET /api/city serves stale-while-revalidate: past the 5-minute freshness
   window the cached tally is returned immediately and refreshed in the
   background, so a visitor never waits on the sheet round-trip. Cloudflare

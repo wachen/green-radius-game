@@ -1,0 +1,20 @@
+# Deliberately minimal. Cloudflare's managed robots.txt feature merges its
+# AI-crawler block into this file at the edge (zone overview > Control AI
+# Crawlers), appending it under a "# END Cloudflare Managed Content" marker and
+# leaving the directives below intact. So this file holds only the one thing
+# Cloudflare cannot know: where the sitemap lives. Do not restate the AI-crawler
+# Disallow rules here, or they drift from whatever the dashboard is set to.
+#
+# Serving this as a static asset also keeps /robots.txt out of the Worker. With
+# no file here, Cloudflare probed the origin to decide merge-vs-create and the
+# Worker answered 404 about 26 times a day, which was its single largest source
+# of invocations once the WAF scanner rule landed. Crawlers never saw those 404s
+# (they got Cloudflare's synthesized file), but we still paid for them.
+#
+# /admin/ is intentionally not listed. It is gated by Cloudflare Access, and
+# naming it here would only advertise the path.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://greenradi.us/sitemap.xml
