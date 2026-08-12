@@ -1,20 +1,18 @@
-# Minimal on purpose. Read this before adding anything: the file interacts with a
-# Cloudflare zone setting in a way that is easy to get backwards.
+# Minimal on purpose. Cloudflare's "Manage your robots.txt" setting is ON for this
+# zone, so Cloudflare MERGES its managed AI-crawler block into this file at the
+# edge, appending it under a "# END Cloudflare Managed Content" marker and leaving
+# the directives below intact. This file therefore carries only the one thing
+# Cloudflare cannot know: where the sitemap lives.
 #
-# Cloudflare injects AI-crawler content at /robots.txt only when the origin has no
-# file of its own, so shipping this file takes over that slot:
-#   * "Manage your robots.txt" ON  -> Cloudflare MERGES its managed AI-crawler
-#     block into this file, appended under a "# END Cloudflare Managed Content"
-#     marker, and the directives below survive untouched.
-#   * "Manage your robots.txt" OFF -> Cloudflare was only injecting the Content
-#     Signals Policy *because* no robots.txt existed here (the Free-plan
-#     "policy_only" variant). Adding this file removes that injection.
-# The zone was in the OFF/policy_only state when this file was added, so turn the
-# setting ON (Security Settings > Bot traffic) to keep the content signals.
+# Do not restate the AI-crawler Disallow rules here. Enforcement is a separate
+# dashboard setting (Security Settings > Bot traffic > Block AI training bots) and
+# works regardless of this file, so a hand-copied list here would only drift from
+# whatever the dashboard actually says.
 #
-# Either way, do not restate the AI-crawler Disallow rules here. Enforcement is a
-# separate dashboard setting (ai_bots_protection) that works regardless of this
-# file, and a hand-copied list here would silently drift from it.
+# Careful if that setting is ever switched off: Cloudflare injects robots.txt
+# content only when the origin has no file of its own. With the setting off AND
+# this file present, the content signals disappear entirely rather than being
+# merged, and nothing warns you.
 #
 # Serving this as a static asset also keeps /robots.txt out of the Worker. With no
 # file here, Cloudflare probed the origin and the Worker answered 404 about 26

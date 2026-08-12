@@ -18,13 +18,17 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
   42). Crawlers never saw those 404s, because Cloudflare injects AI-crawler
   content at /robots.txt when the origin has no file of its own, but what it
   injected carries no Sitemap line, so the sitemap.xml added in #109 had no
-  discovery path. The new file is deliberately minimal, and it takes over that
-  injected slot: with "Manage your robots.txt" ON, Cloudflare merges its managed
-  block into ours and both survive; with it OFF (the zone's state when this
-  shipped) the injected Content Signals Policy goes away, so that setting should
-  be turned on alongside this. AI-crawler enforcement is a separate setting and
-  is unaffected either way. Also refreshes the sitemap lastmod dates and caches
-  /robots.txt for a day alongside the other crawler files. (#110)
+  discovery path. The new file is deliberately minimal and takes over that
+  injected slot: with "Manage your robots.txt" on, which is now the zone's
+  setting, Cloudflare merges its managed AI-crawler block into ours and both
+  survive. AI-crawler enforcement is a separate dashboard setting, unaffected
+  either way, so the Disallow rules are deliberately not restated in the file.
+  /result/ now sends X-Robots-Tag: noindex, keeping individual camps' names and
+  scores out of search results while still letting link unfurlers fetch the page
+  for the OG share card (a robots.txt Disallow would have blocked the fetch and
+  broken previews). The sitemap gains the two print-and-play PDFs, which camps
+  use once they have no connectivity on playa, and refreshed lastmod dates.
+  /robots.txt is cached for a day alongside the other crawler files. (#110)
 
 - GET /api/city serves stale-while-revalidate: past the 5-minute freshness
   window the cached tally is returned immediately and refreshed in the
