@@ -10,6 +10,17 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Fixes the /result/ noindex shipped in #110, which silently did nothing. The
+  X-Robots-Tag went into _headers, but wrangler.jsonc sets
+  assets.run_worker_first:["/result/"], so that one route is served by the Worker
+  via env.ASSETS.fetch() and bypasses the asset layer that applies _headers.
+  Confirmed against production: /robots.txt and /dist/* got their _headers cache
+  values while /result/ returned no X-Robots-Tag at all. The directive is now a
+  <meta name="robots" content="noindex"> in result/index.html, which works
+  whichever layer serves the page, and _headers carries a note so the entry is
+  not re-added. Still noindex rather than a robots.txt Disallow, so link
+  unfurlers can fetch the page and read the og: tags the Worker rewrites. (#111)
+
 - Adds robots.txt, which had become the Worker's largest single source of
   invocations. With no file at that path, Cloudflare probed the origin to decide
   whether to merge with or create one, and the Worker answered 404 roughly 26
@@ -26,10 +37,10 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
   the agents it was written for. Crawl, index, quote, and link back are now all
   allowed; training is not. The "Manage your robots.txt" and "Block AI training
   bots" zone settings were both turned off to match.
-  /result/ now sends X-Robots-Tag: noindex, keeping individual camps' names and
-  scores out of search results while still letting link unfurlers fetch the page
-  for the OG share card (a robots.txt Disallow would have blocked the fetch and
-  broken previews). The sitemap gains the two print-and-play PDFs, which camps
+  Also intended to keep individual camps' names and scores out of search results
+  via an X-Robots-Tag on /result/, but that entry went into _headers and never
+  took effect in production; see #111 above for why and the fix. The sitemap
+  gains the two print-and-play PDFs, which camps
   use once they have no connectivity on playa, and refreshed lastmod dates.
   /robots.txt is cached for a day alongside the other crawler files. (#110)
 
