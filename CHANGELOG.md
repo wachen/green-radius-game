@@ -15,13 +15,16 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
   whether to merge with or create one, and the Worker answered 404 roughly 26
   times a day: 26 of the 42 404s still reaching it in the 24h after the scanner
   WAF rule landed (that rule cut total invocations 175 to 106 and 404s 150 to
-  42). Crawlers never saw those 404s, because Cloudflare's managed robots.txt
-  feature synthesized a file for them, but the synthesized file carries no
-  Sitemap line, so the sitemap.xml added in #109 had no discovery path. The new
-  file is deliberately minimal: Cloudflare merges its AI-crawler block in at the
-  edge, so restating those rules here would only let them drift from the
-  dashboard. Also refreshes the sitemap lastmod dates and caches /robots.txt for
-  a day alongside the other crawler files. (#110)
+  42). Crawlers never saw those 404s, because Cloudflare injects AI-crawler
+  content at /robots.txt when the origin has no file of its own, but what it
+  injected carries no Sitemap line, so the sitemap.xml added in #109 had no
+  discovery path. The new file is deliberately minimal, and it takes over that
+  injected slot: with "Manage your robots.txt" ON, Cloudflare merges its managed
+  block into ours and both survive; with it OFF (the zone's state when this
+  shipped) the injected Content Signals Policy goes away, so that setting should
+  be turned on alongside this. AI-crawler enforcement is a separate setting and
+  is unaffected either way. Also refreshes the sitemap lastmod dates and caches
+  /robots.txt for a day alongside the other crawler files. (#110)
 
 - GET /api/city serves stale-while-revalidate: past the 5-minute freshness
   window the cached tally is returned immediately and refreshed in the

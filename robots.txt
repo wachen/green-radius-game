@@ -1,15 +1,25 @@
-# Deliberately minimal. Cloudflare's managed robots.txt feature merges its
-# AI-crawler block into this file at the edge (zone overview > Control AI
-# Crawlers), appending it under a "# END Cloudflare Managed Content" marker and
-# leaving the directives below intact. So this file holds only the one thing
-# Cloudflare cannot know: where the sitemap lives. Do not restate the AI-crawler
-# Disallow rules here, or they drift from whatever the dashboard is set to.
+# Minimal on purpose. Read this before adding anything: the file interacts with a
+# Cloudflare zone setting in a way that is easy to get backwards.
 #
-# Serving this as a static asset also keeps /robots.txt out of the Worker. With
-# no file here, Cloudflare probed the origin to decide merge-vs-create and the
-# Worker answered 404 about 26 times a day, which was its single largest source
-# of invocations once the WAF scanner rule landed. Crawlers never saw those 404s
-# (they got Cloudflare's synthesized file), but we still paid for them.
+# Cloudflare injects AI-crawler content at /robots.txt only when the origin has no
+# file of its own, so shipping this file takes over that slot:
+#   * "Manage your robots.txt" ON  -> Cloudflare MERGES its managed AI-crawler
+#     block into this file, appended under a "# END Cloudflare Managed Content"
+#     marker, and the directives below survive untouched.
+#   * "Manage your robots.txt" OFF -> Cloudflare was only injecting the Content
+#     Signals Policy *because* no robots.txt existed here (the Free-plan
+#     "policy_only" variant). Adding this file removes that injection.
+# The zone was in the OFF/policy_only state when this file was added, so turn the
+# setting ON (Security Settings > Bot traffic) to keep the content signals.
+#
+# Either way, do not restate the AI-crawler Disallow rules here. Enforcement is a
+# separate dashboard setting (ai_bots_protection) that works regardless of this
+# file, and a hand-copied list here would silently drift from it.
+#
+# Serving this as a static asset also keeps /robots.txt out of the Worker. With no
+# file here, Cloudflare probed the origin and the Worker answered 404 about 26
+# times a day, its single largest source of invocations once the WAF scanner rule
+# landed. Crawlers never saw those 404s, but we still paid for them.
 #
 # /admin/ is intentionally not listed. It is gated by Cloudflare Access, and
 # naming it here would only advertise the path.
