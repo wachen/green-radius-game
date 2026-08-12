@@ -5,14 +5,30 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://greenradi.us/</loc>
-    <lastmod>2026-08-10</lastmod>
+    <lastmod>2026-08-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://greenradi.us/city/</loc>
-    <lastmod>2026-08-10</lastmod>
+    <lastmod>2026-08-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
+  </url>
+  <!-- The print-and-play PDFs. Search engines index PDFs, and these are the
+       version camps actually use once they have no connectivity on playa, so
+       they are worth being findable on their own. lastmod is the version date
+       in the filenames, not the deploy date. -->
+  <url>
+    <loc>https://greenradi.us/downloads/2026.05.19%20Green%20Radius%20Game%20--%20Download%20for%20Players%20--%20Board%20Game%20-%20Coloring%20Wheel%20-%20Matrix%20--%20v%2026%20FINAL%20.pdf</loc>
+    <lastmod>2026-05-19</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://greenradi.us/downloads/2026.05.19%20Green%20Radius%20Game%20--%20Download%20for%20Players%20--%20How-to-Play%20-%20Board%20Game%20-%20Matrix%20-%20Detail%20--%20v%2026%20FINAL%20.pdf</loc>
+    <lastmod>2026-05-19</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>

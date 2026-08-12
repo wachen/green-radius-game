@@ -1,0 +1,30 @@
+# This is the whole file. Cloudflare's "Manage your robots.txt" setting is OFF, so
+# nothing is merged in or injected at the edge: Cloudflare only injects robots.txt
+# content when the origin has no file of its own, and this file is that origin file.
+#
+# The Content-Signal line is the deliberate stance, and it is the reason the managed
+# setting is off. Cloudflare's managed block emitted a blanket "Disallow: /" for
+# nine AI crawlers, which asks them not to fetch anything at all. That is strictly
+# stronger than "do not train on this", and it made llms.txt unreachable by the
+# agents it was written for. search=yes, ai-train=no, use=reference says the
+# intended thing instead: crawl it, index it, quote it, link back, but do not train
+# on it. AI-crawler enforcement (Security Settings > Bot traffic > Block AI
+# training bots) is a separate setting, set to not block, which matches this.
+#
+# If the managed setting is ever switched back on, Cloudflare merges its block in
+# under a "# END Cloudflare Managed Content" marker, and its own "User-agent: *"
+# group would then collide with the one below. Drop ours if that happens.
+#
+# Serving this as a static asset also keeps /robots.txt out of the Worker. With no
+# file here, Cloudflare probed the origin and the Worker answered 404 about 26
+# times a day, its single largest source of invocations once the WAF scanner rule
+# landed. Crawlers never saw those 404s, but we still paid for them.
+#
+# /admin/ is intentionally not listed. It is gated by Cloudflare Access, and
+# naming it here would only advertise the path.
+
+User-agent: *
+Content-Signal: search=yes,ai-train=no,use=reference
+Allow: /
+
+Sitemap: https://greenradi.us/sitemap.xml

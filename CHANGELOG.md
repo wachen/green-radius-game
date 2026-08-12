@@ -10,6 +10,29 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Adds robots.txt, which had become the Worker's largest single source of
+  invocations. With no file at that path, Cloudflare probed the origin to decide
+  whether to merge with or create one, and the Worker answered 404 roughly 26
+  times a day: 26 of the 42 404s still reaching it in the 24h after the scanner
+  WAF rule landed (that rule cut total invocations 175 to 106 and 404s 150 to
+  42). Crawlers never saw those 404s, because Cloudflare injects AI-crawler
+  content at /robots.txt when the origin has no file of its own, but what it
+  injected carries no Sitemap line, so the sitemap.xml added in #109 had no
+  discovery path. The new file takes over that injected slot and declares
+  Content-Signal: search=yes,ai-train=no,use=reference, replacing the blanket
+  "Disallow: /" for nine AI crawlers that Cloudflare's managed block had been
+  emitting. That block asked AI crawlers not to fetch at all, which is stronger
+  than "do not train on this" and left the llms.txt added in #109 unreachable by
+  the agents it was written for. Crawl, index, quote, and link back are now all
+  allowed; training is not. The "Manage your robots.txt" and "Block AI training
+  bots" zone settings were both turned off to match.
+  /result/ now sends X-Robots-Tag: noindex, keeping individual camps' names and
+  scores out of search results while still letting link unfurlers fetch the page
+  for the OG share card (a robots.txt Disallow would have blocked the fetch and
+  broken previews). The sitemap gains the two print-and-play PDFs, which camps
+  use once they have no connectivity on playa, and refreshed lastmod dates.
+  /robots.txt is cached for a day alongside the other crawler files. (#110)
+
 - GET /api/city serves stale-while-revalidate: past the 5-minute freshness
   window the cached tally is returned immediately and refreshed in the
   background, so a visitor never waits on the sheet round-trip. Cloudflare
