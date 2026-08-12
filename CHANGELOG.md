@@ -23,7 +23,13 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
   README.md layout tables gained the five crawler/icon files added in #109 and
   #110 that neither had listed. Rocket Loader was turned off and 0-RTT on at the
   zone (2026-08-12); Rocket Loader had been enabled but was verified inert,
-  because Worker-served responses skip it. (#112)
+  because Worker-served responses skip it. Also folds in two doc edits that had
+  been sitting uncommitted: CLAUDE.md's three separate per-page bullets condensed
+  into one "Three read-only view pages" bullet, plus a gotcha noting curl is fine
+  in the cloud pulse routine (it runs in a sandbox that has it); and a
+  docs/admin-setup.md pointer naming docs/apps-script/Code.gs as the paste-in
+  source of truth, since it carries the R4 nonce-dedup guard the inline snippets
+  omit. (#112)
 
 - Fixes the /result/ noindex shipped in #110, which silently did nothing. The
   X-Robots-Tag went into _headers, but wrangler.jsonc sets

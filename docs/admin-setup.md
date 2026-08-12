@@ -2,6 +2,10 @@
 
 Two owner-side steps make `greenradi.us/admin/` work. Both are outside this repo.
 
+> **The full deployed Apps Script lives at `docs/apps-script/Code.gs`** — that file
+> is the paste-in source of truth (it includes the R4 nonce-dedup guard the
+> snippets below omit). The sections here explain the setup around it.
+
 ## 1. Apps Script `doGet` (returns rows to the Worker)
 
 In the **same** Apps Script project as `doPost` (container-bound to the master
