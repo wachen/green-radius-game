@@ -8,6 +8,13 @@
      any deferred vendor/dist script runs, so a white-screen bug still phones home. -->
 <script src="/beacon.js"></script>
 <title>Your Green Radius</title>
+<!-- Keeps one camp's name and score out of search results. It has to be a meta
+     tag, not an X-Robots-Tag in _headers: wrangler.jsonc sets
+     run_worker_first:["/result/"], so this route is served by the Worker via
+     env.ASSETS.fetch(), which bypasses the asset layer that applies _headers.
+     noindex, not a robots.txt Disallow, so link unfurlers can still fetch the
+     page and read the og: tags the Worker rewrites. -->
+<meta name="robots" content="noindex"/>
 <meta name="description" content="See how green this Burning Man theme camp went, sector by sector. Play your own at greenradi.us."/>
 <meta property="og:type" content="website"/>
 <!-- No og:url here on purpose: platforms that treat og:url as the canonical click

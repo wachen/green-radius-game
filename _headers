@@ -56,18 +56,11 @@
 /robots.txt
   Cache-Control: public, max-age=86400
 
-# /result/ renders one camp's keepsake from the ?r= payload in its own URL. Those
-# links get shared, so crawlers do find them, and an indexed result page would put
-# a camp's name and score into search results, which nothing else in the app does
-# (the city page is aggregate-only and /admin/ is Access-gated).
-# noindex is the right instrument here, NOT a robots.txt Disallow: it keeps the
-# page out of search while still letting link unfurlers fetch it and read the OG
-# tags, so the share-card preview the Worker rewrites keeps working. A Disallow
-# would block the fetch itself and take the previews down with it.
-/result/
-  X-Robots-Tag: noindex
-/result/*
-  X-Robots-Tag: noindex
+# NB: an X-Robots-Tag for /result/ does NOT belong here. wrangler.jsonc sets
+# assets.run_worker_first:["/result/"], so that route is served by the Worker
+# through env.ASSETS.fetch(), which bypasses the asset layer that applies this
+# file. #110 shipped the entry here and it silently did nothing in production.
+# The noindex lives as a <meta name="robots"> in result/index.html instead (#111).
 
 # Wrangler infers text/jsx for .jsx, which is not on Cloudflare's compressible
 # MIME list, so this file was shipping uncompressed (~144KB raw vs ~40KB).
