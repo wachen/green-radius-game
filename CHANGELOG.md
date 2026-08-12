@@ -18,11 +18,14 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
   42). Crawlers never saw those 404s, because Cloudflare injects AI-crawler
   content at /robots.txt when the origin has no file of its own, but what it
   injected carries no Sitemap line, so the sitemap.xml added in #109 had no
-  discovery path. The new file is deliberately minimal and takes over that
-  injected slot: with "Manage your robots.txt" on, which is now the zone's
-  setting, Cloudflare merges its managed AI-crawler block into ours and both
-  survive. AI-crawler enforcement is a separate dashboard setting, unaffected
-  either way, so the Disallow rules are deliberately not restated in the file.
+  discovery path. The new file takes over that injected slot and declares
+  Content-Signal: search=yes,ai-train=no,use=reference, replacing the blanket
+  "Disallow: /" for nine AI crawlers that Cloudflare's managed block had been
+  emitting. That block asked AI crawlers not to fetch at all, which is stronger
+  than "do not train on this" and left the llms.txt added in #109 unreachable by
+  the agents it was written for. Crawl, index, quote, and link back are now all
+  allowed; training is not. The "Manage your robots.txt" and "Block AI training
+  bots" zone settings were both turned off to match.
   /result/ now sends X-Robots-Tag: noindex, keeping individual camps' names and
   scores out of search results while still letting link unfurlers fetch the page
   for the OG share card (a robots.txt Disallow would have blocked the fetch and

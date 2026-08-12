@@ -1,18 +1,19 @@
-# Minimal on purpose. Cloudflare's "Manage your robots.txt" setting is ON for this
-# zone, so Cloudflare MERGES its managed AI-crawler block into this file at the
-# edge, appending it under a "# END Cloudflare Managed Content" marker and leaving
-# the directives below intact. This file therefore carries only the one thing
-# Cloudflare cannot know: where the sitemap lives.
+# This is the whole file. Cloudflare's "Manage your robots.txt" setting is OFF, so
+# nothing is merged in or injected at the edge: Cloudflare only injects robots.txt
+# content when the origin has no file of its own, and this file is that origin file.
 #
-# Do not restate the AI-crawler Disallow rules here. Enforcement is a separate
-# dashboard setting (Security Settings > Bot traffic > Block AI training bots) and
-# works regardless of this file, so a hand-copied list here would only drift from
-# whatever the dashboard actually says.
+# The Content-Signal line is the deliberate stance, and it is the reason the managed
+# setting is off. Cloudflare's managed block emitted a blanket "Disallow: /" for
+# nine AI crawlers, which asks them not to fetch anything at all. That is strictly
+# stronger than "do not train on this", and it made llms.txt unreachable by the
+# agents it was written for. search=yes, ai-train=no, use=reference says the
+# intended thing instead: crawl it, index it, quote it, link back, but do not train
+# on it. AI-crawler enforcement (Security Settings > Bot traffic > Block AI
+# training bots) is a separate setting, set to not block, which matches this.
 #
-# Careful if that setting is ever switched off: Cloudflare injects robots.txt
-# content only when the origin has no file of its own. With the setting off AND
-# this file present, the content signals disappear entirely rather than being
-# merged, and nothing warns you.
+# If the managed setting is ever switched back on, Cloudflare merges its block in
+# under a "# END Cloudflare Managed Content" marker, and its own "User-agent: *"
+# group would then collide with the one below. Drop ours if that happens.
 #
 # Serving this as a static asset also keeps /robots.txt out of the Worker. With no
 # file here, Cloudflare probed the origin and the Worker answered 404 about 26
@@ -23,6 +24,7 @@
 # naming it here would only advertise the path.
 
 User-agent: *
+Content-Signal: search=yes,ai-train=no,use=reference
 Allow: /
 
 Sitemap: https://greenradi.us/sitemap.xml
