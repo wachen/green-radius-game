@@ -65,7 +65,8 @@ dashboard uses a **Destinations** model (one app can have up to 5; they share on
 2. **Identity** — "Accept all available identity providers" is fine; the built-in
    **One-time PIN** (email code) works with no external IdP to configure.
 3. **Policy** — Action **Allow**, Include → **Emails** → the specific GTCC admin
-   addresses (do *not* use "Everyone"). Session duration ~24h.
+   addresses (do *not* use "Everyone"). Leave its Session duration on *Same as
+   application session timeout* (see below).
 4. After the app is created, open it (**Configure**) and copy the **Application Audience
    (AUD)** tag and your **team domain** (`<team>.cloudflareaccess.com`, bare host — no
    `https://`, no trailing slash).
@@ -85,6 +86,32 @@ Without these, the Worker returns 403 (Access not configured) and the page won't
 load — by design. The viewer is also graceful: until `Answers JSON` has data, the
 City heatmap / per-question detail and the Camps ✓/✗ tokens fall back to a
 score-only approximation.
+
+### How long a login lasts
+
+Two independent Access timers decide when an admin gets kicked back to the
+one-time-PIN email, and **both default to 24h**:
+
+| Timer | Where | Ours |
+| --- | --- | --- |
+| **Application session** — life of the app token for `/admin` + `/api/admin` | Access controls → Applications → *Configure* → Overview → **Session Duration** | **2 weeks** |
+| **Global session** — how often you re-auth with the identity provider | Access controls → Access settings → **Set your global session duration** | **1 month** |
+
+When the app token expires, Access silently mints a new one *if the global token
+is still valid*, so **the global duration must be ≥ the application duration** or
+raising only the app value changes nothing. There is no third knob on our side:
+`verifyAccessJwt` (`worker/index.js`) only checks `aud`, `exp` and the RS256
+signature, so it honours whatever expiry Cloudflare stamps.
+
+The dashboard dropdown may not offer a 2-week option; if not, `PUT` the app with
+`"session_duration": "336h"` via the [Access applications
+API](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/update/)
+(send the full app body, not a partial).
+
+⚠️ Access re-checks the policy only when a token *expires*. Pulling an address off
+the allowlist therefore takes up to one application session (2 weeks) to bite. If
+you remove an admin under suspicious circumstances, also revoke their live session
+from Zero Trust → **My Team** → Users, rather than waiting it out.
 
 ## 3. Flagging junk rows
 

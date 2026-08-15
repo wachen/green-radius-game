@@ -10,6 +10,13 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Documented the admin login length in `docs/admin-setup.md`: Access stacks two
+  24h-default timers (application session and global session), and the global one
+  has to be ≥ the application one or raising the app value alone does nothing.
+  Recorded our settings (2 weeks / 1 month) and the fact that the policy is only
+  re-checked when a token expires, so de-listing an admin needs a session revoke
+  to take effect immediately. Dashboard config, no code change (#113)
+
 - Fixed the intro funnel's denominator: `intro_engaged` was scoped once per page
   load while `game_started` fires on every mode pick, so a player who tried the
   board, stepped back and picked the form logged two starts against one
