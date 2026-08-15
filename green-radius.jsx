@@ -63,9 +63,14 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
   );
 }
 
-// Once per page load, not per mount: Intro unmounts on Back and on entering the
+// Once per mode pick, not per mount: Intro unmounts on Back and on entering the
 // board, so a per-mount ref made a player who stepped back and returned look like
-// two engaged players in the funnel.
+// two engaged players in the funnel. Scoping it to the page load instead fixed
+// that but broke the denominator the other way: game_started fires on EVERY mode
+// pick, so a player who tried board, stepped back and picked form logged two
+// game_started against one intro_engaged, and read as a phantom bounce. The mode
+// picker now clears this alongside every game_started, so the two events count
+// the same population and the intro drop-off is measurable.
 let introEngagedSent = false;
 
 // ─── intro / camp setup ───────────────────────────────────────────────────────
@@ -640,7 +645,7 @@ function GreenRadiusGame({ palette }) {
   if (phase === 'pick-mode') {
     return (
       <ModePicker
-        onPick={(mode) => { trackEvent('game_started'); setPhase(mode === 'board' ? 'intro' : 'form-intro'); }}
+        onPick={(mode) => { introEngagedSent = false; trackEvent('game_started'); setPhase(mode === 'board' ? 'intro' : 'form-intro'); }}
         palette={palette}
       />
     );

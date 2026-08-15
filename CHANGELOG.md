@@ -10,6 +10,13 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Fixed the intro funnel's denominator: `intro_engaged` was scoped once per page
+  load while `game_started` fires on every mode pick, so a player who tried the
+  board, stepped back and picked the form logged two starts against one
+  engagement and read as a phantom bounce. The mode picker now clears the flag
+  alongside every `game_started`. Telemetry only, no gameplay change; it makes
+  the intro drop-off measurable rather than an upper bound (#113)
+
 - Docs accuracy pass, no behaviour change. CLAUDE.md said the Worker had seven
   dynamic routes and listed seven, but there are eight: POST /api/admin/visit was
   missing (drift since #106); README.md's layout table listed five of the eight.
