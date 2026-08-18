@@ -15,13 +15,15 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
   map!"), restyled from amber to light purple, and its auto-hide moved from end of
   Aug 17 to end of Sep 7 PDT so it runs through the event and still self-removes
   with no deploy (#113)
-- Documented the admin login length in `docs/admin-setup.md`: Access stacks two
-  24h-default timers (application session and global session), and the global one
-  has to be ≥ the application one or raising the app value alone does nothing.
-  Recorded our settings (1 month application, 1 month global), the policy-duration
-  trap that outranks both, and the fact that the policy is only re-checked when a
-  token expires, so de-listing an admin needs a session revoke to take effect
-  immediately. Dashboard config, no code change (#113)
+
+- Documented the admin login length in `docs/admin-setup.md`: the application
+  session alone decides how long an admin stays logged in, so ours goes to 1 month
+  while the account-wide global session stays at its 24h default (raising it would
+  also let the preview-URLs app renew unattended for a month). Recorded the
+  policy-duration trap that outranks the application setting, and the fact that
+  Access re-checks the policy only when a token expires, so de-listing an admin
+  needs a session revoke to take effect immediately. Dashboard config, no code
+  change (#113)
 
 - Fixed the intro funnel's denominator: `intro_engaged` was scoped once per page
   load while `game_started` fires on every mode pick, so a player who tried the

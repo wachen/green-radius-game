@@ -89,31 +89,33 @@ score-only approximation.
 
 ### How long a login lasts
 
-Two independent Access timers decide when an admin gets kicked back to the
-one-time-PIN email, and **both default to 24h**:
+Access stacks four timers — client, policy, application, global, most specific
+wins — but only two are set here, and both ship at a 24h default:
 
 | Timer | Where | Ours |
 | --- | --- | --- |
 | **Application session** — life of the app token for `/admin` + `/api/admin` | Access controls → Applications → *Configure* → Overview → **Session Duration** | **1 month** (`730h`) |
-| **Global session** — how often you re-auth with the identity provider | Access controls → Access settings → **Set your global session duration** | **1 month** (`730h`) |
+| **Global session** — how often you re-auth with the identity provider | Access controls → Access settings → **Set your global session duration** | **24h** (default) |
 
-When the app token expires, Access silently mints a new one *if the global token
-is still valid*, so **the global duration must be ≥ the application duration** or
-raising only the app value changes nothing. There is no third knob on our side:
-`verifyAccessJwt` (`worker/index.js`) only checks `aud`, `exp` and the RS256
-signature, so it honours whatever expiry Cloudflare stamps.
+The application token is what gates every request, so it alone decides how long an
+admin stays logged in. The global token only governs what happens *at* that
+expiry: still valid → Access mints a new app token silently; expired → a fresh
+one-time-PIN email. Ours is deliberately left short, because **the global duration
+is account-wide** — raising it would also let the separate preview-URLs app (above)
+renew unattended for a month, and that app gates PR review hosts. Cloudflare
+recommends global ≥ application; we take the trade knowingly, at the cost of one
+PIN email per month. There is no third knob on our side: `verifyAccessJwt`
+(`worker/index.js`) only checks `aud`, `exp` and the RS256 signature, so it honours
+whatever expiry Cloudflare stamps.
 
 Leave the **policy** duration unset (*Same as application session timeout*). Policy
-duration outranks application duration, so a stale value there silently cancels both
-settings and looks exactly like "the dashboard didn't save".
+duration outranks application duration, so a stale value there silently cancels the
+application setting and looks exactly like "the dashboard didn't save".
 
 ⚠️ Access re-checks the policy only when a token *expires*. Pulling an address off
 the allowlist therefore takes up to a month to bite. If you remove an admin under
 suspicious circumstances, also revoke their live session from Zero Trust →
 **My Team** → Users, rather than waiting it out.
-
-The separate preview-URLs app (above) stays at its own 24h — it gates PR review
-hosts, not camp data.
 
 ## 3. Flagging junk rows
 
