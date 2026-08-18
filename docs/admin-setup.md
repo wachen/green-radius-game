@@ -99,25 +99,13 @@ one-time-PIN email, and **both default to 24h**:
 
 When the app token expires, Access silently mints a new one *if the global token
 is still valid*, so **the global duration must be ≥ the application duration** or
-raising only the app value changes nothing. Ours are equal, which is allowed: it
-just means the two expire together, so every renewal is a fresh one-time-PIN email
-rather than a silent refresh. There is no third knob on our side: `verifyAccessJwt`
-(`worker/index.js`) only checks `aud`, `exp` and the RS256 signature, so it honours
-whatever expiry Cloudflare stamps.
+raising only the app value changes nothing. There is no third knob on our side:
+`verifyAccessJwt` (`worker/index.js`) only checks `aud`, `exp` and the RS256
+signature, so it honours whatever expiry Cloudflare stamps.
 
 Leave the **policy** duration unset (*Same as application session timeout*). Policy
 duration outranks application duration, so a stale value there silently cancels both
-settings and looks exactly like "the dashboard didn't save". To check the live values
-without clicking through the dashboard:
-
-```bash
-# app + policy (policy should have no session_duration field at all)
-curl -s -H "Authorization: Bearer $CF_API_TOKEN" \
-  "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/access/apps" | jq '.result[]|{name,session_duration}'
-# global
-curl -s -H "Authorization: Bearer $CF_API_TOKEN" \
-  "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/access/organizations" | jq '.result.session_duration'
-```
+settings and looks exactly like "the dashboard didn't save".
 
 ⚠️ Access re-checks the policy only when a token *expires*. Pulling an address off
 the allowlist therefore takes up to a month to bite. If you remove an admin under

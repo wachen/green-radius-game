@@ -342,11 +342,11 @@ function FaqModal({ onClose, palette }) {
 // time (end of the event), so no removal deploy is needed and a stale banner
 // can't linger. Purely presentational: no state, no storage, safe to roll out
 // mid-season.
-const SIGNUP_DEADLINE_END_MS = Date.UTC(2026, 8, 8, 7); // end of Sep 7 2026, PDT
-function DeadlineBanner() {
-  if (Date.now() >= SIGNUP_DEADLINE_END_MS) return null;
+const SIGNUP_BANNER_END_MS = Date.UTC(2026, 8, 8, 7); // end of Sep 7 2026, PDT
+function SignupBanner() {
+  if (Date.now() >= SIGNUP_BANNER_END_MS) return null;
   return (
-    <div data-deadline-banner role="status" style={{
+    <div data-signup-banner role="status" style={{
       background: '#EFE4FB', color: '#5B2E90', borderBottom: '1px solid #D8C4F2',
       padding: '9px 16px', textAlign: 'center',
       fontSize: 13, lineHeight: 1.4, fontWeight: 600, textWrap: 'pretty',
@@ -367,7 +367,7 @@ function ModePicker({ onPick, palette }) {
   const closeFaq = useCallback(() => { setFaqOpen(false); faqBtnRef.current?.focus(); }, []);
   return (
     <React.Fragment>
-    <DeadlineBanner/>
+    <SignupBanner/>
     <div style={{ padding: '14px 24px 18px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
       <h1 style={{
         fontSize: 40, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',
