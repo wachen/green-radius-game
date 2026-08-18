@@ -339,10 +339,10 @@ function FaqModal({ onClose, palette }) {
 // ─── mode picker ─────────────────────────────────────────────────────────────
 // Signup announcement (BLAST 2026), home screen only: a full-width strip
 // across the top of the frame. Auto-hides once the window passes in Pacific
-// time, so no removal deploy is needed and a stale banner can't linger. The
-// ask is post-Burn, so the window outlives the event rather than ending with
-// it. Purely presentational: no state, no storage, safe to roll out mid-season.
-const SIGNUP_BANNER_END_MS = Date.UTC(2026, 9, 1, 7); // end of Sep 30 2026, PDT
+// time (end of the event), so no removal deploy is needed and a stale banner
+// can't linger. Purely presentational: no state, no storage, safe to roll out
+// mid-season.
+const SIGNUP_BANNER_END_MS = Date.UTC(2026, 8, 8, 7); // expires Sep 8 2026, 00:00 PDT
 function SignupBanner() {
   if (Date.now() >= SIGNUP_BANNER_END_MS) return null;
   return (

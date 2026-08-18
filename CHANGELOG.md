@@ -13,8 +13,8 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 - Home-page announcement banner now points at the post-Burn online map instead of
   the printed-signage deadline ("Sign up to be included on the post-Burn online
   map!"), restyled from amber to light purple, and its auto-hide moved from end of
-  Aug 17 to end of Sep 30 PDT so the ask outlives the event it points past, and
-  still self-removes with no deploy (#113)
+  Aug 17 to end of Sep 7 PDT so it runs through the event and still self-removes
+  with no deploy (#113)
 
 - Documented the admin login length in `docs/admin-setup.md`: the application
   session alone decides how long an admin stays logged in, so ours goes to 1 month
