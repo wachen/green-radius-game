@@ -63,9 +63,8 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
   );
 }
 
-// Once per page load, not per mount: Intro unmounts on Back and on entering the
-// board, so a per-mount ref made a player who stepped back and returned look like
-// two engaged players in the funnel.
+// Reset per mode pick, not per mount: game_started fires on every pick, so
+// intro_engaged must too, or one player picking twice reads as a phantom bounce.
 let introEngagedSent = false;
 
 // ─── intro / camp setup ───────────────────────────────────────────────────────
@@ -640,7 +639,7 @@ function GreenRadiusGame({ palette }) {
   if (phase === 'pick-mode') {
     return (
       <ModePicker
-        onPick={(mode) => { trackEvent('game_started'); setPhase(mode === 'board' ? 'intro' : 'form-intro'); }}
+        onPick={(mode) => { introEngagedSent = false; trackEvent('game_started'); setPhase(mode === 'board' ? 'intro' : 'form-intro'); }}
         palette={palette}
       />
     );

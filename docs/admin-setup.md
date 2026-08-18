@@ -65,7 +65,8 @@ dashboard uses a **Destinations** model (one app can have up to 5; they share on
 2. **Identity** — "Accept all available identity providers" is fine; the built-in
    **One-time PIN** (email code) works with no external IdP to configure.
 3. **Policy** — Action **Allow**, Include → **Emails** → the specific GTCC admin
-   addresses (do *not* use "Everyone"). Session duration ~24h.
+   addresses (do *not* use "Everyone"). Leave its Session duration on *Same as
+   application session timeout* (see below).
 4. After the app is created, open it (**Configure**) and copy the **Application Audience
    (AUD)** tag and your **team domain** (`<team>.cloudflareaccess.com`, bare host — no
    `https://`, no trailing slash).
@@ -85,6 +86,36 @@ Without these, the Worker returns 403 (Access not configured) and the page won't
 load — by design. The viewer is also graceful: until `Answers JSON` has data, the
 City heatmap / per-question detail and the Camps ✓/✗ tokens fall back to a
 score-only approximation.
+
+### How long a login lasts
+
+Access stacks four timers — client, policy, application, global, most specific
+wins — but only two are set here, and both ship at a 24h default:
+
+| Timer | Where | Ours |
+| --- | --- | --- |
+| **Application session** — life of the app token for `/admin` + `/api/admin` | Access controls → Applications → *Configure* → Overview → **Session Duration** | **1 month** (`730h`) |
+| **Global session** — how often you re-auth with the identity provider | Access controls → Access settings → **Set your global session duration** | **24h** (default) |
+
+The application token is what gates every request, so it alone decides how long an
+admin stays logged in. The global token only governs what happens *at* that
+expiry: still valid → Access mints a new app token silently; expired → a fresh
+one-time-PIN email. Ours is deliberately left short, because **the global duration
+is account-wide** — raising it would also let the separate preview-URLs app (above)
+renew unattended for a month, and that app gates PR review hosts. Cloudflare
+recommends global ≥ application; we take the trade knowingly, at the cost of one
+PIN email per month. There is no third knob on our side: `verifyAccessJwt`
+(`worker/index.js`) only checks `aud`, `exp` and the RS256 signature, so it honours
+whatever expiry Cloudflare stamps.
+
+Leave the **policy** duration unset (*Same as application session timeout*). Policy
+duration outranks application duration, so a stale value there silently cancels the
+application setting and looks exactly like "the dashboard didn't save".
+
+⚠️ Access re-checks the policy only when a token *expires*. Pulling an address off
+the allowlist therefore takes up to a month to bite. If you remove an admin under
+suspicious circumstances, also revoke their live session from Zero Trust →
+**My Team** → Users, rather than waiting it out.
 
 ## 3. Flagging junk rows
 

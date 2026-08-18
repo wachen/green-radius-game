@@ -10,6 +10,28 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Home-page announcement banner now points at the post-Burn online map instead of
+  the printed-signage deadline ("Sign up to be included on the post-Burn online
+  map!"), restyled from amber to light purple, and its auto-hide moved from end of
+  Aug 17 to end of Sep 7 PDT so it runs through the event and still self-removes
+  with no deploy (#113)
+
+- Documented the admin login length in `docs/admin-setup.md`: the application
+  session alone decides how long an admin stays logged in, so ours goes to 1 month
+  while the account-wide global session stays at its 24h default (raising it would
+  also let the preview-URLs app renew unattended for a month). Recorded the
+  policy-duration trap that outranks the application setting, and the fact that
+  Access re-checks the policy only when a token expires, so de-listing an admin
+  needs a session revoke to take effect immediately. Dashboard config, no code
+  change (#113)
+
+- Fixed the intro funnel's denominator: `intro_engaged` was scoped once per page
+  load while `game_started` fires on every mode pick, so a player who tried the
+  board, stepped back and picked the form logged two starts against one
+  engagement and read as a phantom bounce. The mode picker now clears the flag
+  alongside every `game_started`. Telemetry only, no gameplay change; it makes
+  the intro drop-off measurable rather than an upper bound (#113)
+
 - Docs accuracy pass, no behaviour change. CLAUDE.md said the Worker had seven
   dynamic routes and listed seven, but there are eight: POST /api/admin/visit was
   missing (drift since #106); README.md's layout table listed five of the eight.
