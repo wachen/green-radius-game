@@ -337,21 +337,21 @@ function FaqModal({ onClose, palette }) {
 }
 
 // ─── mode picker ─────────────────────────────────────────────────────────────
-// Signup-deadline announcement (BLAST 2026), home screen only: a full-width
-// strip across the top of the frame. Auto-hides once the deadline passes in
-// Pacific time (Aug 11 00:00 PDT), so no removal deploy is needed and a stale
-// banner can't linger. Purely presentational: no state, no storage, safe to
-// roll out mid-season.
-const SIGNUP_DEADLINE_END_MS = Date.UTC(2026, 7, 18, 7); // end of Aug 17 2026, PDT
+// Signup announcement (BLAST 2026), home screen only: a full-width strip
+// across the top of the frame. Auto-hides once the window passes in Pacific
+// time (end of the event), so no removal deploy is needed and a stale banner
+// can't linger. Purely presentational: no state, no storage, safe to roll out
+// mid-season.
+const SIGNUP_DEADLINE_END_MS = Date.UTC(2026, 8, 8, 7); // end of Sep 7 2026, PDT
 function DeadlineBanner() {
   if (Date.now() >= SIGNUP_DEADLINE_END_MS) return null;
   return (
     <div data-deadline-banner role="status" style={{
-      background: '#FBE3DE', color: '#8a2f25', borderBottom: '1px solid #F1C3BB',
+      background: '#EFE4FB', color: '#5B2E90', borderBottom: '1px solid #D8C4F2',
       padding: '9px 16px', textAlign: 'center',
       fontSize: 13, lineHeight: 1.4, fontWeight: 600, textWrap: 'pretty',
     }}>
-      Sign up by <b>August 17</b> to be included on printed signage!
+      Sign up to be included on the post-Burn online map!
     </div>
   );
 }
