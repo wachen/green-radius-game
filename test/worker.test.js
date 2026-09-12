@@ -544,7 +544,7 @@ describe('computeCityBody stats', () => {
     expect(body.stats.weekly.reduce((n, w) => n + w.count, 0)).toBe(2);
   });
 
-  test('the serialized response never carries camp-identifying fields', async () => {
+  test('the serialized response never carries identifying fields beyond camps[].{name,hour,ring}', async () => {
     const body = await cityBody([
       sheetRow({ campName: 'Identifiable Camp', email: 'owner@identifiable.co',
         campLocation: '3:00 & E', campSize: '15', leadName: 'Some Lead',

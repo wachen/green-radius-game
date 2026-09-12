@@ -249,7 +249,8 @@ function CityQuestionsPanel({ kind, label, hint, items, color }) {
 // fail-open PlayaAddress fallback stays untouched. /api/city sends only
 // {name, hour, ring}; camps without coordinates sit in the Open camping box.
 // No name labels: the card is 400px wide, so names live in the tap/hover tip.
-const MAP_S = 330, MAP_CX = 360, MAP_CY = 180; // unit space -> 720x532 viewBox
+const VB_W = 720, VB_H = 532; // viewBox (height grows for the Open camping strip)
+const MAP_S = 330, MAP_CX = 360, MAP_CY = 180; // unit space -> viewBox px
 function mapRingR(ring) { return 0.40 + ring * 0.05; }
 function mapAt(hour, ring) {
   const th = (hour / 12) * 2 * Math.PI, r = mapRingR(ring) * MAP_S;
@@ -273,20 +274,25 @@ function CityMapPanel({ camps }) {
   const [tip, setTip] = React.useState(null); // in viewBox coords
   const placed = camps.filter(c => c.hour != null);
   const open = camps.filter(c => c.hour == null);
-  if (!placed.length) return null;
+  if (!camps.length) return null;
   const PIN_R = 6;
-  // Open camping box: bottom-left corner, outside the 2:00-10:00 fan.
-  const OC = { cols: 5, gap: 26, x: 12 };
+  // Open camping strip: a full-width box beneath the fan (below the 6:00 hour
+  // label at y≈515, the lowest thing the fan draws), wrapping 26 pins per row.
+  // The viewBox grows with it, so it can never overlap the streets.
+  const OC = { cols: 26, gap: 26, x: 12, y: 528 };
   const ocRows = Math.ceil(open.length / OC.cols);
-  const ocW = Math.max(122, 24 + Math.min(open.length, OC.cols) * OC.gap);
+  const ocW = VB_W - 2 * OC.x;
   const ocH = 24 + ocRows * OC.gap + 4;
-  const ocY = 526 - ocH;
-  const show = (x, y, c, loc) => setTip({ x, y: y - PIN_R - 3, name: c.name, loc });
-  // Hover on desktop; tap on touch (the container click below hides it).
+  const ocY = OC.y;
+  const vbH = open.length ? ocY + ocH + 8 : VB_H;
+  const show = (x, y, c, loc) => setTip({ x, y, name: c.name, loc });
+  // Hover on desktop, tap on touch (the container click below hides it),
+  // focus for keyboard users.
   const pin = (c, x, y, key, loc) => (
-    <g key={key} data-pin role="img" aria-label={`${c.name} · ${loc}`} style={{ cursor: 'pointer' }}
+    <g key={key} data-pin role="button" tabIndex={0} aria-label={`${c.name} · ${loc}`} style={{ cursor: 'pointer', outline: 'none' }}
       onClick={e => { e.stopPropagation(); show(x, y, c, loc); }}
-      onMouseEnter={() => show(x, y, c, loc)} onMouseLeave={() => setTip(null)}>
+      onMouseEnter={() => show(x, y, c, loc)} onMouseLeave={() => setTip(null)}
+      onFocus={() => show(x, y, c, loc)} onBlur={() => setTip(null)}>
       <circle cx={x} cy={y} r={PIN_R} fill="#7fc46a" stroke="#2f6b3a" strokeWidth="1.5"/>
     </g>
   );
@@ -298,7 +304,7 @@ function CityMapPanel({ camps }) {
         <div style={subPanelLabel}>THE CITY MAP</div>
         <div style={subPanelHint}>Every camp that played this year, pinned at its playa address. Tap a pin for the camp's name.</div>
         <div style={{ position: 'relative' }} onClick={() => setTip(null)}>
-          <svg viewBox="0 0 720 532" style={{ width: '100%', height: 'auto', display: 'block' }}
+          <svg viewBox={`0 0 ${VB_W} ${vbH}`} style={{ width: '100%', height: 'auto', display: 'block' }}
             role="img" aria-label="Map of camps across the Black Rock City street grid">
             {/* radial streets: whole hours solid, half hours fainter */}
             {Array.from({ length: 17 }, (_, i) => 2 + i * 0.5).map(h => {
@@ -338,9 +344,12 @@ function CityMapPanel({ camps }) {
           </svg>
           {tip && (
             <div data-map-tip style={{
-              // x clamped so an edge pin's tip stays inside the card (overflow is hidden)
-              position: 'absolute', left: `${Math.min(Math.max(tip.x / 7.2, 22), 78)}%`, top: `${tip.y / 5.32}%`,
-              transform: 'translate(-50%, -100%)', pointerEvents: 'none', zIndex: 5, maxWidth: '44%',
+              // The card clips overflow, so: x clamped away from the edges, and
+              // the tip flips below the pin when the pin sits near the top.
+              position: 'absolute', left: `${Math.min(Math.max(tip.x / VB_W * 100, 28), 72)}%`,
+              top: `${(tip.y < 120 ? tip.y + PIN_R + 4 : tip.y - PIN_R - 3) / vbH * 100}%`,
+              transform: tip.y < 120 ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+              pointerEvents: 'none', zIndex: 5, maxWidth: '56%',
               background: '#0b1c24', border: '1px solid #7fc46a', borderRadius: 8,
               padding: '6px 10px', fontSize: 12, lineHeight: 1.45, color: '#fff',
               boxShadow: '0 6px 18px rgba(0,0,0,0.45)',

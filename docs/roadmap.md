@@ -117,7 +117,8 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 - **Challenge a camp** (new · med) — a share variant that renders two result
   payloads side by side ("Camp A vs Camp B"), entirely client-side from two
   `?r=` params; friendly inter-camp rivalry is very Burning Man.
-- **Opt-in public camp wall** (new · med-large) — camps tick "show us publicly"
+- **Opt-in public camp wall** (new · med-large; partly subsumed by the #114
+  public city map, which shows name + address for every camp) — camps tick "show us publicly"
   and appear with name + badge on a public leaderboard-ish page. High
   engagement, but consent, moderation, and takedown handling make it dependent
   on the privacy page shipping first.
@@ -143,6 +144,9 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
   quota-driven submit failures. No signal yet.
 
 ## Waiting on something
+
+- **Remove the post-Burn map banner** from the home screen before the 2027
+  season opens. It has no auto-expiry by choice (#114), so this is the reminder.
 
 - **Funnel dashboard first look** — needed ~2 weeks of Web Analytics data;
   that window has passed, so the first look can happen any time (as of

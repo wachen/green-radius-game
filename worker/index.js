@@ -326,7 +326,7 @@ function greenUpGroups(answers) {
       if (answers[t.id] !== 'no') return;
       const rawNote = answers[t.id + '-note'];
       // Display copy of the note: drop the sheetCell formula-guard apostrophe.
-      const note = typeof rawNote === 'string' ? rawNote.replace(/^'(?=[=+\-@\t\r])/, '').trim() : '';
+      const note = typeof rawNote === 'string' ? unSheetCell(rawNote).trim() : '';
       steps.push({ level: 4, title: note ? `${t.title}: ${note}` : t.title, url: t.link && t.link.url });
     });
     if (steps.length) groups.push({ name: s.name, steps });
@@ -384,6 +384,9 @@ function clampField(s, n) {
 // Google Sheets treats a cell whose value starts with = + - @ (or a control char)
 // as a formula, which would execute on view/recalc (e.g. =IMPORTXML exfiltrating
 // the email column). Prefix a ' so submitted text always stays literal text.
+// Inverse for the read paths: drop the guard quote sheetCell added so the
+// text renders as typed (notes in the email, camp names on the public map).
+export function unSheetCell(s) { return String(s || '').replace(/^'(?=[=+\-@\t\r])/, ''); }
 export function sheetCell(s) {
   return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
 }
@@ -491,7 +494,7 @@ async function fetchSheetRows(env) {
   return { rows: data.rows, reason: null };
 }
 
-// ── Public city tally: aggregate-only, colo-cached ───────────────────────────
+// ── Public city tally: aggregates + the camps map list, colo-cached ─────────
 // GET /api/city is the one public read path. Two hard rules:
 //  1. PRIVACY IS STRUCTURAL. The response is rebuilt field-by-field below —
 //     never spread the aggregate (computeAggregates includes a leaderboard
@@ -606,11 +609,10 @@ export async function computeCityBody(env) {
     // call; the intake consent line says so). Coordinates are the parsed
     // {hour, ring}, never the typed address string; no score, size, email, or
     // visit state. Unparseable/blank addresses ship without coordinates so
-    // the map can still list the camp under "Open camping". The leading
-    // quote is sheetCell's formula guard, stripped the same way notes are.
+    // the map can still list the camp under "Open camping".
     camps = active.map(r => {
       const addr = AdminAggregate.parsePlayaAddress(r.campLocation);
-      const name = String(r.campName || '').replace(/^'(?=[=+\-@\t\r])/, '').trim().slice(0, 80);
+      const name = unSheetCell(r.campName).trim().slice(0, 80);
       return addr ? { name, hour: +addr.hour, ring: addr.ring | 0 } : { name };
     }).filter(c => c.name);
     stats = {
