@@ -241,6 +241,119 @@ function CityOppsPanel({ opps }) {
   );
 }
 
+// Public playa map (#114): one pin per camp this season at its parsed BRC
+// address. Same fan geometry as the admin Playa Map (admin/admin.jsx); the
+// polar math is four lines, inlined rather than shared so the admin map's
+// fail-open PlayaAddress fallback stays untouched. /api/city sends only
+// {name, hour, ring}; camps without coordinates sit in the Open camping box.
+// No name labels: the card is 400px wide, so names live in the tap/hover tip.
+const MAP_S = 330, MAP_CX = 360, MAP_CY = 180; // unit space -> 720x532 viewBox
+function mapRingR(ring) { return 0.40 + ring * 0.05; }
+function mapAt(hour, ring) {
+  const th = (hour / 12) * 2 * Math.PI, r = mapRingR(ring) * MAP_S;
+  return { x: MAP_CX + r * Math.sin(th), y: MAP_CY - r * Math.cos(th) };
+}
+function fmtPlaya(hour, ring) {
+  const h = Math.floor(hour), m = Math.round((hour - h) * 60);
+  return `${h}:${String(m).padStart(2, '0')} & ${ring === 0 ? 'Esplanade' : 'ABCDEFGHIJK'[ring - 1]}`;
+}
+function normalizeCamps(camps) {
+  if (!Array.isArray(camps)) return [];
+  return camps
+    .filter(c => c && typeof c.name === 'string' && c.name.trim())
+    .map(c => {
+      const hour = Number(c.hour), ring = Number(c.ring);
+      const placed = hour >= 2 && hour <= 10 && Number.isInteger(ring) && ring >= 0 && ring <= 11;
+      return placed ? { name: c.name, hour, ring } : { name: c.name };
+    });
+}
+function CityMapPanel({ camps }) {
+  const [tip, setTip] = React.useState(null); // in viewBox coords
+  const placed = camps.filter(c => c.hour != null);
+  const open = camps.filter(c => c.hour == null);
+  if (!placed.length) return null;
+  const PIN_R = 6;
+  // Open camping box: bottom-left corner, outside the 2:00-10:00 fan.
+  const OC = { cols: 5, gap: 26, x: 12 };
+  const ocRows = Math.ceil(open.length / OC.cols);
+  const ocW = Math.max(122, 24 + Math.min(open.length, OC.cols) * OC.gap);
+  const ocH = 24 + ocRows * OC.gap + 4;
+  const ocY = 526 - ocH;
+  const show = (x, y, c, loc) => setTip({ x, y: y - PIN_R - 3, name: c.name, loc });
+  // Hover on desktop; tap on touch (the container click below hides it).
+  const pin = (c, x, y, key, loc) => (
+    <g key={key} data-pin role="img" aria-label={`${c.name} · ${loc}`} style={{ cursor: 'pointer' }}
+      onClick={e => { e.stopPropagation(); show(x, y, c, loc); }}
+      onMouseEnter={() => show(x, y, c, loc)} onMouseLeave={() => setTip(null)}>
+      <circle cx={x} cy={y} r={PIN_R} fill="#7fc46a" stroke="#2f6b3a" strokeWidth="1.5"/>
+    </g>
+  );
+  const grid = 'rgba(255,255,255,0.14)', gridFaint = 'rgba(255,255,255,0.07)', ink = 'rgba(255,255,255,0.5)';
+  return (
+    <div data-city-map style={subPanelStyle}>
+      <div style={subPanelGlow}/>
+      <div style={{ position: 'relative' }}>
+        <div style={subPanelLabel}>THE CITY MAP</div>
+        <div style={subPanelHint}>Every camp that played this year, pinned at its playa address. Tap a pin for the camp's name.</div>
+        <div style={{ position: 'relative' }} onClick={() => setTip(null)}>
+          <svg viewBox="0 0 720 532" style={{ width: '100%', height: 'auto', display: 'block' }}
+            role="img" aria-label="Map of camps across the Black Rock City street grid">
+            {/* radial streets: whole hours solid, half hours fainter */}
+            {Array.from({ length: 17 }, (_, i) => 2 + i * 0.5).map(h => {
+              const a = mapAt(h, 0), b = mapAt(h, 11);
+              return <line key={h} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={h % 1 ? gridFaint : grid} strokeWidth="1"/>;
+            })}
+            {/* ring arcs, Esplanade (0) through K (11), 2:00 -> 10:00 via 6:00 */}
+            {Array.from({ length: 12 }, (_, ring) => {
+              const r = mapRingR(ring) * MAP_S;
+              const a = mapAt(2, ring), b = mapAt(10, ring);
+              return <path key={ring} d={`M ${a.x} ${a.y} A ${r} ${r} 0 1 1 ${b.x} ${b.y}`}
+                fill="none" stroke={ring === 0 ? 'rgba(255,255,255,0.24)' : grid} strokeWidth="1"/>;
+            })}
+            {Array.from({ length: 9 }, (_, i) => 2 + i).map(h => {
+              const p = mapAt(h, 12.3);
+              return <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle"
+                fontSize="13" fill={ink} fontWeight="700">{h}:00</text>;
+            })}
+            {Array.from({ length: 12 }, (_, ring) => (
+              <text key={ring} x={MAP_CX + 6} y={MAP_CY + mapRingR(ring) * MAP_S - 3}
+                fontSize="11" fill={ink} fontWeight="700">{ring === 0 ? 'ESP' : 'ABCDEFGHIJK'[ring - 1]}</text>
+            ))}
+            <circle cx={MAP_CX} cy={MAP_CY} r="4" fill="#d9885c"><title>The Man</title></circle>
+            {open.length > 0 && (
+              <g data-open-camping>
+                <rect x={OC.x} y={ocY} width={ocW} height={ocH} rx="10"
+                  fill="rgba(255,255,255,0.04)" stroke={grid} strokeDasharray="4 3"/>
+                <text x={OC.x + 12} y={ocY + 15} fontSize="10" letterSpacing="1.5" fill={ink} fontWeight="700">OPEN CAMPING</text>
+                {open.map((c, i) => pin(c,
+                  OC.x + 24 + (i % OC.cols) * OC.gap,
+                  ocY + 24 + Math.floor(i / OC.cols) * OC.gap + OC.gap / 2 - 2,
+                  `open-${i}`, 'Open camping'))}
+              </g>
+            )}
+            {/* camp pins last, above the grid */}
+            {placed.map((c, i) => { const p = mapAt(c.hour, c.ring); return pin(c, p.x, p.y, i, fmtPlaya(c.hour, c.ring)); })}
+          </svg>
+          {tip && (
+            <div data-map-tip style={{
+              // x clamped so an edge pin's tip stays inside the card (overflow is hidden)
+              position: 'absolute', left: `${Math.min(Math.max(tip.x / 7.2, 22), 78)}%`, top: `${tip.y / 5.32}%`,
+              transform: 'translate(-50%, -100%)', pointerEvents: 'none', zIndex: 5, maxWidth: '44%',
+              background: '#0b1c24', border: '1px solid #7fc46a', borderRadius: 8,
+              padding: '6px 10px', fontSize: 12, lineHeight: 1.45, color: '#fff',
+              boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+            }}>
+              <b>{tip.name}</b>
+              <div style={{ opacity: 0.7 }}>{tip.loc}</div>
+            </div>
+          )}
+        </div>
+        <div style={{ fontSize: 11, opacity: 0.6, marginTop: 8 }}>{camps.length} {camps.length === 1 ? 'camp' : 'camps'} on the map</div>
+      </div>
+    </div>
+  );
+}
+
 // Single guarded entry point: renders nothing at all if `stats` is missing or
 // not an object (old cached /api/city shape), and each sub-panel only if its
 // own slice of data survives normalization.
@@ -314,6 +427,7 @@ function CityPage({ sectors }) {
   return (
     <CityShell>
       <CityStats sectors={sectors} data={state.data}/>
+      <CityMapPanel camps={normalizeCamps(state.data.camps)}/>
       <CityStatsExtras stats={state.data.stats} count={state.data.count}/>
     </CityShell>
   );

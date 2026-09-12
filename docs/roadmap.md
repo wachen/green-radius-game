@@ -158,6 +158,11 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 
 ## Recently done
 
+- Public city map on `/city/` (camp name + parsed playa address per camp, the
+  one deliberate per-camp carve-out from `/api/city`'s aggregate-only rule,
+  consent copy updated) and a permanent home banner linking to it (#114) -
+  2026-09-11
+
 - Housekeeping round from a five-agent codebase review: shared helpers
   (isValidEmail, campFills, Badge tones, withMockFetch), shared.css +
   favicon.svg replacing per-page duplicates, trimmed dead exports/props,

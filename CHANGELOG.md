@@ -10,6 +10,13 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## Roadmap round: reliability & delight (#82–)
 
+- Public city map on `/city/`: every camp that played this season, pinned at its
+  parsed playa address on the same Black Rock City fan the admin map draws; tap a
+  pin for the camp name. `/api/city` gains a `camps` list (name + parsed
+  hour/ring only, the one deliberate per-camp carve-out from the aggregate-only
+  rule), the intake consent line now says the camp name and playa address appear
+  on the map, and the home banner becomes a permanent link to it (#114)
+
 - Home-page announcement banner now points at the post-Burn online map instead of
   the printed-signage deadline ("Sign up to be included on the post-Burn online
   map!"), restyled from amber to light purple, and its auto-hide moved from end of

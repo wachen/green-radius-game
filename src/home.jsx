@@ -337,22 +337,19 @@ function FaqModal({ onClose, palette }) {
 }
 
 // ─── mode picker ─────────────────────────────────────────────────────────────
-// Signup announcement (BLAST 2026), home screen only: a full-width strip
-// across the top of the frame. Auto-hides once the window passes in Pacific
-// time (end of the event), so no removal deploy is needed and a stale banner
-// can't linger. Purely presentational: no state, no storage, safe to roll out
-// mid-season.
-const SIGNUP_BANNER_END_MS = Date.UTC(2026, 8, 8, 7); // expires Sep 8 2026, 00:00 PDT
-function SignupBanner() {
-  if (Date.now() >= SIGNUP_BANNER_END_MS) return null;
+// Post-Burn announcement, home screen only: a full-width strip across the top
+// of the frame linking to the public city map. Purely presentational: no
+// state, no storage, no expiry (nothing time-sensitive about a results map);
+// remove it in a future PR once the season is over.
+function MapBanner() {
   return (
-    <div data-signup-banner role="status" style={{
-      background: '#EFE4FB', color: '#5B2E90', borderBottom: '1px solid #D8C4F2',
-      padding: '9px 16px', textAlign: 'center',
+    <a data-map-banner href="/city/" style={{
+      display: 'block', background: '#EFE4FB', color: '#5B2E90', borderBottom: '1px solid #D8C4F2',
+      padding: '9px 16px', textAlign: 'center', textDecoration: 'none',
       fontSize: 13, lineHeight: 1.4, fontWeight: 600, textWrap: 'pretty',
     }}>
-      Sign up to be included on the post-Burn online map!
-    </div>
+      The post-Burn city map is live. See how Black Rock City did ↗
+    </a>
   );
 }
 
@@ -367,7 +364,7 @@ function ModePicker({ onPick, palette }) {
   const closeFaq = useCallback(() => { setFaqOpen(false); faqBtnRef.current?.focus(); }, []);
   return (
     <React.Fragment>
-    <SignupBanner/>
+    <MapBanner/>
     <div style={{ padding: '14px 24px 18px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
       <h1 style={{
         fontSize: 40, lineHeight: 1, fontWeight: 900, margin: '0 0 8px',

@@ -460,6 +460,30 @@ describe('computeCityBody stats', () => {
       () => computeCityBody(env));
   }
 
+  test('camps (public map) carries only name + parsed coordinates for the active population', async () => {
+    const body = await cityBody([
+      // Superseded resubmission for Camp A — must not produce a second pin.
+      sheetRow({ campName: 'Camp A', email: 'a@a.co', campLocation: '7:30 & E', total: 8,
+        timestamp: new Date(Date.now() - 60000).toISOString() }),
+      sheetRow({ campName: 'Camp A', email: 'a@a.co', campLocation: '7:30 & E', total: 9 }),
+      // sheetCell's formula-guard quote must be stripped on the way out.
+      sheetRow({ campName: "'=Camp B", email: 'b@b.co', campLocation: 'Esplanade & 4:15', total: 15 }),
+      // Unparseable address: still listed (Open camping), no coordinates.
+      sheetRow({ campName: 'Camp C', email: 'c@c.co', campLocation: 'somewhere in open camping', total: 25 }),
+      // Owner-flagged junk row: never on the public map.
+      sheetRow({ campName: 'Junk Camp', email: 'junk@x.co', campLocation: '5:00 & C', hidden: 'x' }),
+    ]);
+    expect(body.camps).toHaveLength(3);
+    expect(body.camps).toEqual(expect.arrayContaining([
+      { name: 'Camp A', hour: 7.5, ring: 5 },
+      { name: '=Camp B', hour: 4.25, ring: 0 },
+      { name: 'Camp C' },
+    ]));
+    // Structural privacy: nothing but those three keys, ever (no address
+    // string, score, size, email, or visit state).
+    for (const c of body.camps) expect(Object.keys(c).every(k => ['name', 'hour', 'ring'].includes(k))).toBe(true);
+  });
+
   test('stats reflects the same deduped, hidden-excluded population as the tally', async () => {
     const body = await cityBody([
       // Superseded resubmission for Camp A — the earlier of the two, must not count.
@@ -516,9 +540,13 @@ describe('computeCityBody stats', () => {
         campSize: '9', answers: { F1: 'yes' } }),
     ]);
     const raw = JSON.stringify(body);
-    for (const forbidden of [/campName/, /leadName/, /"email"/, /campLocation/, /campSize/, /Identifiable Camp/, /owner@identifiable\.co/]) {
+    // Camp names are public since #114, but only as camps[].name: the raw
+    // sheet field names, the typed address string, lead name, email, and size
+    // must still never serialize.
+    for (const forbidden of [/campName/, /leadName/, /"email"/, /campLocation/, /campSize/, /3:00 & E/, /Some Lead/, /owner@identifiable\.co/]) {
       expect(raw).not.toMatch(forbidden);
     }
+    expect(body.camps.map(c => c.name).sort()).toEqual(['Another Camp', 'Identifiable Camp', 'Third Camp']);
   });
 });
 

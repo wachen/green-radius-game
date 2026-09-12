@@ -333,6 +333,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   totalYes/totalPossible, tallyPct, sector averages, this-week momentum,
   per-question intensities — so camp names/emails/free text/leaderboard
   structurally cannot leak, even if `computeAggregates` grows new fields.
+  The one deliberate exception (#114) is `camps`, the public map's list of
+  `{ name, hour, ring }` per active camp: the camp name plus its *parsed* playa
+  coordinates (never the typed address string, score, size, email, or visit
+  state). Owner's call; the intake consent line was updated to say so.
   Rows are pre-filtered to the maximum year present before computing, so a future
   2027 season will not blend with 2026 results.
   A `stats` key rides in the same body with the same aggregate-only guarantee: total

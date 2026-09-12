@@ -496,7 +496,9 @@ async function fetchSheetRows(env) {
 //  1. PRIVACY IS STRUCTURAL. The response is rebuilt field-by-field below —
 //     never spread the aggregate (computeAggregates includes a leaderboard
 //     with camp names/result URLs, and future fields must stay private by
-//     default). Nothing identifying a camp may appear here. Rows the owner
+//     default). The one deliberate per-camp carve-out is the `camps` map list
+//     (name + parsed coordinates, #114); nothing else identifying a camp may
+//     appear here. Rows the owner
 //     flagged junk/test (the sheet's "Hidden" column) are filtered out of
 //     every tally by computeAggregates itself (admin/aggregate.js), so this
 //     response never reflects them; the flag itself never appears here either.
@@ -566,7 +568,7 @@ function cityJson(body) {
 export async function computeCityBody(env) {
   const read = await fetchSheetRows(env);
   if (!read.rows) return null;
-  let agg, stats;
+  let agg, stats, camps;
   try {
     let rows = shapeAdminRows(read.rows);
     // Scope the public tally to the current season only. Once a season rolls
@@ -589,6 +591,18 @@ export async function computeCityBody(env) {
     const histogram = AdminAggregate.scoreHistogram(rows);
     const weekly = AdminAggregate.weeklyCounts(rows, Date.now());
     const opportunities = AdminAggregate.opportunities(agg, GameData.SECTORS, 5);
+    // Public map (#114): camp name + parsed playa coordinates, the one
+    // deliberate per-camp carve-out from the aggregate-only rule (owner's
+    // call; the intake consent line says so). Coordinates are the parsed
+    // {hour, ring}, never the typed address string; no score, size, email, or
+    // visit state. Unparseable/blank addresses ship without coordinates so
+    // the map can still list the camp under "Open camping". The leading
+    // quote is sheetCell's formula guard, stripped the same way notes are.
+    camps = active.map(r => {
+      const addr = AdminAggregate.parsePlayaAddress(r.campLocation);
+      const name = String(r.campName || '').replace(/^'(?=[=+\-@\t\r])/, '').trim().slice(0, 80);
+      return addr ? { name, hour: +addr.hour, ring: addr.ring | 0 } : { name };
+    }).filter(c => c.name);
     stats = {
       campers: active.reduce((n, r) => n + (Number(r.campSize) || 0), 0) | 0,
       histogram: {
@@ -615,6 +629,7 @@ export async function computeCityBody(env) {
       levels: ((agg.intensities[id] && agg.intensities[id].levels) || []).map(l => l.map(v => +v || 0)),
     }])) : null,
     stats,
+    camps,
   };
 }
 
