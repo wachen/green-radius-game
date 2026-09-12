@@ -1,6 +1,7 @@
 import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
 import worker, { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, accessJwtEmail, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, shapeAdminRows, computeCityBody } from '../worker/index.js';
 import GameData from '../game-data.js';
+import AdminAggregate from '../admin/aggregate.js';
 
 function b64url(data) {
   const buf = typeof data === 'string' ? Buffer.from(data, 'utf8') : Buffer.from(data);
@@ -527,6 +528,20 @@ describe('computeCityBody stats', () => {
     expect(f1.asked).toBe(3);
     expect(f1.rate).toBeCloseTo(2 / 3, 5);
     expect(body.stats.opportunities.length).toBeLessThanOrEqual(5);
+    // strengths: same shape, highest yes-rate first; F1 is the only question here.
+    expect(body.stats.strengths.map(o => o.id)).toEqual(['F1']);
+    expect(body.stats.strengths[0].rate).toBeCloseTo(2 / 3, 5);
+  });
+
+  test('weekly is anchored to the newest submission, not the clock', async () => {
+    const threeWeeksAgo = Date.now() - 21 * 864e5;
+    const body = await cityBody([
+      sheetRow({ campName: 'Old A', email: 'a@a.co', timestamp: new Date(threeWeeksAgo).toISOString() }),
+      sheetRow({ campName: 'Old B', email: 'b@b.co', timestamp: new Date(threeWeeksAgo - 864e5).toISOString() }),
+    ]);
+    const last = body.stats.weekly[body.stats.weekly.length - 1];
+    expect(last.start).toBe(AdminAggregate.weekStartMs(threeWeeksAgo));
+    expect(body.stats.weekly.reduce((n, w) => n + w.count, 0)).toBe(2);
   });
 
   test('the serialized response never carries camp-identifying fields', async () => {

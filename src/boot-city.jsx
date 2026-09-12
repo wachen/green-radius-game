@@ -215,7 +215,7 @@ function CityWeeklyPanel({ weeks }) {
       <div style={subPanelGlow}/>
       <div style={{ position: 'relative' }}>
         <div style={subPanelLabel}>MOMENTUM</div>
-        <div style={subPanelHint}>New camps joining the tally, week by week. This week is highlighted.</div>
+        <div style={subPanelHint}>New camps joining the tally, week by week, through the latest week a camp joined.</div>
         <CityBarChart data={data} max={max} highlightLast
           barTitle={d => `Week of ${fmtWk(d.start)}: ${d.count} ${d.count === 1 ? 'camp' : 'camps'}`}/>
       </div>
@@ -223,17 +223,19 @@ function CityWeeklyPanel({ weeks }) {
   );
 }
 
-function CityOppsPanel({ opps }) {
+// One list panel for both question rankings: "shines" (highest citywide
+// yes-rate, green) and "grow" (lowest, amber). Same row shape either way.
+function CityQuestionsPanel({ kind, label, hint, items, color }) {
   return (
-    <div data-city-opps style={subPanelStyle}>
+    <div data-city-questions={kind} style={subPanelStyle}>
       <div style={subPanelGlow}/>
       <div style={{ position: 'relative' }}>
-        <div style={subPanelLabel}>WHERE THE CITY CAN GROW</div>
-        <div style={subPanelHint}>These are the questions the fewest camps have said yes to, citywide. A little effort here goes a long way.</div>
-        {opps.map(o => (
+        <div style={subPanelLabel}>{label}</div>
+        <div style={subPanelHint}>{hint}</div>
+        {items.map(o => (
           <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
             <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#f2ece1' }}>{o.title} <span style={{ opacity: 0.6 }}>({o.sector})</span></span>
-            <b style={{ fontVariantNumeric: 'tabular-nums', color: '#e0b25c', flexShrink: 0, fontSize: 13 }}>{Math.round(o.rate * 100)}%</b>
+            <b style={{ fontVariantNumeric: 'tabular-nums', color, flexShrink: 0, fontSize: 13 }}>{Math.round(o.rate * 100)}%</b>
           </div>
         ))}
       </div>
@@ -363,12 +365,16 @@ function CityStatsExtras({ stats, count }) {
   const bins = normalizeBins(stats.histogram);
   const weeks = normalizeWeekly(stats.weekly);
   const opps = normalizeOpportunities(stats.opportunities);
+  const wins = normalizeOpportunities(stats.strengths);
   return (
     <React.Fragment>
       <CityPulsePanel count={count} campers={campers}/>
       {bins.length > 0 && <CityHistogramPanel bins={bins} max={stats.histogram && Number(stats.histogram.max)}/>}
       {weeks.length > 0 && <CityWeeklyPanel weeks={weeks}/>}
-      {opps.length > 0 && <CityOppsPanel opps={opps}/>}
+      {wins.length > 0 && <CityQuestionsPanel kind="shines" items={wins} color="#7fc46a" label="WHERE THE CITY SHINES"
+        hint="These are the questions the most camps have said yes to, citywide. Black Rock City already has these down."/>}
+      {opps.length > 0 && <CityQuestionsPanel kind="grow" items={opps} color="#e0b25c" label="WHERE THE CITY CAN GROW"
+        hint="These are the questions the fewest camps have said yes to, citywide. A little effort here goes a long way."/>}
     </React.Fragment>
   );
 }

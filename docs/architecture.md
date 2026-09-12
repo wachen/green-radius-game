@@ -341,9 +341,13 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   2027 season will not blend with 2026 results.
   A `stats` key rides in the same body with the same aggregate-only guarantee: total
   campers (summed, never per-camp), a score histogram, per-week submission counts, and
-  the top-5 lowest-yes-rate questions (public game copy, not camp data) — computed via
-  `admin/aggregate.js`'s `activeRows`/`scoreHistogram`/`weeklyCounts`/`opportunities`
+  the top-5 lowest- and highest-yes-rate questions (`opportunities`/`strengths`, public
+  game copy, not camp data) — computed via `admin/aggregate.js`'s
+  `activeRows`/`scoreHistogram`/`weeklyCounts`/`opportunities`/`strengths`
   over the same season-scoped, deduped, hidden-excluded rows the tally above already uses.
+  The weekly window is anchored to the newest active submission rather than the
+  clock (#114), so the public Momentum chart stops sliding into empty weeks once
+  the season ends.
   Cached in the colo cache (`caches.default`) with freshness checked in code
   (5 min via the body's `generatedAt`; the stored entry lives a day) so the
   sheet sees at most ~1 hit per colo per 5 minutes.

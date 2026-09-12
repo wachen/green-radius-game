@@ -15,7 +15,11 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
   pin for the camp name. `/api/city` gains a `camps` list (name + parsed
   hour/ring only, the one deliberate per-camp carve-out from the aggregate-only
   rule), the intake consent line now says the camp name and playa address appear
-  on the map, and the home banner becomes a permanent link to it (#114)
+  on the map, and the home banner becomes a permanent link to it. Also on
+  `/city/`: the Momentum chart is anchored to the newest submission instead of
+  the clock, so it no longer slides into empty post-Burn weeks, and a new "Where
+  the city shines" panel (highest citywide yes-rate questions) sits beside
+  "Where the city can grow" (#114)
 
 - Home-page announcement banner now points at the post-Burn online map instead of
   the printed-signage deadline ("Sign up to be included on the post-Burn online

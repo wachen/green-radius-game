@@ -589,8 +589,18 @@ export async function computeCityBody(env) {
     // so stats.* always describes the exact population behind count/tallyPct/etc.
     const active = AdminAggregate.activeRows(rows);
     const histogram = AdminAggregate.scoreHistogram(rows);
-    const weekly = AdminAggregate.weeklyCounts(rows, Date.now());
+    // The public Momentum chart is anchored to the newest submission, not the
+    // clock: once the season winds down the window stops sliding into empty
+    // weeks and stays on the weeks camps actually joined. (The "+N this week"
+    // tile stays live, via agg.momentum above.)
+    const latestTs = active.reduce((m, r) => Math.max(m, typeof r.timestamp === 'number' ? r.timestamp : 0), 0);
+    const weekly = AdminAggregate.weeklyCounts(rows, latestTs || Date.now());
     const opportunities = AdminAggregate.opportunities(agg, GameData.SECTORS, 5);
+    const strengths = AdminAggregate.strengths(agg, GameData.SECTORS, 5);
+    const questionOut = o => ({
+      id: String(o.id), title: String(o.title || ''), sector: String(o.sector || ''),
+      rate: +o.rate || 0, asked: o.asked | 0,
+    });
     // Public map (#114): camp name + parsed playa coordinates, the one
     // deliberate per-camp carve-out from the aggregate-only rule (owner's
     // call; the intake consent line says so). Coordinates are the parsed
@@ -610,10 +620,8 @@ export async function computeCityBody(env) {
         max: histogram.max | 0,
       },
       weekly: weekly.map(w => ({ start: +w.start || 0, count: w.count | 0 })),
-      opportunities: opportunities.map(o => ({
-        id: String(o.id), title: String(o.title || ''), sector: String(o.sector || ''),
-        rate: +o.rate || 0, asked: o.asked | 0,
-      })),
+      opportunities: opportunities.map(questionOut),
+      strengths: strengths.map(questionOut),
     };
   } catch { return null; }
   return {
