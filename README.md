@@ -27,7 +27,8 @@ this implementation began from a Claude Design handoff bundle.
 - **Green-Up Plan** — on the done screen, every "No" becomes a concrete next-year
   suggestion, grouped by sector.
 - **Public city tally** — [`/city/`](https://greenradi.us/city/) rolls every camp's
-  results into one community-wide radius, aggregate-only, no login.
+  results into one community-wide radius plus a camp map (name and playa
+  address per camp, nothing else), no login.
 - **Printable board game** — [`downloads/`](downloads/) has PDFs for playing on paper
   at camp, no phone required.
 
@@ -43,7 +44,8 @@ this implementation began from a Claude Design handoff bundle.
   `POST /api/client-error` (client-side error beacon, log-only), the Cloudflare
   Access–gated `GET /api/admin/responses` (the
   read path behind the internal admin viewer), `GET /api/city` (the public,
-  aggregate-only community tally behind the `/city/` page, colo-cached ~5 min),
+  community tally behind the `/city/` page: aggregates plus each camp's name and
+  parsed playa address for the map, colo-cached ~5 min),
   `GET /result/?r=…` (rewrites the result page's Open Graph title and description
   for a per-camp share unfurl, pinned to the Worker via `run_worker_first` in
   `wrangler.jsonc`), and `GET /api/health` (a liveness probe for the external

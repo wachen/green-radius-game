@@ -215,7 +215,7 @@ function CityWeeklyPanel({ weeks }) {
       <div style={subPanelGlow}/>
       <div style={{ position: 'relative' }}>
         <div style={subPanelLabel}>MOMENTUM</div>
-        <div style={subPanelHint}>New camps joining the tally, week by week. This week is highlighted.</div>
+        <div style={subPanelHint}>New camps joining the tally, week by week, through the latest week a camp joined.</div>
         <CityBarChart data={data} max={max} highlightLast
           barTitle={d => `Week of ${fmtWk(d.start)}: ${d.count} ${d.count === 1 ? 'camp' : 'camps'}`}/>
       </div>
@@ -223,19 +223,143 @@ function CityWeeklyPanel({ weeks }) {
   );
 }
 
-function CityOppsPanel({ opps }) {
+// One list panel for both question rankings: "shines" (highest citywide
+// yes-rate, green) and "grow" (lowest, amber). Same row shape either way.
+function CityQuestionsPanel({ kind, label, hint, items, color }) {
   return (
-    <div data-city-opps style={subPanelStyle}>
+    <div data-city-questions={kind} style={subPanelStyle}>
       <div style={subPanelGlow}/>
       <div style={{ position: 'relative' }}>
-        <div style={subPanelLabel}>WHERE THE CITY CAN GROW</div>
-        <div style={subPanelHint}>These are the questions the fewest camps have said yes to, citywide. A little effort here goes a long way.</div>
-        {opps.map(o => (
+        <div style={subPanelLabel}>{label}</div>
+        <div style={subPanelHint}>{hint}</div>
+        {items.map(o => (
           <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
             <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#f2ece1' }}>{o.title} <span style={{ opacity: 0.6 }}>({o.sector})</span></span>
-            <b style={{ fontVariantNumeric: 'tabular-nums', color: '#e0b25c', flexShrink: 0, fontSize: 13 }}>{Math.round(o.rate * 100)}%</b>
+            <b style={{ fontVariantNumeric: 'tabular-nums', color, flexShrink: 0, fontSize: 13 }}>{Math.round(o.rate * 100)}%</b>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// Public playa map (#114): one pin per camp this season at its parsed BRC
+// address. Same fan geometry as the admin Playa Map (admin/admin.jsx); the
+// polar math is four lines, inlined rather than shared so the admin map's
+// fail-open PlayaAddress fallback stays untouched. /api/city sends only
+// {name, hour, ring}; camps without coordinates sit in the Open camping box.
+// No name labels: the card is 400px wide, so names live in the tap/hover tip.
+const VB_W = 720, VB_H = 532; // viewBox (height grows for the Open camping strip)
+const MAP_S = 330, MAP_CX = 360, MAP_CY = 180; // unit space -> viewBox px
+function mapRingR(ring) { return 0.40 + ring * 0.05; }
+function mapAt(hour, ring) {
+  const th = (hour / 12) * 2 * Math.PI, r = mapRingR(ring) * MAP_S;
+  return { x: MAP_CX + r * Math.sin(th), y: MAP_CY - r * Math.cos(th) };
+}
+function fmtPlaya(hour, ring) {
+  const h = Math.floor(hour), m = Math.round((hour - h) * 60);
+  return `${h}:${String(m).padStart(2, '0')} & ${ring === 0 ? 'Esplanade' : 'ABCDEFGHIJK'[ring - 1]}`;
+}
+function normalizeCamps(camps) {
+  if (!Array.isArray(camps)) return [];
+  return camps
+    .filter(c => c && typeof c.name === 'string' && c.name.trim())
+    .map(c => {
+      const hour = Number(c.hour), ring = Number(c.ring);
+      const placed = hour >= 2 && hour <= 10 && Number.isInteger(ring) && ring >= 0 && ring <= 11;
+      return placed ? { name: c.name, hour, ring } : { name: c.name };
+    });
+}
+function CityMapPanel({ camps }) {
+  const [tip, setTip] = React.useState(null); // in viewBox coords
+  const placed = camps.filter(c => c.hour != null);
+  const open = camps.filter(c => c.hour == null);
+  if (!camps.length) return null;
+  const PIN_R = 6;
+  // Open camping strip: a full-width box beneath the fan (below the 6:00 hour
+  // label at y≈515, the lowest thing the fan draws), wrapping 26 pins per row.
+  // The viewBox grows with it, so it can never overlap the streets.
+  const OC = { cols: 26, gap: 26, x: 12, y: 528 };
+  const ocRows = Math.ceil(open.length / OC.cols);
+  const ocW = VB_W - 2 * OC.x;
+  const ocH = 24 + ocRows * OC.gap + 4;
+  const ocY = OC.y;
+  const vbH = open.length ? ocY + ocH + 8 : VB_H;
+  const show = (x, y, c, loc) => setTip({ x, y, name: c.name, loc });
+  // Hover on desktop, tap on touch (the container click below hides it),
+  // focus for keyboard users.
+  const pin = (c, x, y, key, loc) => (
+    <g key={key} data-pin role="button" tabIndex={0} aria-label={`${c.name} · ${loc}`} style={{ cursor: 'pointer', outline: 'none' }}
+      onClick={e => { e.stopPropagation(); show(x, y, c, loc); }}
+      onMouseEnter={() => show(x, y, c, loc)} onMouseLeave={() => setTip(null)}
+      onFocus={() => show(x, y, c, loc)} onBlur={() => setTip(null)}>
+      <circle cx={x} cy={y} r={PIN_R} fill="#7fc46a" stroke="#2f6b3a" strokeWidth="1.5"/>
+    </g>
+  );
+  const grid = 'rgba(255,255,255,0.14)', gridFaint = 'rgba(255,255,255,0.07)', ink = 'rgba(255,255,255,0.5)';
+  return (
+    <div data-city-map style={subPanelStyle}>
+      <div style={subPanelGlow}/>
+      <div style={{ position: 'relative' }}>
+        <div style={subPanelLabel}>THE CITY MAP</div>
+        <div style={subPanelHint}>Every camp that played this year, pinned at its playa address. Tap a pin for the camp's name.</div>
+        <div style={{ position: 'relative' }} onClick={() => setTip(null)}>
+          <svg viewBox={`0 0 ${VB_W} ${vbH}`} style={{ width: '100%', height: 'auto', display: 'block' }}
+            role="img" aria-label="Map of camps across the Black Rock City street grid">
+            {/* radial streets: whole hours solid, half hours fainter */}
+            {Array.from({ length: 17 }, (_, i) => 2 + i * 0.5).map(h => {
+              const a = mapAt(h, 0), b = mapAt(h, 11);
+              return <line key={h} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={h % 1 ? gridFaint : grid} strokeWidth="1"/>;
+            })}
+            {/* ring arcs, Esplanade (0) through K (11), 2:00 -> 10:00 via 6:00 */}
+            {Array.from({ length: 12 }, (_, ring) => {
+              const r = mapRingR(ring) * MAP_S;
+              const a = mapAt(2, ring), b = mapAt(10, ring);
+              return <path key={ring} d={`M ${a.x} ${a.y} A ${r} ${r} 0 1 1 ${b.x} ${b.y}`}
+                fill="none" stroke={ring === 0 ? 'rgba(255,255,255,0.24)' : grid} strokeWidth="1"/>;
+            })}
+            {Array.from({ length: 9 }, (_, i) => 2 + i).map(h => {
+              const p = mapAt(h, 12.3);
+              return <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle"
+                fontSize="13" fill={ink} fontWeight="700">{h}:00</text>;
+            })}
+            {Array.from({ length: 12 }, (_, ring) => (
+              <text key={ring} x={MAP_CX + 6} y={MAP_CY + mapRingR(ring) * MAP_S - 3}
+                fontSize="11" fill={ink} fontWeight="700">{ring === 0 ? 'ESP' : 'ABCDEFGHIJK'[ring - 1]}</text>
+            ))}
+            <circle cx={MAP_CX} cy={MAP_CY} r="4" fill="#d9885c"><title>The Man</title></circle>
+            {open.length > 0 && (
+              <g data-open-camping>
+                <rect x={OC.x} y={ocY} width={ocW} height={ocH} rx="10"
+                  fill="rgba(255,255,255,0.04)" stroke={grid} strokeDasharray="4 3"/>
+                <text x={OC.x + 12} y={ocY + 15} fontSize="10" letterSpacing="1.5" fill={ink} fontWeight="700">OPEN CAMPING</text>
+                {open.map((c, i) => pin(c,
+                  OC.x + 24 + (i % OC.cols) * OC.gap,
+                  ocY + 24 + Math.floor(i / OC.cols) * OC.gap + OC.gap / 2 - 2,
+                  `open-${i}`, 'Open camping'))}
+              </g>
+            )}
+            {/* camp pins last, above the grid */}
+            {placed.map((c, i) => { const p = mapAt(c.hour, c.ring); return pin(c, p.x, p.y, i, fmtPlaya(c.hour, c.ring)); })}
+          </svg>
+          {tip && (
+            <div data-map-tip style={{
+              // The card clips overflow, so: x clamped away from the edges, and
+              // the tip flips below the pin when the pin sits near the top.
+              position: 'absolute', left: `${Math.min(Math.max(tip.x / VB_W * 100, 28), 72)}%`,
+              top: `${(tip.y < 120 ? tip.y + PIN_R + 4 : tip.y - PIN_R - 3) / vbH * 100}%`,
+              transform: tip.y < 120 ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+              pointerEvents: 'none', zIndex: 5, maxWidth: '56%',
+              background: '#0b1c24', border: '1px solid #7fc46a', borderRadius: 8,
+              padding: '6px 10px', fontSize: 12, lineHeight: 1.45, color: '#fff',
+              boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+            }}>
+              <b>{tip.name}</b>
+              <div style={{ opacity: 0.7 }}>{tip.loc}</div>
+            </div>
+          )}
+        </div>
+        <div style={{ fontSize: 11, opacity: 0.6, marginTop: 8 }}>{camps.length} {camps.length === 1 ? 'camp' : 'camps'} on the map</div>
       </div>
     </div>
   );
@@ -250,12 +374,16 @@ function CityStatsExtras({ stats, count }) {
   const bins = normalizeBins(stats.histogram);
   const weeks = normalizeWeekly(stats.weekly);
   const opps = normalizeOpportunities(stats.opportunities);
+  const wins = normalizeOpportunities(stats.strengths);
   return (
     <React.Fragment>
       <CityPulsePanel count={count} campers={campers}/>
       {bins.length > 0 && <CityHistogramPanel bins={bins} max={stats.histogram && Number(stats.histogram.max)}/>}
       {weeks.length > 0 && <CityWeeklyPanel weeks={weeks}/>}
-      {opps.length > 0 && <CityOppsPanel opps={opps}/>}
+      {wins.length > 0 && <CityQuestionsPanel kind="shines" items={wins} color="#7fc46a" label="WHERE THE CITY SHINES"
+        hint="These are the questions the most camps have said yes to, citywide. Black Rock City already has these down."/>}
+      {opps.length > 0 && <CityQuestionsPanel kind="grow" items={opps} color="#e0b25c" label="WHERE THE CITY CAN GROW"
+        hint="These are the questions the fewest camps have said yes to, citywide. A little effort here goes a long way."/>}
     </React.Fragment>
   );
 }
@@ -314,6 +442,7 @@ function CityPage({ sectors }) {
   return (
     <CityShell>
       <CityStats sectors={sectors} data={state.data}/>
+      <CityMapPanel camps={normalizeCamps(state.data.camps)}/>
       <CityStatsExtras stats={state.data.stats} count={state.data.count}/>
     </CityShell>
   );

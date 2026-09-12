@@ -253,5 +253,9 @@ describe('city analytics (admin panel)', () => {
     expect(opps.map(o => o.id)).toEqual(['F1', 'W1']); // W3 asked twice, under minAsked; F-camp is a topic, not a fixed question
     expect(opps[0].rate).toBeCloseTo(1 / 3);
     expect(opps[0].asked).toBe(3);
+    // strengths is the mirror image: same pool and gate, highest yes-rate first.
+    const wins = A.strengths(agg, SECTORS);
+    expect(wins.map(o => o.id)).toEqual(['W1', 'F1']);
+    expect(wins[0].rate).toBeCloseTo(2 / 3);
   });
 });

@@ -117,7 +117,8 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 - **Challenge a camp** (new · med) — a share variant that renders two result
   payloads side by side ("Camp A vs Camp B"), entirely client-side from two
   `?r=` params; friendly inter-camp rivalry is very Burning Man.
-- **Opt-in public camp wall** (new · med-large) — camps tick "show us publicly"
+- **Opt-in public camp wall** (new · med-large; partly subsumed by the #114
+  public city map, which shows name + address for every camp) — camps tick "show us publicly"
   and appear with name + badge on a public leaderboard-ish page. High
   engagement, but consent, moderation, and takedown handling make it dependent
   on the privacy page shipping first.
@@ -144,6 +145,9 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 
 ## Waiting on something
 
+- **Remove the post-Burn map banner** from the home screen before the 2027
+  season opens. It has no auto-expiry by choice (#114), so this is the reminder.
+
 - **Funnel dashboard first look** — needed ~2 weeks of Web Analytics data;
   that window has passed, so the first look can happen any time (as of
   2026-08-05). (The `Visit` column deploy that used to sit here shipped
@@ -157,6 +161,12 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
   2026-07-16 before deploy. The complete diff is preserved in closed PR #78.
 
 ## Recently done
+
+- Public city map on `/city/` (camp name + parsed playa address per camp, the
+  one deliberate per-camp carve-out from `/api/city`'s aggregate-only rule,
+  consent copy updated), a permanent home banner linking to it, the Momentum
+  chart anchored to the newest submission, and a "Where the city shines"
+  companion to the opportunities panel (#114) - 2026-09-11
 
 - Housekeeping round from a five-agent codebase review: shared helpers
   (isValidEmail, campFills, Badge tones, withMockFetch), shared.css +

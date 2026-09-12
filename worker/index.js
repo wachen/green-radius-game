@@ -326,7 +326,7 @@ function greenUpGroups(answers) {
       if (answers[t.id] !== 'no') return;
       const rawNote = answers[t.id + '-note'];
       // Display copy of the note: drop the sheetCell formula-guard apostrophe.
-      const note = typeof rawNote === 'string' ? rawNote.replace(/^'(?=[=+\-@\t\r])/, '').trim() : '';
+      const note = typeof rawNote === 'string' ? unSheetCell(rawNote).trim() : '';
       steps.push({ level: 4, title: note ? `${t.title}: ${note}` : t.title, url: t.link && t.link.url });
     });
     if (steps.length) groups.push({ name: s.name, steps });
@@ -384,6 +384,9 @@ function clampField(s, n) {
 // Google Sheets treats a cell whose value starts with = + - @ (or a control char)
 // as a formula, which would execute on view/recalc (e.g. =IMPORTXML exfiltrating
 // the email column). Prefix a ' so submitted text always stays literal text.
+// Inverse for the read paths: drop the guard quote sheetCell added so the
+// text renders as typed (notes in the email, camp names on the public map).
+export function unSheetCell(s) { return String(s || '').replace(/^'(?=[=+\-@\t\r])/, ''); }
 export function sheetCell(s) {
   return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
 }
@@ -491,12 +494,14 @@ async function fetchSheetRows(env) {
   return { rows: data.rows, reason: null };
 }
 
-// ── Public city tally: aggregate-only, colo-cached ───────────────────────────
+// ── Public city tally: aggregates + the camps map list, colo-cached ─────────
 // GET /api/city is the one public read path. Two hard rules:
 //  1. PRIVACY IS STRUCTURAL. The response is rebuilt field-by-field below —
 //     never spread the aggregate (computeAggregates includes a leaderboard
 //     with camp names/result URLs, and future fields must stay private by
-//     default). Nothing identifying a camp may appear here. Rows the owner
+//     default). The one deliberate per-camp carve-out is the `camps` map list
+//     (name + parsed coordinates, #114); nothing else identifying a camp may
+//     appear here. Rows the owner
 //     flagged junk/test (the sheet's "Hidden" column) are filtered out of
 //     every tally by computeAggregates itself (admin/aggregate.js), so this
 //     response never reflects them; the flag itself never appears here either.
@@ -566,7 +571,7 @@ function cityJson(body) {
 export async function computeCityBody(env) {
   const read = await fetchSheetRows(env);
   if (!read.rows) return null;
-  let agg, stats;
+  let agg, stats, camps;
   try {
     let rows = shapeAdminRows(read.rows);
     // Scope the public tally to the current season only. Once a season rolls
@@ -587,8 +592,29 @@ export async function computeCityBody(env) {
     // so stats.* always describes the exact population behind count/tallyPct/etc.
     const active = AdminAggregate.activeRows(rows);
     const histogram = AdminAggregate.scoreHistogram(rows);
-    const weekly = AdminAggregate.weeklyCounts(rows, Date.now());
+    // The public Momentum chart is anchored to the newest submission, not the
+    // clock: once the season winds down the window stops sliding into empty
+    // weeks and stays on the weeks camps actually joined. (The "+N this week"
+    // tile stays live, via agg.momentum above.)
+    const latestTs = active.reduce((m, r) => Math.max(m, typeof r.timestamp === 'number' ? r.timestamp : 0), 0);
+    const weekly = AdminAggregate.weeklyCounts(rows, latestTs || Date.now());
     const opportunities = AdminAggregate.opportunities(agg, GameData.SECTORS, 5);
+    const strengths = AdminAggregate.strengths(agg, GameData.SECTORS, 5);
+    const questionOut = o => ({
+      id: String(o.id), title: String(o.title || ''), sector: String(o.sector || ''),
+      rate: +o.rate || 0, asked: o.asked | 0,
+    });
+    // Public map (#114): camp name + parsed playa coordinates, the one
+    // deliberate per-camp carve-out from the aggregate-only rule (owner's
+    // call; the intake consent line says so). Coordinates are the parsed
+    // {hour, ring}, never the typed address string; no score, size, email, or
+    // visit state. Unparseable/blank addresses ship without coordinates so
+    // the map can still list the camp under "Open camping".
+    camps = active.map(r => {
+      const addr = AdminAggregate.parsePlayaAddress(r.campLocation);
+      const name = unSheetCell(r.campName).trim().slice(0, 80);
+      return addr ? { name, hour: +addr.hour, ring: addr.ring | 0 } : { name };
+    }).filter(c => c.name);
     stats = {
       campers: active.reduce((n, r) => n + (Number(r.campSize) || 0), 0) | 0,
       histogram: {
@@ -596,10 +622,8 @@ export async function computeCityBody(env) {
         max: histogram.max | 0,
       },
       weekly: weekly.map(w => ({ start: +w.start || 0, count: w.count | 0 })),
-      opportunities: opportunities.map(o => ({
-        id: String(o.id), title: String(o.title || ''), sector: String(o.sector || ''),
-        rate: +o.rate || 0, asked: o.asked | 0,
-      })),
+      opportunities: opportunities.map(questionOut),
+      strengths: strengths.map(questionOut),
     };
   } catch { return null; }
   return {
@@ -615,6 +639,7 @@ export async function computeCityBody(env) {
       levels: ((agg.intensities[id] && agg.intensities[id].levels) || []).map(l => l.map(v => +v || 0)),
     }])) : null,
     stats,
+    camps,
   };
 }
 

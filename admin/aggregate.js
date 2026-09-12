@@ -360,7 +360,7 @@
   // sample — what GTCC should teach or provision next. Reads the perQuestion
   // block of an already-computed aggregate; write-in topics never appear
   // because they aren't fixed questions.
-  function opportunities(agg, sectors, n, minAsked) {
+  function rankedQuestions(agg, sectors, minAsked) {
     var min = minAsked == null ? 3 : minAsked;
     var out = [];
     sectors.forEach(function (sector) {
@@ -370,7 +370,18 @@
         out.push({ id: q.id, sector: sector.name, title: q.prompt || q.title, rate: pq.rate, asked: pq.asked });
       });
     });
+    return out;
+  }
+  function opportunities(agg, sectors, n, minAsked) {
+    var out = rankedQuestions(agg, sectors, minAsked);
     out.sort(function (a, b) { return (a.rate - b.rate) || (b.asked - a.asked); });
+    return out.slice(0, n == null ? 4 : n);
+  }
+  // Mirror image: the n highest yes-rate fixed questions — what the city
+  // already does well (the public "where the city shines" panel).
+  function strengths(agg, sectors, n, minAsked) {
+    var out = rankedQuestions(agg, sectors, minAsked);
+    out.sort(function (a, b) { return (b.rate - a.rate) || (b.asked - a.asked); });
     return out.slice(0, n == null ? 4 : n);
   }
 
@@ -403,7 +414,7 @@
 
   const api = { computeAggregates, weekStartMs, superlatives, isLegacy, isHidden, dedupeRows, dedupeInfo,
     parsePlayaAddress, playaRingRadius, playaXY, visitState, visitAssignee, visitOrder,
-    activeRows, scoreHistogram, weeklyCounts, opportunities };
+    activeRows, scoreHistogram, weeklyCounts, opportunities, strengths };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.AdminAggregate = api;
 })(typeof window !== 'undefined' ? window : this);
