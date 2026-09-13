@@ -86,7 +86,7 @@ function segAngles(a0, a1, n, gap = 0) {
 // as one silhouette.
 function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = true, showCenter = true, showGrid = false,
                        intensities = null, onSelectSegment = null, selected = null, fluid = false,
-                       revealCount = null }) {
+                       revealCount = null, ghostFills = null }) {
   const cx = size / 2, cy = size / 2;
   // [hub edge, L1, L2, L3, L4] — the inner hub stays clear (total moved to the header), like the board
   const RINGS = [0.18, 0.34, 0.52, 0.68, 0.84].map(f => f * size / 2);
@@ -98,6 +98,11 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
   const baseColor = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
   const baseStroke = dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.12)';
   const gridStroke = dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)';
+  // Year-over-year ghost ring (optional): a prior result's lit segments, muted
+  // and dashed, drawn under the live segments below so an unchanged/lit cell
+  // fully covers it and a now-empty one lets the outline show through the
+  // translucent base cell — a visual "you used to reach this far here".
+  const ghostStroke = dark ? 'rgba(255,255,255,0.55)' : 'rgba(42,38,32,0.55)';
 
   let _litSeen = 0; // running index of filled segments in render order (sector→level→qi)
 
@@ -114,6 +119,29 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
       {showLabels && (
         <circle cx={cx} cy={cy} r={RINGS[4]} fill={baseColor} stroke={baseStroke} strokeWidth={1}/>
       )}
+
+      {/* ghost ring: same per-question grid, reused wholesale (packSector/unpackSector always
+          pack levels at sizes [1,2,3,4], so a decoded prior-year result lines up cell-for-cell
+          with the current sectors even if game-data content changes). Painted before the live
+          segments so live fills stay on top. */}
+      {ghostFills && sectors.map((sector, si) => {
+        const a0 = si * sweep, a1 = (si + 1) * sweep;
+        const gl = (ghostFills[sector.id] && ghostFills[sector.id].levels) || [[], [], [], []];
+        return [0, 1, 2, 3].map(li => {
+          const rIn = RINGS[li] + (li > 0 ? rGap : 0);
+          const rOut = RINGS[li + 1];
+          const cells = gl[li] || [];
+          return segAngles(a0, a1, cells.length || 1, gap).map(([s0, s1], qi) => {
+            if (!cells[qi]) return null;
+            return (
+              <path key={`ghost-${sector.id}-${li}-${qi}`}
+                d={arcPath(cx, cy, rIn, rOut, s0, s1)}
+                fill="none" stroke={ghostStroke} strokeWidth={1.4} strokeDasharray="3 2"
+              />
+            );
+          });
+        });
+      })}
 
       {/* per-question segments: boolean fills, or graded opacity in aggregate mode */}
       {sectors.map((sector, si) => {
