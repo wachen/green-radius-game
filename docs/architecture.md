@@ -33,7 +33,8 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
   `GET /api/city` (public aggregate tally, colo-cached — see below), and
   `GET /result/?r=<payload>` (per-camp OG unfurl — see below) — and serves
   everything else as static assets (the `ASSETS` binding in `wrangler.jsonc`,
-  directory `.`).
+  directory `.`). A `scheduled()` export runs on a daily Cron Trigger
+  (`wrangler.jsonc` `triggers.crons`, `0 10 * * *`; see Backups below).
 - **Deploy = merge to `main`.** Cloudflare Workers + Static Assets auto-deploys
   `main` to https://greenradi.us. No staging environment.
 
@@ -241,10 +242,18 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   ignored. From is `hello@greenradi.us`, a **real** address that Cloudflare Email
   Routing forwards to the GTCC team, so replies reach the team whether or not the
   client honors `Reply-To`.
+- **Backups.** A daily Cron Trigger (`wrangler.jsonc` `triggers.crons: ["0 10 * * *"]`,
+  10:00 UTC) fires the Worker's `scheduled()` export (`runSheetBackup`), which reads the
+  sheet through the same `fetchSheetRows` helper `/api/city` uses, CSVs every row/field it
+  returns (RFC 4180 quoting; nested objects like `answers`/`greens` JSON-stringified per
+  cell), and emails it via Resend as an attachment to the `BACKUP_EMAIL` secret. Same
+  fail-soft contract as the rest of the Worker: a missing `BACKUP_EMAIL`,
+  `RESEND_API_KEY`, or `SHEETS_WEBAPP_URL` logs `backup_skipped` and returns; a read or
+  send failure logs `backup_failed`; success logs `backup_sent`; it never throws.
 - **Cloudflare Workers + Static Assets.** `wrangler.jsonc`: `main = worker/index.js`,
-  `assets.directory = "."`, `assets.binding = "ASSETS"`, `nodejs_compat`. Secrets —
-  `SHEETS_WEBAPP_URL`, `SHEETS_SHARED_SECRET`, `RESEND_API_KEY` — are Worker secrets
-  (dashboard in prod; `.dev.vars` locally). **HSTS preload is active on
+  `assets.directory = "."`, `assets.binding = "ASSETS"`, `nodejs_compat`. Secrets
+  (`SHEETS_WEBAPP_URL`, `SHEETS_SHARED_SECRET`, `RESEND_API_KEY`, `BACKUP_EMAIL`) are
+  Worker secrets (dashboard in prod; `.dev.vars` locally). **HSTS preload is active on
   `greenradi.us`** — the site must never go offline. The Worker answers **only**
   on `greenradi.us`: `wrangler.jsonc` pins `workers_dev: false` (the persistent
   workers.dev route skipped the zone's WAF/rate-limiting/Access while running

@@ -8,6 +8,22 @@ so every squash-merged PR below is effectively a release. From PR #44 onward the
 `APP_VERSION` stamp (shown at the bottom of the home screen) equals the PR number, so `vNN`
 and `#NN` refer to the same release. Entries are grouped newest-first by milestone.
 
+## 2027 prep: freeze the season, harden for next year (#115–)
+
+- Freeze the 2026 season: roadmap truth-up (the August-shipped Approved items
+  and #103 through #113 move to Recently done; the 2027-prep batch is the new
+  Approved list), a Season rollover runbook in `docs/admin-setup.md` (new yearly
+  sheet plus a fresh Apps Script deployment, re-point `SHEETS_WEBAPP_URL`), a
+  `docs/2026-season-retrospective.md`, a `docs/break-glass.md` succession
+  runbook, and the home copy and admin year-picker default reading the current
+  year instead of a literal 2026. Tag `2026-season-final` marks the last 2026
+  commit (#116)
+- Nightly sheet backup: a daily Cron Trigger (10:00 UTC) reads the sheet through
+  the same path `/api/city` uses and emails every row as a CSV attachment to the
+  new `BACKUP_EMAIL` Worker secret via Resend. Fail-soft throughout: a missing
+  secret logs `backup_skipped`, a failed leg logs `backup_failed` once, and the
+  handler never throws (#115)
+
 ## Roadmap round: reliability & delight (#82–)
 
 - Public city map on `/city/`: every camp that played this season, pinned at its

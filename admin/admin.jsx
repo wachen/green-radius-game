@@ -60,7 +60,7 @@ function AdminApp({ sectors }) {
   // Set when a Top Camps row is clicked on the City tab: switches to Camps and
   // scroll-highlights that camp's row there.
   const [highlightCamp, setHighlightCamp] = React.useState(null);
-  const [year, setYear] = React.useState(2026);
+  const [year, setYear] = React.useState(new Date().getFullYear());
   const [source, setSource] = React.useState('all');
   const years = React.useMemo(() => Array.from(new Set(rows.map(r => r.year))).sort((a, b) => b - a), [rows]);
   const filtered = React.useMemo(() => rows.filter(r =>
@@ -97,7 +97,7 @@ function AdminApp({ sectors }) {
     <React.Fragment>
       <select value={year} onChange={e => setYear(+e.target.value)} title="Filter by year" style={selStyle}>
         <option value={0}>All years</option>
-        {years.length ? years.map(y => <option key={y} value={y}>{y}</option>) : <option value={2026}>2026</option>}
+        {years.length ? years.map(y => <option key={y} value={y}>{y}</option>) : <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>}
       </select>
       <select value={source} onChange={e => setSource(e.target.value)} title="Filter by submission source" style={selStyle}>
         <option value="all">All</option><option value="board">Board</option><option value="form">Form</option>
