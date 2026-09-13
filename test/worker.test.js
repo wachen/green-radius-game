@@ -830,4 +830,27 @@ describe('runSheetBackup (nightly cron)', () => {
     const evt = JSON.parse(logged);
     expect(evt.type).toBe('backup_failed');
   });
+
+  test('Resend fetch rejects: scheduled()/runSheetBackup resolves without throwing, logs backup_failed once', async () => {
+    const originalError = console.error;
+    const logged = [];
+    console.error = (line) => { logged.push(line); };
+    let threw = false;
+    try {
+      await withMockFetch(async (url) => {
+        if (String(url).includes('script.google.com')) return new Response(JSON.stringify({ rows: sheetRows }), { status: 200 });
+        throw new Error('network down'); // simulates a rejected fetch/AbortSignal.timeout
+      }, () => worker.scheduled({}, FULL_ENV, {}));
+    } catch { threw = true; }
+    finally { console.error = originalError; }
+
+    expect(threw).toBe(false);
+    // Exactly one console.error line, and it's the consolidated backup_failed
+    // event (postToResend's own email_send_failed log is suppressed for this
+    // caller so a Resend failure isn't double-logged).
+    expect(logged.length).toBe(1);
+    const evt = JSON.parse(logged[0]);
+    expect(evt.type).toBe('backup_failed');
+    expect(evt.rows).toBe(2);
+  });
 });

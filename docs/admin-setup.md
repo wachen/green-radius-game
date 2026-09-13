@@ -334,7 +334,7 @@ property only holds after this section is deployed.
 
 A daily Cron Trigger emails a CSV of the whole sheet to a single address as
 cheap insurance (the sheet is the only datastore). Nothing to set up on the
-Apps Script side — it reuses the same `doGet` read path as the admin viewer
+Apps Script side: it reuses the same `doGet` read path as the admin viewer
 and `/api/city`. Set the destination address:
 
 ```
@@ -342,4 +342,4 @@ npx wrangler secret put BACKUP_EMAIL
 ```
 
 Missing this secret (or `RESEND_API_KEY`/`SHEETS_WEBAPP_URL`) just skips the
-backup and logs `backup_skipped` — it never blocks a deploy.
+backup and logs `backup_skipped` (it never blocks a deploy).

@@ -44,8 +44,8 @@ export default {
     return env.ASSETS.fetch(request);
   },
 
-  // Nightly cron (`wrangler.jsonc` `triggers.crons`). Best-effort, fail-soft —
-  // see runSheetBackup.
+  // Nightly cron (`wrangler.jsonc` `triggers.crons`). Best-effort, fail-soft
+  // (see runSheetBackup).
   async scheduled(event, env, ctx) {
     await runSheetBackup(env);
   },
@@ -249,9 +249,13 @@ async function appendToSheet(env, row) {
 
 // Low-level Resend POST: the one place that knows the endpoint, auth header,
 // and upstream timeout. sendEmail (result email) and the nightly sheet
-// backup below both build a payload and go through here — no second Resend
-// client.
-async function postToResend(env, payload, idempotencyKey) {
+// backup below both build a payload and go through here (no second Resend
+// client). Never throws/rejects: sendEmail's caller (handleComplete) only
+// gets that guarantee via Promise.allSettled, but scheduled() calls the
+// backup path directly, so the fetch itself must be caught here too.
+// `quiet` skips this function's own error log for callers (the backup path)
+// that log their own single, more specific failure event instead.
+async function postToResend(env, payload, idempotencyKey, quiet) {
   const headers = { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' };
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   const r = await fetch('https://api.resend.com/emails', {
@@ -259,8 +263,11 @@ async function postToResend(env, payload, idempotencyKey) {
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     headers,
     body: JSON.stringify(payload),
-  });
-  if (!r.ok) { console.error('email_send_failed', { outcome: 'http_error', status: r.status }); return false; }
+  }).catch(() => null);
+  if (!r || !r.ok) {
+    if (!quiet) console.error('email_send_failed', { outcome: r ? 'http_error' : 'exception', status: r ? r.status : undefined });
+    return false;
+  }
   return true;
 }
 
@@ -513,8 +520,8 @@ async function fetchSheetRows(env) {
 // fetchSheetRows (the exact read /api/city already uses) so there's one place
 // that ever talks to the Apps Script doGet, CSVs every row/field it returns,
 // and emails it as a Resend attachment to BACKUP_EMAIL. Entirely best-effort:
-// any missing secret or upstream failure logs a structured event and returns,
-// never throws — a cron failure must never page anyone.
+// any missing secret or upstream failure logs a structured event and returns;
+// it never throws, since a cron failure must never page anyone.
 export async function runSheetBackup(env) {
   if (!env.BACKUP_EMAIL) { console.log(JSON.stringify({ type: 'backup_skipped', reason: 'no_backup_email' })); return; }
   if (!env.RESEND_API_KEY) { console.log(JSON.stringify({ type: 'backup_skipped', reason: 'no_resend_key' })); return; }
@@ -536,7 +543,7 @@ export async function runSheetBackup(env) {
     subject: `Green Radius backup ${dateStr} (${read.rows.length} rows)`,
     text: `Attached: ${read.rows.length} rows from the Green Radius sheet.`,
     attachments: [{ filename: `green-radius-${dateStr}.csv`, content: toBase64(csv) }],
-  });
+  }, undefined, true); // quiet: this function logs the one backup_failed line itself
   if (ok) console.log(JSON.stringify({ type: 'backup_sent', rows: read.rows.length }));
   else console.error(JSON.stringify({ type: 'backup_failed', reason: 'resend_error', rows: read.rows.length }));
 }

@@ -34,7 +34,7 @@ For the file-by-file layout and local-dev setup, see [CONTRIBUTING.md](../CONTRI
   `GET /result/?r=<payload>` (per-camp OG unfurl — see below) — and serves
   everything else as static assets (the `ASSETS` binding in `wrangler.jsonc`,
   directory `.`). A `scheduled()` export runs on a daily Cron Trigger
-  (`wrangler.jsonc` `triggers.crons`, `0 10 * * *`) — see Backups below.
+  (`wrangler.jsonc` `triggers.crons`, `0 10 * * *`; see Backups below).
 - **Deploy = merge to `main`.** Cloudflare Workers + Static Assets auto-deploys
   `main` to https://greenradi.us. No staging environment.
 
@@ -245,10 +245,10 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
   cell), and emails it via Resend as an attachment to the `BACKUP_EMAIL` secret. Same
   fail-soft contract as the rest of the Worker: a missing `BACKUP_EMAIL`,
   `RESEND_API_KEY`, or `SHEETS_WEBAPP_URL` logs `backup_skipped` and returns; a read or
-  send failure logs `backup_failed`; success logs `backup_sent` — never throws.
+  send failure logs `backup_failed`; success logs `backup_sent`; it never throws.
 - **Cloudflare Workers + Static Assets.** `wrangler.jsonc`: `main = worker/index.js`,
-  `assets.directory = "."`, `assets.binding = "ASSETS"`, `nodejs_compat`. Secrets —
-  `SHEETS_WEBAPP_URL`, `SHEETS_SHARED_SECRET`, `RESEND_API_KEY`, `BACKUP_EMAIL` — are
+  `assets.directory = "."`, `assets.binding = "ASSETS"`, `nodejs_compat`. Secrets
+  (`SHEETS_WEBAPP_URL`, `SHEETS_SHARED_SECRET`, `RESEND_API_KEY`, `BACKUP_EMAIL`) are
   Worker secrets (dashboard in prod; `.dev.vars` locally). **HSTS preload is active on
   `greenradi.us`** — the site must never go offline. The Worker answers **only**
   on `greenradi.us`: `wrangler.jsonc` pins `workers_dev: false` (the persistent
