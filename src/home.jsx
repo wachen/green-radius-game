@@ -387,7 +387,7 @@ function ModePicker({ onPick, palette }) {
         fontSize: 15, lineHeight: 1.45, color: palette.text + 'cc',
         maxWidth: 340, margin: '0 auto 16px', textWrap: 'pretty',
       }}>
-        Join BLAST 2026 and track your camp's progress across all 6 sustainability sectors. Pick your path below.
+        Join BLAST {new Date().getFullYear()} and track your camp's progress across all 6 sustainability sectors. Pick your path below.
       </div>
 
       <button
