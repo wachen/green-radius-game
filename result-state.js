@@ -95,6 +95,24 @@
     } catch (e) { return null; }
   }
 
+  // Pull a decode()-able token out of whatever a camp pasted: a full result
+  // link (?r= query, or a legacy #hash link) or a bare payload copied out of
+  // the middle of one. Empty input returns null; anything else comes back
+  // as-is for decode() to validate, since that is already the single source
+  // of truth for "is this a real result payload" and already returns null on
+  // anything it can't parse.
+  function extractToken(input) {
+    var s = (input || '').trim();
+    if (!s) return null;
+    try {
+      var u = new URL(s, 'https://greenradi.us/result/');
+      var r = u.searchParams.get('r');
+      if (r) return r;
+      if (u.hash) return u.hash; // decode() strips the leading '#' itself
+    } catch (e) { /* not a URL; fall through to the bare-payload case below */ }
+    return s;
+  }
+
   // Rebuild a current-shape localStorage save from a decoded result so a camp
   // can resume on any device (the /result/ "Continue improving" action). Pure +
   // isomorphic: STORAGE_VERSION, a fallback campId, and the timestamp are passed
@@ -149,7 +167,7 @@
     };
   }
 
-  var api = { encode: encode, decode: decode, reconstructSave: reconstructSave, SECTOR_IDS: SECTOR_IDS };
+  var api = { encode: encode, decode: decode, extractToken: extractToken, reconstructSave: reconstructSave, SECTOR_IDS: SECTOR_IDS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.ResultState = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

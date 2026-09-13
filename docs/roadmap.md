@@ -12,27 +12,9 @@ review findings are closed except where listed below.
 
 ## Approved — build next, in this order
 
-_Approved 2026-09-12 as the 2027-prep batch; Task-1 ships item 4 (this PR)._
-
-1. **Nightly sheet backup** (new · med) — the Google Sheet is the only datastore;
-   one accidental deletion or Apps Script mishap loses every response ever
-   submitted. A scheduled Worker cron pulls the admin feed and stores a dated CSV
-   snapshot (R2 free tier, or simply emailed to the owner via Resend). Cheap
-   insurance for irreplaceable data.
-2. **Year-over-year ghost ring** (FE-6 · med) — "paste last year's result link"
-   draws a dashed last-year arc + per-sector deltas. Zero migration (the emailed
-   result link is the durable record). Build now, pays off at BLAST 2027.
-3. **Surface and retry failed submits** (new · small-med) — `/api/complete` is
-   best-effort and returns `{ sheet, email }`, but the done screen never tells the
-   player when a leg failed; on playa connectivity that means silently lost rows
-   and missing keepsake emails. Show a gentle "didn't go through — try again"
-   state with a retry button (the R4 nonce already makes replays safe). A
-   "didn't get the email? resend, or correct your address" affordance ships in
-   the same PR. An email typo is invisible today: the player just never
-   receives their result link, and the link is the durable record.
-4. **Bus-factor / break-glass doc** (SG · small, mostly owner-side) — secrets and
-   the Cloudflare/Resend/Google accounts are single-holder; HSTS means the site
-   can't be casually retired. Document succession or add a co-owner.
+_The 2027-prep batch approved 2026-09-12 shipped in full (#115 through #118,
+see Recently done). Nothing is queued; Wes promotes the next items from
+Proposed by moving them here._
 
 ## Proposed — needs Wes's call
 
@@ -148,6 +130,16 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
   2026-07-16 before deploy. The complete diff is preserved in closed PR #78.
 
 ## Recently done
+
+- 2027-prep batch, all shipped 2026-09-12: nightly sheet backup as a Worker
+  Cron Trigger that emails a CSV of the sheet to `BACKUP_EMAIL` via Resend
+  (#115); the 2026 season freeze with the roadmap truth-up, Season rollover
+  runbook, 2026 retrospective, and break-glass succession doc (#116); failed
+  submits surfaced on the done screen with Retry, plus resend-or-fix-address
+  for the result email (#117); and the year-over-year ghost ring, where a
+  pasted last-year result link draws a dashed comparison ring and per-sector
+  deltas on the done screen (#118). Tag `2026-season-final` marks the last
+  2026 commit.
 
 - Public city map on `/city/` (camp name + parsed playa address per camp, the
   one deliberate per-camp carve-out from `/api/city`'s aggregate-only rule,

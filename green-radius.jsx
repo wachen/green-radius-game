@@ -63,6 +63,87 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
   );
 }
 
+// ─── year-over-year ghost ring (done screen only) ──────────────────────────
+// Below-the-badge "compare with last year" control. Paste a prior result
+// link and see it decoded client-side: last year's fills become a dashed
+// ghost ring on a second badge, plus a per-sector delta line. No storage, no
+// telemetry, no change to this year's result payload. Link parsing itself
+// (window.ResultState.extractToken) lives in result-state.js, the shared
+// isomorphic module, not here.
+function YearCompare({ sectors, fills, palette }) {
+  const [expanded, setExpanded] = useState(false);
+  const [input, setInput] = useState('');
+  const [error, setError] = useState(null);
+  const [compare, setCompare] = useState(null); // decoded last-year result, or null
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const decoded = window.ResultState.decode(window.ResultState.extractToken(input));
+    if (!decoded) { setError("That doesn't look like a result link"); return; }
+    setError(null);
+    setCompare(decoded);
+  }
+  function handleClear() {
+    setCompare(null);
+    setExpanded(false);
+    setInput('');
+    setError(null);
+  }
+
+  if (!expanded && !compare) {
+    return (
+      <button type="button" onClick={() => setExpanded(true)}
+        style={{ display: 'block', margin: '-6px auto 20px', background: 'none', border: 'none',
+          color: palette.accentText, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+          textDecoration: 'underline', textUnderlineOffset: 3 }}>
+        Compare with last year
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: 20, textAlign: 'left' }}>
+      {!compare && (
+        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="text" value={input} onChange={e => setInput(e.target.value)} required
+            aria-label="Paste last year's result link" placeholder="Paste last year's result link"
+            style={{ flex: 1, padding: '10px 12px', borderRadius: 10, fontSize: 14, fontFamily: 'inherit',
+              border: `1.5px solid ${palette.text}22`, background: palette.card, color: palette.text }}
+          />
+          <button type="submit"
+            style={{ padding: '0 16px', borderRadius: 10, border: 'none', background: palette.accentDark, color: '#fff',
+              fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
+              cursor: 'pointer', minHeight: 44 }}>
+            Compare
+          </button>
+        </form>
+      )}
+      {error && <div role="status" aria-live="polite" style={{ fontSize: 12, color: '#B4463A', marginTop: 6 }}>{error}</div>}
+
+      {compare && (
+        <div style={{ marginTop: 12, textAlign: 'center' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: palette.heading, marginBottom: 10 }}>vs {compare.year}</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <RadialBadge sectors={sectors} fills={fills} ghostFills={compare.fills} size={220} dark={false} showCenter={false}/>
+          </div>
+          <div style={{ fontSize: 13, color: palette.text, marginBottom: 10 }}>
+            {sectors.map(s => {
+              const delta = (fills[s.id] ? fills[s.id].totalYes : 0) - (compare.fills[s.id] ? compare.fills[s.id].totalYes : 0);
+              return delta === 0 ? `${s.name} same` : `${s.name} ${delta > 0 ? '+' : ''}${delta}`;
+            }).join(' · ')}
+          </div>
+          <button type="button" onClick={handleClear}
+            style={{ background: 'none', border: 'none', color: palette.accentText, fontSize: 12, fontWeight: 700,
+              cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            Clear
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Reset per mode pick, not per mount: game_started fires on every pick, so
 // intro_engaged must too, or one player picking twice reads as a phantom bounce.
 let introEngagedSent = false;
@@ -766,6 +847,8 @@ function GreenRadiusGame({ palette }) {
         </div>
 
         <OffscreenResultCard svgRef={cardSvgRef} sectors={sectors} fills={fills} campName={camp.campName} year={year}/>
+
+        <YearCompare sectors={sectors} fills={fills} palette={palette}/>
 
         <div role="status" aria-live="polite" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
           {submitState === 'sending'
