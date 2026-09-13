@@ -124,9 +124,8 @@ function YearCompare({ sectors, fills, palette }) {
       {compare && (
         <div style={{ marginTop: 12, textAlign: 'center' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: palette.heading, marginBottom: 10 }}>vs {compare.year}</div>
-          <div role="img" aria-label="Last year's ring compared with this year"
-            style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-            <RadialBadge sectors={sectors} fills={fills} ghostFills={compare.fills} size={220} dark={false} showCenter={false} showLabels={false}/>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <RadialBadge sectors={sectors} fills={fills} ghostFills={compare.fills} size={220} dark={false} showCenter={false}/>
           </div>
           <div style={{ fontSize: 13, color: palette.text, marginBottom: 10 }}>
             {sectors.map(s => {
