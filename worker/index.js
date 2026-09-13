@@ -43,6 +43,12 @@ export default {
     }
     return env.ASSETS.fetch(request);
   },
+
+  // Nightly cron (`wrangler.jsonc` `triggers.crons`). Best-effort, fail-soft —
+  // see runSheetBackup.
+  async scheduled(event, env, ctx) {
+    await runSheetBackup(env);
+  },
 };
 
 // Fail closed: browsers always send Origin on a POST, so require it to match.
@@ -241,29 +247,37 @@ async function appendToSheet(env, row) {
   return true;
 }
 
+// Low-level Resend POST: the one place that knows the endpoint, auth header,
+// and upstream timeout. sendEmail (result email) and the nightly sheet
+// backup below both build a payload and go through here — no second Resend
+// client.
+async function postToResend(env, payload, idempotencyKey) {
+  const headers = { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' };
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) { console.error('email_send_failed', { outcome: 'http_error', status: r.status }); return false; }
+  return true;
+}
+
 export async function sendEmail(env, to, campName, resultUrl, answers, greens, nonce) {
   if (!env.RESEND_API_KEY || !resultUrl) return false;
   const href = escAttr(resultUrl);
   // The nonce doubles as a Resend idempotency key: a reload-replayed POST
   // reuses the nonce so Resend drops the duplicate send. An explicit resend
   // (edit & resend) mints a fresh nonce client-side, so it still goes out.
-  const headers = { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' };
-  if (nonce) headers['Idempotency-Key'] = 'grg/' + nonce;
-  const r = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    headers,
-    body: JSON.stringify({
-      from: 'Green Radius <hello@greenradi.us>',
-      reply_to: 'greenthemecamps@burningman.org',
-      to: [to],
-      subject: `Your Green Radius: ${campName}`,
-      html: `<p>Thanks for playing the Green Radius Game!</p>${headlineEmailHtml(greens)}<p><a href="${href}">View &amp; share your Green Radius →</a></p>${greenUpEmailHtml(answers)}<p style="color:#888;font-size:12px">Questions? Just reply to this email. It reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
-      text: buildEmailText(resultUrl, answers, greens),
-    }),
-  });
-  if (!r.ok) { console.error('email_send_failed', { outcome: 'http_error', status: r.status }); return false; }
-  return true;
+  return postToResend(env, {
+    from: 'Green Radius <hello@greenradi.us>',
+    reply_to: 'greenthemecamps@burningman.org',
+    to: [to],
+    subject: `Your Green Radius: ${campName}`,
+    html: `<p>Thanks for playing the Green Radius Game!</p>${headlineEmailHtml(greens)}<p><a href="${href}">View &amp; share your Green Radius →</a></p>${greenUpEmailHtml(answers)}<p style="color:#888;font-size:12px">Questions? Just reply to this email. It reaches the Green Theme Camp Community team.</p><p style="color:#888;font-size:12px">greenthemecampcommunity.org</p>`,
+    text: buildEmailText(resultUrl, answers, greens),
+  }, nonce ? 'grg/' + nonce : undefined);
 }
 
 // Total Yes across all sectors, shared by the HTML and plain-text headlines.
@@ -492,6 +506,71 @@ async function fetchSheetRows(env) {
   // so callers show a retryable error instead of a misleading "No camps yet".
   if (!Array.isArray(data.rows)) return { rows: null, reason: 'sheet_bad_payload' };
   return { rows: data.rows, reason: null };
+}
+
+// ── Nightly sheet backup (cron) ──────────────────────────────────────────────
+// Cheap insurance: the Google Sheet is the only datastore. Reuses
+// fetchSheetRows (the exact read /api/city already uses) so there's one place
+// that ever talks to the Apps Script doGet, CSVs every row/field it returns,
+// and emails it as a Resend attachment to BACKUP_EMAIL. Entirely best-effort:
+// any missing secret or upstream failure logs a structured event and returns,
+// never throws — a cron failure must never page anyone.
+export async function runSheetBackup(env) {
+  if (!env.BACKUP_EMAIL) { console.log(JSON.stringify({ type: 'backup_skipped', reason: 'no_backup_email' })); return; }
+  if (!env.RESEND_API_KEY) { console.log(JSON.stringify({ type: 'backup_skipped', reason: 'no_resend_key' })); return; }
+
+  const read = await fetchSheetRows(env);
+  if (!read.rows) {
+    // no_backend = SHEETS_WEBAPP_URL isn't set, i.e. another missing secret;
+    // anything else is a real upstream failure.
+    if (read.reason === 'no_backend') console.log(JSON.stringify({ type: 'backup_skipped', reason: 'no_backend' }));
+    else console.error(JSON.stringify({ type: 'backup_failed', reason: read.reason }));
+    return;
+  }
+
+  const csv = rowsToCsv(read.rows);
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const ok = await postToResend(env, {
+    from: 'Green Radius <hello@greenradi.us>',
+    to: [env.BACKUP_EMAIL],
+    subject: `Green Radius backup ${dateStr} (${read.rows.length} rows)`,
+    text: `Attached: ${read.rows.length} rows from the Green Radius sheet.`,
+    attachments: [{ filename: `green-radius-${dateStr}.csv`, content: toBase64(csv) }],
+  });
+  if (ok) console.log(JSON.stringify({ type: 'backup_sent', rows: read.rows.length }));
+  else console.error(JSON.stringify({ type: 'backup_failed', reason: 'resend_error', rows: read.rows.length }));
+}
+
+// RFC 4180 CSV: header is the union of keys across every row (rows can carry
+// slightly different shapes over time), in first-seen order. A field is
+// quoted, with embedded quotes doubled, when it contains a comma, quote, or
+// newline. Nested values (the raw `answers`/`greens` objects the sheet read
+// returns) are JSON-stringified into their cell rather than dropped.
+export function rowsToCsv(rows) {
+  const keys = [];
+  const seen = new Set();
+  for (const row of rows) {
+    for (const k of Object.keys(row || {})) {
+      if (!seen.has(k)) { seen.add(k); keys.push(k); }
+    }
+  }
+  const cell = (v) => {
+    if (v == null) return '';
+    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [keys.map(cell).join(',')];
+  for (const row of rows) lines.push(keys.map(k => cell(row[k])).join(','));
+  return lines.join('\r\n');
+}
+
+// btoa is Latin1-only; round-trip through UTF-8 bytes so non-ASCII cells
+// (camp names, notes) survive the CSV attachment intact.
+function toBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
 }
 
 // ── Public city tally: aggregates + the camps map list, colo-cached ─────────
