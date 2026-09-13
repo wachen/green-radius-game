@@ -318,9 +318,8 @@ function GreenRadiusGame({ palette }) {
   const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
   // R4: per-submission idempotency nonce, persisted (additive key) so a reload
   // mid-POST replays with the SAME nonce and the backend can dedupe the row and
-  // the email. Retry and "edit & resend" both reuse it (see runSubmit) so a
-  // same-nonce resend is a safe retry, not a fresh submission. Cleared with the
-  // rest of the result state.
+  // the email. Reused by Try Again; "edit & resend" mints a fresh one (that
+  // send is meant to go out again). Cleared with the rest of the result state.
   const [submitNonce, setSubmitNonce] = useState(saved?.submitNonce || null);
   const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
   const [submitResult, setSubmitResult] = useState(null); // { sheet:'ok'|'err', email:'sent'|'err' } from the last POST
@@ -426,16 +425,19 @@ function GreenRadiusGame({ palette }) {
   // outcomes independently ({sheet, email}), so we keep them separate and tell the
   // player the truth rather than collapsing both into "sent". A generation token
   // (submitGenRef) voids a stale in-flight request if the player exits mid-send.
-  const runSubmit = useCallback((overrideEmail) => {
+  const runSubmit = useCallback((overrideEmail, freshNonce) => {
     const gen = ++submitGenRef.current;
     autoSentRef.current = true;
-    // Always reuse the persisted nonce, for Try Again AND edit & resend: the
-    // Apps Script dedupes a same-nonce row (returns ok, no duplicate row — the
-    // sheet keeps the first-recorded email, which is fine, the sheet isn't
-    // what's broken) and Resend's Idempotency-Key on that nonce means a
-    // resend after a genuinely failed send still goes out (a fresh retry of a
-    // failed idempotency key isn't a duplicate to Resend).
-    const nonce = submitNonce || genCampId();
+    // Reuse the persisted nonce (reload/Try Again = the same submission, and
+    // that's exactly the replay the sheet dedupe + Resend idempotency key
+    // exist for). freshNonce (edit & resend) mints a new one instead: Resend's
+    // Idempotency-Key is keyed on the nonce, so replaying the SAME nonce would
+    // either fail to deliver a corrected address (a successful key returns its
+    // cached response, not a new send) or not redeliver at all, so a fresh key
+    // is required for the email leg to actually go out again. A fresh nonce
+    // may add a second sheet row with the corrected email; that's an accepted
+    // tradeoff (admin dedup merges by campId).
+    const nonce = (!freshNonce && submitNonce) || genCampId();
     if (nonce !== submitNonce) setSubmitNonce(nonce);
     fontEmbedCss(); // warm the font cache so the Download button is snappy
     (async () => {
@@ -725,7 +727,7 @@ function GreenRadiusGame({ palette }) {
       setCamp(c => ({ ...c, email: e }));
       setEditingEmail(false);
       setSubmitResult(null);
-      runSubmit(e); // corrected address directly (setCamp hasn't flushed); same nonce
+      runSubmit(e, true); // corrected address directly (setCamp hasn't flushed) + a fresh nonce so the resend isn't deduped
     }
     const emailDraftOk = isValidEmail(emailDraft);
     function handleExit() {
