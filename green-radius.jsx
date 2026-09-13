@@ -318,8 +318,9 @@ function GreenRadiusGame({ palette }) {
   const [submittedAt, setSubmittedAt] = useState(saved?.submittedAt || null);
   // R4: per-submission idempotency nonce, persisted (additive key) so a reload
   // mid-POST replays with the SAME nonce and the backend can dedupe the row and
-  // the email. Reused by Try Again; "edit & resend" mints a fresh one (that
-  // send is meant to go out again). Cleared with the rest of the result state.
+  // the email. Retry and "edit & resend" both reuse it (see runSubmit) so a
+  // same-nonce resend is a safe retry, not a fresh submission. Cleared with the
+  // rest of the result state.
   const [submitNonce, setSubmitNonce] = useState(saved?.submitNonce || null);
   const [submitState, setSubmitState] = useState('idle'); // idle | sending | done | error
   const [submitResult, setSubmitResult] = useState(null); // { sheet:'ok'|'err', email:'sent'|'err' } from the last POST
@@ -425,12 +426,16 @@ function GreenRadiusGame({ palette }) {
   // outcomes independently ({sheet, email}), so we keep them separate and tell the
   // player the truth rather than collapsing both into "sent". A generation token
   // (submitGenRef) voids a stale in-flight request if the player exits mid-send.
-  const runSubmit = useCallback((overrideEmail, freshNonce) => {
+  const runSubmit = useCallback((overrideEmail) => {
     const gen = ++submitGenRef.current;
     autoSentRef.current = true;
-    // Reuse the persisted nonce (reload/Try Again = the same submission);
-    // freshNonce (edit & resend) mints a new one so that email isn't deduped.
-    const nonce = (!freshNonce && submitNonce) || genCampId();
+    // Always reuse the persisted nonce, for Try Again AND edit & resend: the
+    // Apps Script dedupes a same-nonce row (returns ok, no duplicate row — the
+    // sheet keeps the first-recorded email, which is fine, the sheet isn't
+    // what's broken) and Resend's Idempotency-Key on that nonce means a
+    // resend after a genuinely failed send still goes out (a fresh retry of a
+    // failed idempotency key isn't a duplicate to Resend).
+    const nonce = submitNonce || genCampId();
     if (nonce !== submitNonce) setSubmitNonce(nonce);
     fontEmbedCss(); // warm the font cache so the Download button is snappy
     (async () => {
@@ -487,6 +492,15 @@ function GreenRadiusGame({ palette }) {
     if (autoSentRef.current) return;
     runSubmit();
   }, [phase, submittedAt, runSubmit]);
+
+  // The row landed but the email didn't: pre-fill the editable address with
+  // the one already on file so the "fix your address" affordance opens with
+  // something sensible to correct, not a blank field.
+  useEffect(() => {
+    if (submitResult && submitResult.sheet === 'ok' && submitResult.email !== 'sent') {
+      setEmailDraft(d => d || (camp.email || '').trim());
+    }
+  }, [submitResult, camp.email]);
 
   // The offscreen twin only mounts on the done screen, so this no-ops elsewhere.
   usePreRasterizedCard(cardSvgRef, cardPngRef, [phase, fills]);
@@ -685,7 +699,12 @@ function GreenRadiusGame({ palette }) {
   if (phase === 'done') {
     const year = new Date().getFullYear();
     const email = (camp.email || '').trim();
-    const needsRetry = submitState === 'error' || (submitResult && submitResult.email !== 'sent');
+    // The row itself didn't go through (network/5xx, or the Worker reported
+    // sheet:'err') — independent of whether the email happened to send.
+    const showRetry = submitState === 'error' || (submitResult && submitResult.sheet !== 'ok');
+    // The row landed but the email didn't (or the player wants to fix a typo
+    // after a full success) — offer the editable address + Resend.
+    const emailNeedsFix = !!submitResult && submitResult.sheet === 'ok' && submitResult.email !== 'sent';
 
     const handleShare = () => shareResultCard({
       pngBlob: cardPngRef.current, campName: camp.campName, total: totalYesAll, url: resultUrl, setCopied,
@@ -695,16 +714,18 @@ function GreenRadiusGame({ palette }) {
       try { await downloadSvgAsPng(cardSvgRef.current, cardFilename(camp.campName)); } catch {}
     }
     function handleRetry() {
+      trackEvent('submit_retry', { mode: mode === 'form' ? 'form' : 'board' });
       setSubmitResult(null);
-      runSubmit(); // bumps the generation token, re-runs the POST
+      runSubmit(); // bumps the generation token, re-runs the POST with the same nonce
     }
     function handleResend() {
       const e = emailDraft.trim();
       if (!isValidEmail(e)) return; // ignore an obviously bad address
+      trackEvent('email_resend', { mode: mode === 'form' ? 'form' : 'board' });
       setCamp(c => ({ ...c, email: e }));
       setEditingEmail(false);
       setSubmitResult(null);
-      runSubmit(e, true); // corrected address directly (setCamp hasn't flushed) + a fresh nonce so the resend isn't deduped
+      runSubmit(e); // corrected address directly (setCamp hasn't flushed); same nonce
     }
     const emailDraftOk = isValidEmail(emailDraft);
     function handleExit() {
@@ -747,17 +768,17 @@ function GreenRadiusGame({ palette }) {
         <div role="status" aria-live="polite" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
           {submitState === 'sending'
             ? <>Emailing your results to <strong>{email}</strong>…</>
-            : submitState === 'error'
-              ? <>We couldn't reach the server, but your card is safe. Download it or copy the share link below, then tap Try Again.</>
-              : submitResult && submitResult.email !== 'sent'
-                ? <>You're in the community tally, but the email didn't go through. Download your card or copy the share link below.</>
+            : showRetry
+              ? <>Your result didn't go through. Tap to try again.</>
+              : emailNeedsFix
+                ? <>Didn't get the email? Resend it, or fix your address.</>
                 : <>{greenUpSteps(sectors, answers, customNotes).length
                     ? <>Your result and Green-Up Plan are in your inbox at <strong>{email}</strong>.</>
                     : <>Results sent to <strong>{email}</strong>.</>} Not there? Check spam.</>}
         </div>
 
         {submitState !== 'sending' && (
-          editingEmail ? (
+          (editingEmail || emailNeedsFix) ? (
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               <input
                 type="email" value={emailDraft} onChange={e => setEmailDraft(e.target.value)}
@@ -770,9 +791,11 @@ function GreenRadiusGame({ palette }) {
                 style={{ padding: '0 16px', borderRadius: 10, border: 'none', background: palette.accentDark, color: '#fff',
                   fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
                   cursor: emailDraftOk ? 'pointer' : 'default', opacity: emailDraftOk ? 1 : 0.5, minHeight: 44 }}>Resend</button>
-              <button onClick={() => setEditingEmail(false)} aria-label="Cancel editing email"
-                style={{ padding: '0 12px', borderRadius: 10, border: `1.5px solid ${palette.text}22`, background: 'transparent',
-                  color: palette.text, fontSize: 16, cursor: 'pointer', minHeight: 44 }}>✕</button>
+              {!emailNeedsFix && (
+                <button onClick={() => setEditingEmail(false)} aria-label="Cancel editing email"
+                  style={{ padding: '0 12px', borderRadius: 10, border: `1.5px solid ${palette.text}22`, background: 'transparent',
+                    color: palette.text, fontSize: 16, cursor: 'pointer', minHeight: 44 }}>✕</button>
+              )}
             </div>
           ) : (
             <button onClick={() => { setEmailDraft(email); setEditingEmail(true); }}
@@ -803,7 +826,7 @@ function GreenRadiusGame({ palette }) {
           </button>
         </div>
 
-        {needsRetry && (
+        {showRetry && (
           <button onClick={handleRetry} disabled={submitState === 'sending'}
             style={{ marginTop: 12, width: '100%', padding: '13px 0', borderRadius: 12,
               border: 'none', background: '#C4483B', color: '#fff',
