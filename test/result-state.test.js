@@ -74,6 +74,32 @@ test('decode of garbage string returns null, does not throw', () => {
   expect(ResultState.decode(null)).toBeNull();
 });
 
+// ─── extractToken: pull a decode()-able token out of a pasted result link ────
+// Used by the done screen's "compare with last year" control (green-radius.jsx)
+// to accept whatever shape a camp actually pastes.
+
+test('extractToken: full URL with ?r= query param', () => {
+  expect(ResultState.extractToken('https://greenradi.us/result/?r=eyJ2IjoyfQ')).toBe('eyJ2IjoyfQ');
+});
+
+test('extractToken: legacy full URL with #hash payload (decode() strips the leading #)', () => {
+  expect(ResultState.extractToken('https://greenradi.us/result/#eyJ2IjoyfQ')).toBe('#eyJ2IjoyfQ');
+});
+
+test('extractToken: bare payload (no URL wrapper) passes through unchanged', () => {
+  expect(ResultState.extractToken('eyJ2IjoyLCJjIjoiRHVzdHkifQ')).toBe('eyJ2IjoyLCJjIjoiRHVzdHkifQ');
+});
+
+test('extractToken: whitespace-padded input is trimmed', () => {
+  expect(ResultState.extractToken('  eyJ2IjoyfQ  ')).toBe('eyJ2IjoyfQ');
+});
+
+test('extractToken: empty/null input returns null, does not throw', () => {
+  expect(ResultState.extractToken('')).toBeNull();
+  expect(ResultState.extractToken(null)).toBeNull();
+  expect(() => ResultState.extractToken('not a real link at all')).not.toThrow();
+});
+
 // ─── campId in the result payload (additive, backward-compatible) ─────────────
 
 test('round-trip: campId is carried through encode/decode when present', () => {

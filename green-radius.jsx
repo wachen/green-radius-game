@@ -64,26 +64,12 @@ function GreenUpPlan({ sectors, answers, notes, palette, emailed }) {
 }
 
 // ─── year-over-year ghost ring (done screen only) ──────────────────────────
-// A pasted result link may be a full URL (?r=, or a legacy #hash link) or a
-// bare payload someone copied out of the middle of one. Pull out whatever
-// ResultState.decode expects; never throws, falls back to treating the input
-// as a bare payload when it isn't a URL at all.
-function extractResultToken(input) {
-  const s = (input || '').trim();
-  if (!s) return '';
-  try {
-    const u = new URL(s, 'https://greenradi.us/result/');
-    const r = u.searchParams.get('r');
-    if (r) return r;
-    if (u.hash) return u.hash; // ResultState.decode strips a leading '#'
-  } catch (e) { /* not a URL; fall through to the bare-payload case below */ }
-  return s;
-}
-
 // Below-the-badge "compare with last year" control. Paste a prior result
 // link and see it decoded client-side: last year's fills become a dashed
 // ghost ring on a second badge, plus a per-sector delta line. No storage, no
-// telemetry, no change to this year's result payload.
+// telemetry, no change to this year's result payload. Link parsing itself
+// (window.ResultState.extractToken) lives in result-state.js, the shared
+// isomorphic module, not here.
 function YearCompare({ sectors, fills, palette }) {
   const [expanded, setExpanded] = useState(false);
   const [input, setInput] = useState('');
@@ -92,7 +78,7 @@ function YearCompare({ sectors, fills, palette }) {
 
   function handleSubmit(e) {
     e.preventDefault();
-    const decoded = window.ResultState.decode(extractResultToken(input));
+    const decoded = window.ResultState.decode(window.ResultState.extractToken(input));
     if (!decoded) { setError("That doesn't look like a result link"); return; }
     setError(null);
     setCompare(decoded);
@@ -133,13 +119,14 @@ function YearCompare({ sectors, fills, palette }) {
           </button>
         </form>
       )}
-      {error && <div style={{ fontSize: 12, color: '#B4463A', marginTop: 6 }}>{error}</div>}
+      {error && <div role="status" aria-live="polite" style={{ fontSize: 12, color: '#B4463A', marginTop: 6 }}>{error}</div>}
 
       {compare && (
         <div style={{ marginTop: 12, textAlign: 'center' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: palette.heading, marginBottom: 10 }}>vs {compare.year}</div>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-            <RadialBadge sectors={sectors} fills={fills} ghostFills={compare.fills} size={220} dark={false} showCenter={false}/>
+          <div role="img" aria-label="Last year's ring compared with this year"
+            style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <RadialBadge sectors={sectors} fills={fills} ghostFills={compare.fills} size={220} dark={false} showCenter={false} showLabels={false}/>
           </div>
           <div style={{ fontSize: 13, color: palette.text, marginBottom: 10 }}>
             {sectors.map(s => {
@@ -1087,11 +1074,4 @@ function GreenRadiusGame({ palette }) {
       )}
     </div>
   );
-}
-
-// Isomorphic export, same guarded pattern as src/core.jsx: a no-op in the
-// browser (module is undefined there), lets bun test exercise the pure
-// link-parsing helper directly.
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { extractResultToken };
 }

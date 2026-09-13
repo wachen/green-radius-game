@@ -101,7 +101,7 @@ function RadialBadge({ sectors, fills, size = 320, dark = true, showLabels = tru
   // Year-over-year ghost ring (optional): a prior result's lit segments, muted
   // and dashed, drawn under the live segments below so an unchanged/lit cell
   // fully covers it and a now-empty one lets the outline show through the
-  // translucent base cell — a visual "you used to reach this far here".
+  // translucent base cell, a visual "you used to reach this far here".
   const ghostStroke = dark ? 'rgba(255,255,255,0.55)' : 'rgba(42,38,32,0.55)';
 
   let _litSeen = 0; // running index of filled segments in render order (sector→level→qi)
