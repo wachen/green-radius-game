@@ -12,49 +12,37 @@ review findings are closed except where listed below.
 
 ## Approved — build next, in this order
 
-_(approved 2026-08-08; design in
-`docs/superpowers/specs/2026-08-08-admin-visits-city-design.md`. Field
-deadline: BLAST visits run Tue 9/1 + Wed 9/2, ~a dozen volunteers/day in
-teams of 2-3, so all three must be live well before 9/1.)_
+_Approved 2026-09-12 as the 2027-prep batch; Task-1 ships item 4 (this PR)._
 
-- **Admin Visits tab** (med) — third tab, phone-first: team picker (distinct
-  Visit-column labels, localStorage), the team's camps in `visitOrder` with
-  address/size/score/weakest-sector talking points, route map with numbered
-  pins, "Unassigned: N" strip; volunteer-onboarding checklist in
-  docs/admin-setup.md.
-- **Mark-visited write path** (med) — the one admin write: Apps Script
-  `doPost` `action: "visit"` updates only the Visit cell to `✓ <label>`
-  (Wes deploys); Worker `POST /api/admin/visit` re-validates the Access JWT
-  and logs the caller email; inline are-you-sure button on the route card.
-- **Public /city enrichment** (small-med) — `GET /api/city` grows computed
-  aggregate fields (histogram, weekly counts, opportunities, camp count,
-  total campers) via the isomorphic aggregate.js; `/city/` renders the
-  borrowed panels in the public palette. Aggregates only — the allowlist
-  rule stands. Subsumes the "City histogram / median" deferred idea.
+1. **Nightly sheet backup** (new · med) — the Google Sheet is the only datastore;
+   one accidental deletion or Apps Script mishap loses every response ever
+   submitted. A scheduled Worker cron pulls the admin feed and stores a dated CSV
+   snapshot (R2 free tier, or simply emailed to the owner via Resend). Cheap
+   insurance for irreplaceable data.
+2. **Year-over-year ghost ring** (FE-6 · med) — "paste last year's result link"
+   draws a dashed last-year arc + per-sector deltas. Zero migration (the emailed
+   result link is the durable record). Build now, pays off at BLAST 2027.
+3. **Surface and retry failed submits** (new · small-med) — `/api/complete` is
+   best-effort and returns `{ sheet, email }`, but the done screen never tells the
+   player when a leg failed; on playa connectivity that means silently lost rows
+   and missing keepsake emails. Show a gentle "didn't go through — try again"
+   state with a retry button (the R4 nonce already makes replays safe). A
+   "didn't get the email? resend, or correct your address" affordance ships in
+   the same PR. An email typo is invisible today: the player just never
+   receives their result link, and the link is the durable record.
+4. **Bus-factor / break-glass doc** (SG · small, mostly owner-side) — secrets and
+   the Cloudflare/Resend/Google accounts are single-holder; HSTS means the site
+   can't be casually retired. Document succession or add a co-owner.
 
 ## Proposed — needs Wes's call
 
 _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 
-- **Privacy page + retention/deletion path** (SG · small-med) — the game collects
+- **Privacy page + retention/deletion path** (SG · small-med) (explicitly deferred 2026-09-12) — the game collects
   camp name, lead name, and email with one consent sentence and no privacy page,
   retention policy, or deletion route. Highest-value open gap for something
   holding real emails. Could be a single static page plus a documented "email us
   to delete" path.
-- **Nightly sheet backup** (new · med) — the Google Sheet is the only datastore;
-  one accidental deletion or Apps Script mishap loses every response ever
-  submitted. A scheduled Worker cron pulls the admin feed and stores a dated CSV
-  snapshot (R2 free tier, or simply emailed to the owner via Resend). Cheap
-  insurance for irreplaceable data.
-- **Surface and retry failed submits** (new · small-med) — `/api/complete` is
-  best-effort and returns `{ sheet, email }`, but the done screen never tells the
-  player when a leg failed; on playa connectivity that means silently lost rows
-  and missing keepsake emails. Show a gentle "didn't go through — try again"
-  state with a retry button (the R4 nonce already makes replays safe).
-- **Resend / fix-typo email control** (new · small) — a "didn't get the email?
-  resend, or correct your address" affordance on the done screen. An email typo
-  is invisible today: the player just never receives their result link, and the
-  link is the durable record.
 - **Synthetic canary submission** (new · med) — a scheduled cron POSTs a flagged
   test completion through the real pipeline (Apps Script append + Resend email)
   and alerts when either leg fails, so an expired Apps Script deployment or dead
@@ -63,13 +51,10 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 - **On-playa offline story** (SG · med) — runtime is vendored, but there's no
   service worker or "needs signal" messaging. Decide the story before the burn:
   add a minimal service worker, or just honest messaging.
-- **PDF version stamp / refresh** (SG · small) — the linked "v26 FINAL" board PDF
+- **PDF version stamp / refresh** (SG · small) (explicitly deferred 2026-09-12) — the linked "v26 FINAL" board PDF
   (May 19) predates the Levels scoring rework, so paper players play a different
   game. Cheapest fix: stamp the web app's rules version on the download link and
   note the differences; fuller fix needs a regenerated PDF from GTCC.
-- **Bus-factor / break-glass doc** (SG · small, mostly owner-side) — secrets and
-  the Cloudflare/Resend/Google accounts are single-holder; HSTS means the site
-  can't be casually retired. Document succession or add a co-owner.
 - **Full-playthrough CI test** (new · med) — extend the #74 boot-smoke into one
   scripted headless run that spins, answers all 60 questions, reaches the done
   screen, and checks the encoded result payload; catches game-logic and scoring
@@ -100,13 +85,11 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 - **Printable camp poster** (new · med) — a letter-size printable ("Our Green
   Radius" wheel + camp name + QR) generated from a result, for camps to post at
   their frontage; extends the share card into the physical playa.
-- **Year-over-year ghost ring** (FE-6 · med) — "paste last year's result link"
-  draws a dashed last-year arc + per-sector deltas. Zero migration (the emailed
-  result link is the durable record). Build now, pays off at BLAST 2027.
-- **Year-keyed question content** (new · med) — give `game-data.js` a year key
-  and archive the current set when BLAST 2027 content lands, instead of
-  overwriting; old result links keep decoding against the question set they were
-  actually played on.
+- **Year-keyed question content** (new · med) (deferred 2026-09-12: do it when
+  2027 content lands, not before) — give `game-data.js` a year key and archive
+  the current set when BLAST 2027 content lands, instead of overwriting; old
+  result links keep decoding against the question set they were actually
+  played on.
 - **Post-burn retrospective loop** (new · large) — after the burn, an email
   invites camps to a short "how did it actually go?" pass over the same sectors,
   rendering pledge-vs-reality on the wheel. Strong story for GTCC, but a real
@@ -147,12 +130,16 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 
 - **Remove the post-Burn map banner** from the home screen before the 2027
   season opens. It has no auto-expiry by choice (#114), so this is the reminder.
+  Also drop the literal year from the home copy if any remains, and bump
+  `STORAGE_VERSION` when the 2027 question set lands so half-finished 2026
+  saves do not resume into 2027.
 
-- **Funnel dashboard first look** — needed ~2 weeks of Web Analytics data;
-  that window has passed, so the first look can happen any time (as of
-  2026-08-05). (The `Visit` column deploy that used to sit here shipped
-  2026-08-05: Wes added the header and redeployed Code.gs, so visit tracking
-  is active end to end.)
+- **Season rollover**: when the 2027 season opens, follow the runbook in
+  `docs/admin-setup.md`'s "Season rollover" section for the new yearly
+  sheet, fresh Apps Script deployment, and re-pointed `SHEETS_WEBAPP_URL`
+  secret. When the 2027 question set lands, key `game-data.js` sets by year
+  and keep the 2026 set intact so old result links still decode against the
+  questions they were played on; bump `STORAGE_VERSION` in the same PR.
 
 ## Shelved — do not build without an explicit ask
 
@@ -167,6 +154,67 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
   consent copy updated), a permanent home banner linking to it, the Momentum
   chart anchored to the newest submission, and a "Where the city shines"
   companion to the opportunities panel (#114) - 2026-09-11
+
+- Repoints the home banner at the post-Burn public map instead of the signup
+  deadline; pairs `intro_engaged`'s reset with every `game_started` so the
+  intro drop-off denominator is accurate instead of an upper bound; documents
+  the admin Access session-length behavior in docs/admin-setup.md (#113) -
+  2026-08-17
+
+- Docs accuracy pass, no behavior change: corrected the Worker route count
+  (eight, not seven) across CLAUDE.md/README, documented the
+  `run_worker_first` trap that made #110 a no-op, added a crawler-surface
+  section, and folded in pending doc edits (#112) - 2026-08-12
+
+- Fixes the /result/ noindex from #110, which silently did nothing because
+  that route is Worker-served and bypasses `_headers`; the noindex now lives
+  as a `<meta>` tag in result/index.html instead (#111) - 2026-08-11
+
+- Adds robots.txt (had become the Worker's largest invocation source),
+  declaring a Content-Signal that allows crawl/index while blocking AI
+  training, plus the two print-and-play PDFs added to sitemap.xml (#110) -
+  2026-08-11
+
+- `/api/city` serves stale-while-revalidate so a visitor never waits on a
+  slow sheet round-trip; new `intro_engaged`/`intro_blocked` funnel events
+  split the intro drop-off into bounced-on-sight vs refused-by-validation;
+  all funnel calls now route through a guarded `trackEvent` after a
+  beacon.js-blocked ad blocker was found to break game start entirely; adds
+  favicon.ico, apple-touch-icon-precomposed.png, sitemap.xml, and llms.txt
+  (#109) - 2026-08-10
+
+- Simplification sweep: unified duplicated share/telemetry code into
+  share-card.jsx and beacon.js, dropped dead code (debugFill, unused wheel
+  props, the write-only `cv` stamp), folded boot-admin.jsx into
+  admin/admin.jsx, and deduplicated several admin templates; no behavior
+  change (#108) - 2026-08-09
+
+- Public /city enrichment: `GET /api/city` grows a computed `stats` key
+  (campers sum, score histogram, weekly counts, top opportunities) via the
+  isomorphic aggregate.js; `/city/` renders the borrowed panels in the
+  public palette. Aggregates only, per the allowlist rule (#107) -
+  2026-08-09
+
+- Mark-visited write path: the one admin write. Apps Script `doPost`
+  `action: "visit"` updates only the Visit cell to `✓ <label>`; Worker
+  `POST /api/admin/visit` re-validates the Access JWT and logs the caller
+  email; inline are-you-sure button on the route card (#106) - 2026-08-09
+
+- Admin Visits tab: third tab, phone-first, with a team picker (distinct
+  Visit-column labels, localStorage), the team's camps in `visitOrder` with
+  address/size/score/weakest-sector talking points, route map with numbered
+  pins, "Unassigned: N" strip; volunteer-onboarding checklist in
+  docs/admin-setup.md (#105) - 2026-08-08
+
+- Admin Playa Map camp-name labels placed to avoid overlapping a pin,
+  another label, or the Open camping box; the City tab gains a Visit
+  Progress panel beside Sector Averages; docs/apps-script/ is gitignored as
+  a deliberately local-only reference (#104) - 2026-08-07
+
+- Admin City tab layout, round two: Sector Averages and Top Camps become
+  adjoining columns under the stat tiles, the wheel hero holds a steady
+  height, button labels are no longer text-selectable, and the intro's Camp
+  location placeholder is "4:20 & D" (#103) - 2026-08-07
 
 - Housekeeping round from a five-agent codebase review: shared helpers
   (isValidEmail, campFills, Badge tones, withMockFetch), shared.css +

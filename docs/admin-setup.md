@@ -343,3 +343,49 @@ npx wrangler secret put BACKUP_EMAIL
 
 Missing this secret (or `RESEND_API_KEY`/`SHEETS_WEBAPP_URL`) just skips the
 backup and logs `backup_skipped` (it never blocks a deploy).
+
+## 10. Season rollover
+
+Each new BLAST season gets its own Google Sheet and its own Apps Script
+deployment bound to it. The previous season's sheet stays put as the
+archive, and the admin page only ever reads the current one. Owner-side,
+outside this repo except the last two steps.
+
+1. **Create the new yearly sheet.** In the master spreadsheet, add a
+   `<YEAR> Results` tab (e.g. `2027 Results`) with the same 20-column header
+   row as the previous season's tab, in the same order: Timestamp, Camp,
+   Lead, Email, Year, the six sector columns, Total, Source, Result URL,
+   Answers JSON, Schema Version, Location, Camp Size, then the owner-typed
+   **Hidden** and **Visit** columns after that (sections 3 and 6 above;
+   `doPost` writes columns A–R positionally, so Hidden and Visit must stay
+   after R).
+2. **Open the bound Apps Script project** (the same one `doGet`/`doPost` live
+   in) and paste in `docs/apps-script/Code.gs` if it isn't already current.
+3. **Set `SHEET_NAME`** (the constant `doGet`, `doPost`, and the visit branch
+   in section 8 all read the sheet name from) to the new tab's exact name,
+   `'<YEAR> Results'`.
+4. **Set the shared-secret script property**: Project Settings → Script
+   Properties → `SHARED_SECRET` (section 1 above), to the same value the
+   Worker will get in step 6. Reuse the existing secret unless you're
+   rotating it.
+5. **Deploy as a web app**: Deploy → New deployment → Web app, **Execute as**
+   Me (the owner), **Who has access** Anyone. Copy the new `/exec` URL.
+6. **Re-point the Worker secret** with the new URL:
+   `npx wrangler secret put SHEETS_WEBAPP_URL` (paste the `/exec` URL from
+   step 5 when prompted; never commit it, see CLAUDE.md's Secrets section).
+7. **Send one test submission** through the live site, then flag it
+   **Hidden** (section 3) so it never counts in a real tally.
+8. **Confirm `/api/city` shows the new season.** It filters to the maximum
+   `Year` present in the sheet (see `docs/architecture.md`), so once the test
+   row lands, the public tally should reflect the new sheet and not blend
+   with the prior season's numbers.
+9. **In the repo:** remove `MapBanner` from `src/home.jsx` (the permanent
+   post-Burn map banner, #114); if the question set changed, key
+   `game-data.js` sets by year and keep the prior season's set intact so old
+   result links still decode against the questions they were played on, and
+   bump `STORAGE_VERSION` in `src/core.jsx` in the same PR so a half-finished
+   save from the previous season doesn't resume into the new one.
+
+Read this file's earlier sections before rolling over a season. The column
+order, the `SHARED_SECRET` property name, and the deployment steps above must
+match what's actually deployed; don't improvise them from memory.
