@@ -329,3 +329,17 @@ its row (bad campId/campName/year) or hits a sheet with no `Visit` column yet
 (section 6 not done) cleanly returns `{ ok: false, ... }`, the Worker relays a
 502, the button shows an error, and no row is touched — the "nothing breaks"
 property only holds after this section is deployed.
+
+## 9. Nightly sheet backup (`BACKUP_EMAIL`)
+
+A daily Cron Trigger emails a CSV of the whole sheet to a single address as
+cheap insurance (the sheet is the only datastore). Nothing to set up on the
+Apps Script side: it reuses the same `doGet` read path as the admin viewer
+and `/api/city`. Set the destination address:
+
+```
+npx wrangler secret put BACKUP_EMAIL
+```
+
+Missing this secret (or `RESEND_API_KEY`/`SHEETS_WEBAPP_URL`) just skips the
+backup and logs `backup_skipped` (it never blocks a deploy).

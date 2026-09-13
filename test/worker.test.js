@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
-import worker, { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, accessJwtEmail, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, shapeAdminRows, computeCityBody } from '../worker/index.js';
+import worker, { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, accessJwtEmail, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, shapeAdminRows, computeCityBody, runSheetBackup, rowsToCsv } from '../worker/index.js';
 import GameData from '../game-data.js';
 import AdminAggregate from '../admin/aggregate.js';
 
@@ -754,5 +754,103 @@ describe('GET /api/city stale-while-revalidate', () => {
   test('an entry old enough to mean failing refreshes is flagged stale', async () => {
     const { body } = await cityGet(45);
     expect(body.stale).toBe(true);
+  });
+});
+
+describe('rowsToCsv', () => {
+  test('quotes commas, quotes, and newlines per RFC 4180', () => {
+    const csv = rowsToCsv([{ campName: 'Dusty, Camp', note: 'She said "hi"', multi: 'line1\nline2' }]);
+    const [header, row] = csv.split('\r\n');
+    expect(header).toBe('campName,note,multi');
+    expect(row).toBe('"Dusty, Camp","She said ""hi""","line1\nline2"');
+  });
+
+  test('header is the union of keys across rows, in first-seen order', () => {
+    const csv = rowsToCsv([{ a: 1, b: 2 }, { b: 3, c: 4 }]);
+    const [header, r1, r2] = csv.split('\r\n');
+    expect(header).toBe('a,b,c');
+    expect(r1).toBe('1,2,');
+    expect(r2).toBe(',3,4');
+  });
+
+  test('nested objects are JSON-stringified into the cell', () => {
+    const csv = rowsToCsv([{ greens: { food: 3, water: 4 } }]);
+    const [, row] = csv.split('\r\n');
+    expect(row).toBe('"{""food"":3,""water"":4}"');
+  });
+});
+
+describe('runSheetBackup (nightly cron)', () => {
+  const FULL_ENV = { BACKUP_EMAIL: 'owner@example.com', RESEND_API_KEY: 'k', SHEETS_WEBAPP_URL: 'https://script.google.com/fake', SHEETS_SHARED_SECRET: 's' };
+  const sheetRows = [
+    { campName: 'Camp A', email: 'a@a.co', greens: { food: 1 }, answers: { q1: 'yes' } },
+    { campName: 'Camp B', email: 'b@b.co', greens: { food: 2 }, answers: { q1: 'no' } },
+  ];
+
+  test('happy path: Resend called once with an attachment whose decoded CSV has the header and N rows', async () => {
+    let sent;
+    await withMockFetch(async (url, opts) => {
+      if (String(url).includes('script.google.com')) return new Response(JSON.stringify({ rows: sheetRows }), { status: 200 });
+      sent = JSON.parse(opts.body);
+      return new Response('{}', { status: 200 });
+    }, () => runSheetBackup(FULL_ENV));
+
+    expect(sent).toBeTruthy();
+    expect(sent.to).toEqual(['owner@example.com']);
+    expect(sent.subject).toMatch(/^Green Radius backup \d{4}-\d{2}-\d{2} \(2 rows\)$/);
+    expect(sent.attachments.length).toBe(1);
+    expect(sent.attachments[0].filename).toMatch(/^green-radius-\d{4}-\d{2}-\d{2}\.csv$/);
+    const decoded = Buffer.from(sent.attachments[0].content, 'base64').toString('utf8');
+    const lines = decoded.split('\r\n');
+    expect(lines[0]).toBe('campName,email,greens,answers');
+    expect(lines.length).toBe(3); // header + 2 rows
+  });
+
+  test('missing BACKUP_EMAIL: no fetch to Resend', async () => {
+    let resendCalled = false;
+    await withMockFetch(async (url, opts) => {
+      if (String(url).includes('api.resend.com')) resendCalled = true;
+      return new Response(JSON.stringify({ rows: sheetRows }), { status: 200 });
+    }, () => runSheetBackup({ ...FULL_ENV, BACKUP_EMAIL: undefined }));
+    expect(resendCalled).toBe(false);
+  });
+
+  test('sheet read failure: backup_failed logged, no Resend call', async () => {
+    let resendCalled = false;
+    const originalError = console.error;
+    let logged;
+    console.error = (line) => { logged = line; };
+    try {
+      await withMockFetch(async (url) => {
+        if (String(url).includes('api.resend.com')) { resendCalled = true; return new Response('{}', { status: 200 }); }
+        return new Response('boom', { status: 500 });
+      }, () => runSheetBackup(FULL_ENV));
+    } finally { console.error = originalError; }
+    expect(resendCalled).toBe(false);
+    const evt = JSON.parse(logged);
+    expect(evt.type).toBe('backup_failed');
+  });
+
+  test('Resend fetch rejects: scheduled()/runSheetBackup resolves without throwing, logs backup_failed once', async () => {
+    const originalError = console.error;
+    const logged = [];
+    console.error = (line) => { logged.push(line); };
+    let threw = false;
+    try {
+      await withMockFetch(async (url) => {
+        if (String(url).includes('script.google.com')) return new Response(JSON.stringify({ rows: sheetRows }), { status: 200 });
+        throw new Error('network down'); // simulates a rejected fetch/AbortSignal.timeout
+      }, () => worker.scheduled({}, FULL_ENV, {}));
+    } catch { threw = true; }
+    finally { console.error = originalError; }
+
+    expect(threw).toBe(false);
+    // Exactly one console.error line, and it's the consolidated backup_failed
+    // event (postToResend's own email_send_failed log is suppressed for this
+    // caller so a Resend failure isn't double-logged).
+    expect(logged.length).toBe(1);
+    const evt = JSON.parse(logged[0]);
+    expect(evt.type).toBe('backup_failed');
+    expect(evt.rows).toBe(2);
   });
 });

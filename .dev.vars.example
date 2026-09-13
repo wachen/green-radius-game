@@ -8,3 +8,5 @@ SHEETS_WEBAPP_URL=
 SHEETS_SHARED_SECRET=
 # Resend API key for sending the result email
 RESEND_API_KEY=
+# Destination address for the nightly sheet-backup CSV (cron -> scheduled())
+BACKUP_EMAIL=

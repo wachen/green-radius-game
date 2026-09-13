@@ -8,6 +8,14 @@ so every squash-merged PR below is effectively a release. From PR #44 onward the
 `APP_VERSION` stamp (shown at the bottom of the home screen) equals the PR number, so `vNN`
 and `#NN` refer to the same release. Entries are grouped newest-first by milestone.
 
+## 2027 prep: freeze the season, harden for next year (#115–)
+
+- Nightly sheet backup: a daily Cron Trigger (10:00 UTC) reads the sheet through
+  the same path `/api/city` uses and emails every row as a CSV attachment to the
+  new `BACKUP_EMAIL` Worker secret via Resend. Fail-soft throughout: a missing
+  secret logs `backup_skipped`, a failed leg logs `backup_failed` once, and the
+  handler never throws (#115)
+
 ## Roadmap round: reliability & delight (#82–)
 
 - Public city map on `/city/`: every camp that played this season, pinned at its
