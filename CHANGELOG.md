@@ -10,6 +10,12 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## 2027 prep: freeze the season, harden for next year (#115–)
 
+- Year-over-year ghost ring on the done screen: paste last year's result link
+  under "Compare with last year" and a second badge draws last year's fills as
+  a dashed outline ring under this year's, with a "vs {year}" heading and a
+  per-sector delta line. Client-only, no storage, no payload change; link
+  parsing lives in `result-state.js` as `ResultState.extractToken`. Roadmap:
+  the 2027-prep batch moves to Recently done (#118)
 - Done screen surfaces a failed submit ("Your result didn't go through. Tap to
   try again.") with a Retry that replays the same nonce, and always offers
   "Didn't get the email? Resend it, or fix your address." with an editable
