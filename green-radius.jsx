@@ -428,8 +428,15 @@ function GreenRadiusGame({ palette }) {
   const runSubmit = useCallback((overrideEmail, freshNonce) => {
     const gen = ++submitGenRef.current;
     autoSentRef.current = true;
-    // Reuse the persisted nonce (reload/Try Again = the same submission);
-    // freshNonce (edit & resend) mints a new one so that email isn't deduped.
+    // Reuse the persisted nonce (reload/Try Again = the same submission, and
+    // that's exactly the replay the sheet dedupe + Resend idempotency key
+    // exist for). freshNonce (edit & resend) mints a new one instead: Resend's
+    // Idempotency-Key is keyed on the nonce, so replaying the SAME nonce would
+    // either fail to deliver a corrected address (a successful key returns its
+    // cached response, not a new send) or not redeliver at all, so a fresh key
+    // is required for the email leg to actually go out again. A fresh nonce
+    // may add a second sheet row with the corrected email; that's an accepted
+    // tradeoff (admin dedup merges by campId).
     const nonce = (!freshNonce && submitNonce) || genCampId();
     if (nonce !== submitNonce) setSubmitNonce(nonce);
     fontEmbedCss(); // warm the font cache so the Download button is snappy
@@ -487,6 +494,15 @@ function GreenRadiusGame({ palette }) {
     if (autoSentRef.current) return;
     runSubmit();
   }, [phase, submittedAt, runSubmit]);
+
+  // The row landed but the email didn't: pre-fill the editable address with
+  // the one already on file so the "fix your address" affordance opens with
+  // something sensible to correct, not a blank field.
+  useEffect(() => {
+    if (submitResult && submitResult.sheet === 'ok' && submitResult.email !== 'sent') {
+      setEmailDraft(d => d || (camp.email || '').trim());
+    }
+  }, [submitResult, camp.email]);
 
   // The offscreen twin only mounts on the done screen, so this no-ops elsewhere.
   usePreRasterizedCard(cardSvgRef, cardPngRef, [phase, fills]);
@@ -685,7 +701,12 @@ function GreenRadiusGame({ palette }) {
   if (phase === 'done') {
     const year = new Date().getFullYear();
     const email = (camp.email || '').trim();
-    const needsRetry = submitState === 'error' || (submitResult && submitResult.email !== 'sent');
+    // The row itself didn't go through (network/5xx, or the Worker reported
+    // sheet:'err') — independent of whether the email happened to send.
+    const showRetry = submitState === 'error' || (submitResult && submitResult.sheet !== 'ok');
+    // The row landed but the email didn't (or the player wants to fix a typo
+    // after a full success) — offer the editable address + Resend.
+    const emailNeedsFix = !!submitResult && submitResult.sheet === 'ok' && submitResult.email !== 'sent';
 
     const handleShare = () => shareResultCard({
       pngBlob: cardPngRef.current, campName: camp.campName, total: totalYesAll, url: resultUrl, setCopied,
@@ -695,12 +716,14 @@ function GreenRadiusGame({ palette }) {
       try { await downloadSvgAsPng(cardSvgRef.current, cardFilename(camp.campName)); } catch {}
     }
     function handleRetry() {
+      trackEvent('submit_retry', { mode: mode === 'form' ? 'form' : 'board' });
       setSubmitResult(null);
-      runSubmit(); // bumps the generation token, re-runs the POST
+      runSubmit(); // bumps the generation token, re-runs the POST with the same nonce
     }
     function handleResend() {
       const e = emailDraft.trim();
       if (!isValidEmail(e)) return; // ignore an obviously bad address
+      trackEvent('email_resend', { mode: mode === 'form' ? 'form' : 'board' });
       setCamp(c => ({ ...c, email: e }));
       setEditingEmail(false);
       setSubmitResult(null);
@@ -747,17 +770,17 @@ function GreenRadiusGame({ palette }) {
         <div role="status" aria-live="polite" style={{ marginBottom: 16, color: palette.text, fontSize: 14, lineHeight: 1.5 }}>
           {submitState === 'sending'
             ? <>Emailing your results to <strong>{email}</strong>…</>
-            : submitState === 'error'
-              ? <>We couldn't reach the server, but your card is safe. Download it or copy the share link below, then tap Try Again.</>
-              : submitResult && submitResult.email !== 'sent'
-                ? <>You're in the community tally, but the email didn't go through. Download your card or copy the share link below.</>
+            : showRetry
+              ? <>Your result didn't go through. Tap to try again.</>
+              : emailNeedsFix
+                ? <>Didn't get the email? Resend it, or fix your address.</>
                 : <>{greenUpSteps(sectors, answers, customNotes).length
                     ? <>Your result and Green-Up Plan are in your inbox at <strong>{email}</strong>.</>
                     : <>Results sent to <strong>{email}</strong>.</>} Not there? Check spam.</>}
         </div>
 
         {submitState !== 'sending' && (
-          editingEmail ? (
+          (editingEmail || emailNeedsFix) ? (
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               <input
                 type="email" value={emailDraft} onChange={e => setEmailDraft(e.target.value)}
@@ -770,9 +793,11 @@ function GreenRadiusGame({ palette }) {
                 style={{ padding: '0 16px', borderRadius: 10, border: 'none', background: palette.accentDark, color: '#fff',
                   fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
                   cursor: emailDraftOk ? 'pointer' : 'default', opacity: emailDraftOk ? 1 : 0.5, minHeight: 44 }}>Resend</button>
-              <button onClick={() => setEditingEmail(false)} aria-label="Cancel editing email"
-                style={{ padding: '0 12px', borderRadius: 10, border: `1.5px solid ${palette.text}22`, background: 'transparent',
-                  color: palette.text, fontSize: 16, cursor: 'pointer', minHeight: 44 }}>✕</button>
+              {!emailNeedsFix && (
+                <button onClick={() => setEditingEmail(false)} aria-label="Cancel editing email"
+                  style={{ padding: '0 12px', borderRadius: 10, border: `1.5px solid ${palette.text}22`, background: 'transparent',
+                    color: palette.text, fontSize: 16, cursor: 'pointer', minHeight: 44 }}>✕</button>
+              )}
             </div>
           ) : (
             <button onClick={() => { setEmailDraft(email); setEditingEmail(true); }}
@@ -803,7 +828,7 @@ function GreenRadiusGame({ palette }) {
           </button>
         </div>
 
-        {needsRetry && (
+        {showRetry && (
           <button onClick={handleRetry} disabled={submitState === 'sending'}
             style={{ marginTop: 12, width: '100%', padding: '13px 0', borderRadius: 12,
               border: 'none', background: '#C4483B', color: '#fff',

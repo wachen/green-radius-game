@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
-import worker, { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, accessJwtEmail, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, shapeAdminRows, computeCityBody, runSheetBackup, rowsToCsv } from '../worker/index.js';
+import worker, { sheetCell, safeResultUrl, originAllowed, verifyAccessJwt, accessJwtEmail, headlineEmailHtml, headlineEmailText, greenUpEmailText, buildEmailText, sendEmail, handleClientError, handleEvent, shapeAdminRows, computeCityBody, runSheetBackup, rowsToCsv } from '../worker/index.js';
 import GameData from '../game-data.js';
 import AdminAggregate from '../admin/aggregate.js';
 
@@ -358,6 +358,38 @@ describe('handleClientError', () => {
     expect(evt.source.length).toBe(300);
     expect(evt.path.length).toBe(200);
     expect(evt.version.length).toBe(32);
+  });
+});
+
+describe('handleEvent submit_retry/email_resend allowlist', () => {
+  function req(event) {
+    return new Request('https://greenradi.us/api/event', {
+      method: 'POST',
+      headers: { Origin: 'https://greenradi.us' },
+      body: JSON.stringify({ event, mode: 'board' }),
+    });
+  }
+
+  test('submit_retry is accepted and logged, not silently dropped', async () => {
+    const originalLog = console.log;
+    let logged;
+    console.log = (line) => { logged = line; };
+    try {
+      const res = await handleEvent(req('submit_retry'));
+      expect(res.status).toBe(204);
+    } finally { console.log = originalLog; }
+    expect(JSON.parse(logged)).toMatchObject({ type: 'funnel_event', event: 'submit_retry', mode: 'board' });
+  });
+
+  test('email_resend is accepted and logged, not silently dropped', async () => {
+    const originalLog = console.log;
+    let logged;
+    console.log = (line) => { logged = line; };
+    try {
+      const res = await handleEvent(req('email_resend'));
+      expect(res.status).toBe(204);
+    } finally { console.log = originalLog; }
+    expect(JSON.parse(logged)).toMatchObject({ type: 'funnel_event', event: 'email_resend', mode: 'board' });
   });
 });
 

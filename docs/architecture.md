@@ -116,7 +116,11 @@ play game / form  →  done screen  ─┬─►  result-state.encode()  →  /r
      (plain `'yes'/'no'` entries aren't note-gated). **`nonce`** is a per-submission
      idempotency id (client-minted UUID, persisted in the save as an additive key so
      a reload mid-POST replays with the SAME value; Try Again reuses it, "edit &
-     resend" mints a fresh one). The Worker bounds it like `campId`, forwards it
+     resend" mints a fresh one (Resend's idempotency key is keyed on the nonce, so
+     replaying the same one either can't deliver a corrected address or can't
+     redeliver at all, so a fresh nonce is required for that send to actually go
+     out; a fresh nonce may add a second sheet row with the corrected email,
+     accepted since admin dedup merges by campId). The Worker bounds it like `campId`, forwards it
      **top-level** on the Apps Script row (the dedupe hook — an older script just
      ignores the extra field) and sets it as the Resend **`Idempotency-Key`**
      (`grg/<nonce>`), so a replayed POST can't double-send the email even before the

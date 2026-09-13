@@ -14,7 +14,7 @@ const ALLOWED_ORIGIN = 'https://greenradi.us';
 
 // Funnel analytics: the only event names POST /api/event will record. Anything
 // else is silently dropped so a stray/forged name can't stuff Workers Logs.
-const ALLOWED_EVENTS = new Set(['game_started', 'mode_chosen', 'submit_attempted', 'submit_succeeded', 'submit_failed', 'result_resumed', 'intro_engaged', 'intro_blocked']);
+const ALLOWED_EVENTS = new Set(['game_started', 'mode_chosen', 'submit_attempted', 'submit_succeeded', 'submit_failed', 'result_resumed', 'intro_engaged', 'intro_blocked', 'submit_retry', 'email_resend']);
 
 // The only values intro_blocked may report in `missing`: names of the required
 // intro fields that were empty or invalid. Field NAMES only, never the values a
@@ -157,7 +157,7 @@ async function handleComplete(request, env) {
 // allowlist, and coarse non-PII props only (mode, sector count) — never emails,
 // camp names, or free text. Writes one structured line to Workers Logs and 204s.
 // Every non-forbidden outcome returns 204 so a beacon never surfaces an error.
-function handleEvent(request) {
+export function handleEvent(request) {
   const origin = request.headers.get('Origin') || '';
   const isLocalhost = /^http:\/\/localhost(:\d+)?$/.test(origin);
   if (origin !== ALLOWED_ORIGIN && !isLocalhost) return new Response(null, { status: 403 });

@@ -10,6 +10,11 @@ and `#NN` refer to the same release. Entries are grouped newest-first by milesto
 
 ## 2027 prep: freeze the season, harden for next year (#115–)
 
+- Done screen surfaces a failed submit ("Your result didn't go through. Tap to
+  try again.") with a Retry that replays the same nonce, and always offers
+  "Didn't get the email? Resend it, or fix your address." with an editable
+  address and a Resend that mints a fresh nonce so the email really goes out
+  again. New `submit_retry` and `email_resend` funnel events (#117)
 - Freeze the 2026 season: roadmap truth-up (the August-shipped Approved items
   and #103 through #113 move to Recently done; the 2027-prep batch is the new
   Approved list), a Season rollover runbook in `docs/admin-setup.md` (new yearly
