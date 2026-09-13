@@ -15,8 +15,8 @@ at 3 and submit_succeeded at 1 for the week.
 ## Funnel
 
 - **Start-to-complete conversion climbed steadily pre-Burn**: 24% to 30% to
-  33% to 36% across four weekly pulls (weeks to 2026-08-15/17/19/20), the
-  best week being the final pre-Burn week.
+  33% to 36% across four weekly pulls (weeks to 2026-07-30, 2026-08-15,
+  2026-08-17, and 2026-08-20), the best week being the final pre-Burn week.
 - **Intro drop-off was the biggest leak**: in the Aug 3-10 window, 74 mode
   picks produced only 15 starts, an 80% drop between picking a mode and
   actually starting the game.

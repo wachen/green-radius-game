@@ -380,10 +380,11 @@ outside this repo except the last two steps.
    row lands, the public tally should reflect the new sheet and not blend
    with the prior season's numbers.
 9. **In the repo:** remove `MapBanner` from `src/home.jsx` (the permanent
-   post-Burn map banner, #114); bump `STORAGE_VERSION` in `src/core.jsx` if
-   the question set changed (see the year-keyed content note in
-   `CONTRIBUTING.md` once that lands) so a half-finished save from the
-   previous season doesn't resume into the new one.
+   post-Burn map banner, #114); if the question set changed, key
+   `game-data.js` sets by year and keep the prior season's set intact so old
+   result links still decode against the questions they were played on, and
+   bump `STORAGE_VERSION` in `src/core.jsx` in the same PR so a half-finished
+   save from the previous season doesn't resume into the new one.
 
 Read this file's earlier sections before rolling over a season. The column
 order, the `SHARED_SECRET` property name, and the deployment steps above must

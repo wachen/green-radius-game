@@ -12,29 +12,25 @@ review findings are closed except where listed below.
 
 ## Approved — build next, in this order
 
-_Approved 2026-09-12 as the 2027-prep batch; Task-1 ships item 5 (this PR)._
+_Approved 2026-09-12 as the 2027-prep batch; Task-1 ships item 4 (this PR)._
 
-1. **Year-keyed question content** (new · med) — give `game-data.js` a year key
-   and archive the current set when BLAST 2027 content lands, instead of
-   overwriting; old result links keep decoding against the question set they
-   were actually played on.
-2. **Nightly sheet backup** (new · med) — the Google Sheet is the only datastore;
+1. **Nightly sheet backup** (new · med) — the Google Sheet is the only datastore;
    one accidental deletion or Apps Script mishap loses every response ever
    submitted. A scheduled Worker cron pulls the admin feed and stores a dated CSV
    snapshot (R2 free tier, or simply emailed to the owner via Resend). Cheap
    insurance for irreplaceable data.
-3. **Year-over-year ghost ring** (FE-6 · med) — "paste last year's result link"
+2. **Year-over-year ghost ring** (FE-6 · med) — "paste last year's result link"
    draws a dashed last-year arc + per-sector deltas. Zero migration (the emailed
    result link is the durable record). Build now, pays off at BLAST 2027.
-4. **Surface and retry failed submits** (new · small-med) — `/api/complete` is
+3. **Surface and retry failed submits** (new · small-med) — `/api/complete` is
    best-effort and returns `{ sheet, email }`, but the done screen never tells the
    player when a leg failed; on playa connectivity that means silently lost rows
    and missing keepsake emails. Show a gentle "didn't go through — try again"
    state with a retry button (the R4 nonce already makes replays safe). A
    "didn't get the email? resend, or correct your address" affordance ships in
-   the same PR — an email typo is invisible today: the player just never
+   the same PR. An email typo is invisible today: the player just never
    receives their result link, and the link is the durable record.
-5. **Bus-factor / break-glass doc** (SG · small, mostly owner-side) — secrets and
+4. **Bus-factor / break-glass doc** (SG · small, mostly owner-side) — secrets and
    the Cloudflare/Resend/Google accounts are single-holder; HSTS means the site
    can't be casually retired. Document succession or add a co-owner.
 
@@ -89,6 +85,11 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 - **Printable camp poster** (new · med) — a letter-size printable ("Our Green
   Radius" wheel + camp name + QR) generated from a result, for camps to post at
   their frontage; extends the share card into the physical playa.
+- **Year-keyed question content** (new · med) (deferred 2026-09-12: do it when
+  2027 content lands, not before) — give `game-data.js` a year key and archive
+  the current set when BLAST 2027 content lands, instead of overwriting; old
+  result links keep decoding against the question set they were actually
+  played on.
 - **Post-burn retrospective loop** (new · large) — after the burn, an email
   invites camps to a short "how did it actually go?" pass over the same sectors,
   rendering pledge-vs-reality on the wheel. Strong story for GTCC, but a real
@@ -136,7 +137,9 @@ _(ordered by descending importance; `new` = brainstormed 2026-07-16)_
 - **Season rollover**: when the 2027 season opens, follow the runbook in
   `docs/admin-setup.md`'s "Season rollover" section for the new yearly
   sheet, fresh Apps Script deployment, and re-pointed `SHEETS_WEBAPP_URL`
-  secret.
+  secret. When the 2027 question set lands, key `game-data.js` sets by year
+  and keep the 2026 set intact so old result links still decode against the
+  questions they were played on; bump `STORAGE_VERSION` in the same PR.
 
 ## Shelved — do not build without an explicit ask
 
